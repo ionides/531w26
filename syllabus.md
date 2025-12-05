@@ -100,14 +100,22 @@ Statistical computing background:
 ##  Grading
 
 * Weekly homeworks (20\%, graded following a [rubric](rubric_homework.html)). 
-* A group midterm project (20\%, due 11:59pm on Friday 2/21). In special situations, you can request to write an individual project for the midterm and/or the final project. This may be appropriate if you have a particular dataset or scientific question that has motivated your interest in learning time series analysis. You can also ask your group if it is willing to join collaboratively on your project to make it a group project.
-* Two individual anonymous peer review evaluations of other group midterm projects (5%, due 11:59pm on Friday 2/28). Each should be about 500 words, and should identify the main strengths and weaknesses of the project (from both technical and conceptual perspectives) as well as identifying points with room for improvement. The reviews should include discussion relating to reproducibility of the project's numerical results.
-* A group final project (30%, due 11:59pm on Tuesday 4/22).
-* Two individual anonymous peer review evaluations of other group final projects (10\%, due 11:59pm on Wednesday 4/30). Each should be at least 500 words, and should identify the main strengths and weaknesses of the project (from both technical and conceptual perspectives) as well as identifying points with room for improvement. The reviews should include discussion relating to reproducibility of the project's numerical results.
+* A group midterm project (20\%, due 11:59pm on Friday 2/20). In special situations, you can request to write an individual project for the midterm and/or the final project. This may be appropriate if you have a particular dataset or scientific question that has motivated your interest in learning time series analysis. You can also ask your group if it is willing to join collaboratively on your project to make it a group project.
+* Two individual anonymous peer review evaluations of other group midterm projects (5%, due 11:59pm on Friday 2/27), each about 500 words long.
+Identification of strengths and weaknesses in the technical details is of primary importance, but comments on matters of style, organization and presentation are also welcome.
+The reviews should include discussion relating to reproducibility of the project's numerical results.
+* A group final project (30%, due 11:59pm on Tuesday 4/21).
+* Two individual anonymous peer review evaluations of other group final projects (10\%, due 11:59pm on Wednesday 4/30), each about 500 words long.
+Identification of strengths and weaknesses in the technical details is of primary importance, but comments on matters of style, organization and presentation are also welcome.
+The reviews should include discussion relating to reproducibility of the project's numerical results.
 * Participation (5%). Students are expected to help with building a learning community where we support each other by asking and answering questions. Half the participation credit will be awarded for quality and quantity of posts on the class Piazza discussion forum.
 The other half will be awarded for responding to in-class feedback questions; typically single-question Canvas quizzes that do not require any preparation.
-* Two quizzes (5% each), in class on Monday 2/17  and Wednesday 4/16.
+* Two quizzes (5% each), in class on Monday 2/16  and Wednesday 4/15.
 * Course letter grades are anticipated to be mostly in the A, A-, B+ range customary for courses at this level. In the past, this has corresponded to overall scores of approximately 95% for A+, 90% for A, 85% for A-, 80% for B+. However, the exact cutoff used will be determined in the context of the course for this specific semester.
+
+### The use of AI
+
+
 
 ### Grading credit for attribution of sources
 

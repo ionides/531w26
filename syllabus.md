@@ -12,10 +12,9 @@ Course components will include:
 
 * classes Mon/Wed, 2:30-4:00 p.m. in WEIS 260
 * homework
-* [Piazza discussion forum](https://piazza.com/umich/winter2026/stats531)
 * group midterm project, with individual peer review
 * group final project, with individual peer review
-* two in-class quizzes
+* two in-class midterm exams
 * For [631](631) only, weekly discussion of a research paper
 
 Instructor contact information:
@@ -30,7 +29,7 @@ GSI: Aaron Abkemeier
 * office hours: Tue, 4:30-6:00 PM, and Friday, 3:00-4:30 PM. Angell Hall, Room G219.
 
 
-Computing support. If you have a coding problem you cannot debug, it is often helpful to develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain, with your group and/or on Piazza, or by email if necessary.
+Computing support. If you have a coding problem you cannot debug, first try aksing AI and internet search and your colleagues. If the problem persists, develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain.
 
 Course notes and lectures are posted at https://ionides.github.io/531w26/ with source files available at https://github.com/ionides/531w26
 
@@ -99,39 +98,53 @@ Statistical computing background:
 
 ##  Grading
 
-* Weekly homeworks (20\%, graded following a [rubric](rubric_homework.html)). 
+* Weekly homeworks (15\%, graded following a [rubric](rubric_homework.html)). 
 * A group midterm project (20\%, due 11:59pm on Friday 2/20). In special situations, you can request to write an individual project for the midterm and/or the final project. This may be appropriate if you have a particular dataset or scientific question that has motivated your interest in learning time series analysis. You can also ask your group if it is willing to join collaboratively on your project to make it a group project.
 * Two individual anonymous peer review evaluations of other group midterm projects (5%, due 11:59pm on Friday 2/27), each about 500 words long.
 Identification of strengths and weaknesses in the technical details is of primary importance, but comments on matters of style, organization and presentation are also welcome.
 The reviews should include discussion relating to reproducibility of the project's numerical results.
 * A group final project (30%, due 11:59pm on Tuesday 4/21).
-* Two individual anonymous peer review evaluations of other group final projects (10\%, due 11:59pm on Wednesday 4/30), each about 500 words long.
+* Two individual anonymous peer review evaluations of other group final projects (8\%, due 11:59pm on Wednesday 4/30), each about 500 words long.
 Identification of strengths and weaknesses in the technical details is of primary importance, but comments on matters of style, organization and presentation are also welcome.
 The reviews should include discussion relating to reproducibility of the project's numerical results.
-* Participation (5%). Students are expected to help with building a learning community where we support each other by asking and answering questions. Half the participation credit will be awarded for quality and quantity of posts on the class Piazza discussion forum.
-The other half will be awarded for responding to in-class feedback questions; typically single-question Canvas quizzes that do not require any preparation.
-* Two quizzes (5% each), in class on Monday 2/16  and Wednesday 4/15.
+* Participation (2%). In-class feedback questions; typically single-question Canvas quizzes that do not require any preparation.
+* Two midterms (10% each), in class on Monday 2/16  and Wednesday 4/15.
 * Course letter grades are anticipated to be mostly in the A, A-, B+ range customary for courses at this level. In the past, this has corresponded to overall scores of approximately 95% for A+, 90% for A, 85% for A-, 80% for B+. However, the exact cutoff used will be determined in the context of the course for this specific semester.
 
-### The use of AI
+### Learning goals and the roles of AI
+
+1. Learn to carry out a time series analysis using linear time series models in a situation where these are appropriate. The target is to write a midterm report that carries out a comprehensive, well-motivated and clearly explained data investigation.
+
+2. Learn to carry out inference for a scientifically-motivated stochastic dynamic model using time series data. The target is to write a final report that carries out a comprehensive, well-motivated and clearly explained data investigation, usually involving inference for a nonlinear partially observed Markov process model.
+
+3. Learn how to critically evaluate the strengths and weaknesses of a time series data analysis. This is carried out via peer review of midterm and final projects done by other groups.
+
+4. Learn how to use AI to support practical applied statistics research in the context of writing and evaluating data analysis.
+
+5. Learn how to follow scientific standards for citation of references, credit to sources, and construction of reproducible data analysis embedded in a scientific report. 
+
+6. Build sufficient understanding of time series theory and methods to take full responsibility for decisions and choices made during data analysis, whether or not AI is involved.
+
+To assess your progress at 6, there will be a mini-quiz in each class and two in-class midterm exams.
+
+Practical skills for (1-5) will be trained via weekly homework. Homework will also help train for (6). Homework questions will clearly state which parts are considered foundational knowledge that may be tested in a paper exam.
+
+Homework will not be graded for correctness. Answers are available online, even before the solutions are posted. Hints are available from GenAI. Homework will be graded based on completion and scholarship. 
 
 
+### Grading credit for scholarship
 
-### Grading credit for attribution of sources
+**Demonstrated effort**. It is the student's responsibility to convince the grader that thought has gone into the homework.
+If the solutions look too close to a source, or to GenAI output, the student should anticipate that and
 
-Careful attribution of sources is fundamental to good scholarship.  The grader will look for demonstrated effort in submitted homework, with contributions that go beyond the sources.
 
-+ Each homework will have points for scholarship, which mostly means clarifying sources (or the lack of sources). You will be asked to explain which parts of your responses above made use of a source, meaning anything or anyone you consulted (including classmates or office hours or any website you visited) to help you write or check your answers. **All sources are permitted. Every source must be documented. Full credit requires being explicit about which parts you did without any collaboration or other source, as well as being explicit about which parts used or did not use each listed source.**
-
-+ You should study the [posted rubric](rubric_homework.html) to undertand how your homework will be graded. 
-
-+ The midterm and final project will also have a substantial grading component allocated to clear and scholarly assignment of credit to sources.
-
-+ In group work, you are responsible for checking that the sources of your collaborators are properly documented. The whole group must take responsibility for material that the group submits. 
-
-### The use of generative artificial intelligence (GenAI)
+** Attribution of sources**.
 
 + GenAI is a source. You are welcome to use it, but its role must be credited. Also, note that current GenAI can write poorly in some situations. You should be careful to edit and error-check any material written using GenAI. You take full responsibility for work submitted under your name.
+
++ Explaining how you used GenAI can also be part of your "demonstrated effort."
+
++ In group work, you are responsible for checking that the sources of your collaborators are properly documented. The whole group must take responsibility for material that the group submits. 
 
 ----
 

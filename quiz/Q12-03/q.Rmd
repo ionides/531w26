@@ -1,0 +1,25 @@
+
+The Heston model for volatility, $V_n$, is a stochastic volatility (SV) model with
+$$V_n = (1-\phi) \theta +\phi V_{n-1}+\sqrt{V_{n-1}}\, \omega_n,$$
+for $\omega_n\sim N[0,\sigma_\omega^2]$.
+The log return is $Y_n\sim N[0,V_n]$, conditional on $V_n$.
+A previous 531 project ([W22, #14](https://ionides.github.io/531w22/final_project/project14/Blinded.html)) fitted the Heston model to investment in Ethereum, a crypto currency.
+They obtained a log-likelihood of 34975.3, compared to 28587.4 for GARCH and 28977 for the SV model with leverage presented in class.
+Their iterated filtering convergence diagnostics are shown in figure \ref{mif-diagnostics-heston-w22-project14}.
+What is the best conclusion from this information?
+
+![Diagnostic plot for fitting the Heston model\label{mif-diagnostics-heston-w22-project14}](data/mif-diagnostics-heston-w22-project14.png)
+
+**A**. The high likelihood shows this is a promising model despite the convergence problems identified in the figure. Attention to the diagnostics may lead to additional improvements.
+
+**B**. The most important diagnostic feature is the observation that the log-likelihood trace plot peaks and then declines. From the y-axis scale we see the decline is of order 1000 log units. This is evidence of substantial model misspecification which should be addressed.
+
+**C**. The most important dignostic feature is that the `theta` traces all drop quickly to zero. Since that is not a scientifically plausible value for the parameter, we can deduce that the model is unsuccessful despite its high likelihood.
+
+**D**. The most important diagnostic feature is that `phi` is close to zero and well identified. This shows that the volatility is close to constant, and is supported by the high likelihood.
+
+**E**. The decreasing likelihood and other convergence diagnostics problems show there is a problem with the model. Likely, there is a bug and the high likelihood obtained is simply an error.
+
+
+
+

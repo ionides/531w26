@@ -1,0 +1,54 @@
+
+Which of the following linear Gaussian POMP model have an observable variable $Y_{n}$ with distribution matching an ARMA(1,1) model? Here, $\epsilon_n$ and $\eta_n$ are Gaussian white noise. $X_n$ is 1-dimensional in (1) and 2-dimensional in (2) and (3).
+
+**A**. Only (M3)\
+**B**. (M1) and (M2) but not (M3)\
+**C**. (M2) and (M3) but not (M1)\
+**D**. (M1) and (M3) but not (M2)\
+**E**. (M1), (M2) and (M3)
+
+\begin{equation}
+\nonumber
+\left.
+\begin{array}{rcl}
+  X_n &=& a X_{n-1} + \epsilon_n \\
+  Y_n &=& X_n + \eta_n
+\end{array} \hspace{3.5cm}
+\right\}
+\hspace{1cm}
+(M1)
+\end{equation}
+\begin{equation}
+\nonumber
+\left.
+\begin{array}{rcl}
+  X_n &=&
+    \left(\begin{array}{cc} a & 1 \\ 0 & 0 \end{array}\right)
+    X_{n-1} +
+    \left(\begin{array}{cc} 0 \\ 1 \end{array}\right)
+    \epsilon_n \\
+  Y_n &=&  (1, 0) \, X_n + \eta_n
+\end{array} \hspace{1cm}
+\right\}
+\hspace{1cm}
+(M2)
+\end{equation}
+\begin{equation}
+\nonumber
+\left.
+\begin{array}{rcl}
+X_n &=&
+  \left(\begin{array}{cc} a & 1 \\ 0 & 0 \end{array}\right)
+  X_{n-1} +
+  \left(\begin{array}{cc} 1 \\ b \end{array}\right)
+  \epsilon_n \\
+Y_n &=&  (1, 0) \, X_n
+\end{array} \hspace{1cm}
+\right\}
+\hspace{1cm}
+(M3)
+\end{equation}
+
+
+
+

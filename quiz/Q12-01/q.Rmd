@@ -1,0 +1,14 @@
+
+A generalized autoregressive conditional heteroskedasticity (GARCH) model has $Y_n = \sigma_n Z_n$ where $Z_n\sim\mathrm{i.i.d. }N(0,1)$ and
+$$\sigma^2_n = \alpha_0 + \sum_{i=1}^p \alpha_i Y_{n-i}^2 + \sum_{j=1}^q \beta_j \sigma_{n-j}^2.$$
+For data $y_{1:N}^*$, residuals may be defined by $r_n = Y_n/\hat\sigma_n$ where $\hat\sigma_n$ is an estimate of $\sigma_n$.
+Suppose that we fit a GARCH model to the log-returns of a financial time series, and we find that the sample ACF of $r_{1:N}$ is consistent with white noise (e.g., [531W24 final project #7](https://ionides.github.io/531w24/final_project/project07/blinded.html)). 
+What is the best inference from the residual ACF about the success of the GARCH model for these data?
+
+**A**. This supports the use of GARCH over ARMA. That is not especially surprising, since it is true for essentially all financial time series, but it is good to check.\
+**B**. A fitted ARMA model is also anticipated to have a residual ACF consistent with white noise. The problem with the ARMA model for financial data is not residual autocorrelation.\
+**C**. We should also make a normal quantile plot of the residuals. If the residuals are approximately normal then the ACF plot becomes more trustworthy as a test for lack of correlation. If the residuals are far from normal, we should not draw conclusions from the sample ACF.\
+**D**. GARCH aims to fix the problem of conditional heteroskedasticity in financial data that ARMA cannot explain. However, fixing this might break the negligible autocorrelation that is critical for the efficient market hypothesis. It is good to see that we can fix conditional heteroskedasticity while remaining compatible with the efficient market hypothesis.
+
+
+

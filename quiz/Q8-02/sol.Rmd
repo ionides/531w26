@@ -1,0 +1,47 @@
+
+\color{blue}
+
+**Solution**. E\
+One way to see (M1) is to calculate in the frequency domain, noting that two stationary Gaussian time series models with the same spectrum are necessarily equal.
+$X_n$ is AR(1) and so has spectrum $\sigma^2_\epsilon/|1-a \exp{i\omega}|^2 = \sigma^2_\epsilon/(1+a^2-2a\cos(\omega))$. $\eta_n$ has spectrum $\sigma^2_\eta$, and so $Y_n$ has spectrum
+\begin{eqnarray}
+\sigma^2_\eta + \frac{\sigma^2_\epsilon}{1+a^2-2a\cos(\omega)}
+&=& \frac{\sigma^2_\eta(1+a^2)+\sigma^2_\epsilon - 2a\sigma^2_eta\cos(\omega)}{
+1+a^2-2a\cos(\omega)}
+\\
+&=&
+ \sigma^2 \frac{(1+b^2)- 2b\cos(\omega) }{1+a^2-2a\cos(\omega)}
+\end{eqnarray}
+where $\sigma$ and $b$ solve
+\begin{eqnarray}
+\sigma^2 (1+b^2) &=& \sigma^2_\eta(1+a^2)+\sigma^2_\epsilon,
+\\
+\sigma^2 b &=& a\sigma^2_\eta
+\end{eqnarray}
+Another way to show (M1) is to substitute $X_n = Y_n -\eta_n$ into $X_n = aX_{n-1}+\epsilon_n$ to get
+\begin{eqnarray}
+Y_n - \eta_n &=& a (Y_{n-1} - \eta_{n-1}) + \epsilon_n,
+\\
+Y_n - a Y_{n-1} &=& -a\eta_{n-1} + \eta_n + \epsilon_n.
+\end{eqnarray}
+Notice that this is equivalent to writing
+\begin{equation}
+Y_n - a Y_{n-1} = \psi \xi_{n-1} + \xi_n,
+\end{equation}
+where $\var(\xi_n)=\var(\eta_n)+\var(\epsilon_n)$ and $\psi$ is chosen so that
+\begin{equation}
+\cov(\psi \xi_{n-1},\xi_{n-1}) = \psi \var(\xi_n) = \cov(-a\eta_{n-1}, \eta_{n-1} + \epsilon_{n-1}) = -a \var(\eta_n).
+\end{equation}
+This calculation checks that the Gaussian model $U_n =  -a\eta_{n-1} + \eta_n + \epsilon_n$ has the same autocovariance as $V_n = \psi\xi_{n-1} + \xi_n$ and so the two models are statisticall indistinguishable.
+
+(M2) is the same set of equations as (M1), as seen by setting $X_n^\prime = \left(\begin{array}{c} X_n \\ \epsilon_n \end{array}\right)$.
+
+(M3) is the ARMA(1,1) case of the LG-POMP representation of a general ARMA model givein in Chapter 11. Specifically, set $X_n = \left(\begin{array}{c} Y_n \\ b \epsilon_n \end{array}\right)$, and see that the process model becomes
+\begin{equation}\nonumber
+\left(\begin{array}{c} Y_n \\ b \epsilon_n \end{array}\right)
+=
+\left(\begin{array}{c} a Y_{n-1} + b\epsilon_{n-1} + \epsilon_n \\ b \epsilon_n \end{array}\right).
+\end{equation}
+
+\color{black}
+

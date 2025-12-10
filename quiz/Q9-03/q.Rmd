@@ -1,0 +1,19 @@
+
+Effective sample size (ESS) is one of the main tools for diagnosing the success of a particle filter.
+If you plot an object of class `pfilterd_pomp` (created by applying `pfilter` to a pomp object), the ESS is displayed.
+Suppose one or more time points have low ESS (say, less than 10) even when using a fairly large number of particles (say, $10^4$).
+What is the proper interpretation?
+
+**A**. There is a problem with data, perhaps an error recording an observation.\
+**B**. There is a problem with the model which means that it cannot explain something in the data.\
+**C**. The model and data have no major problems, but the model happens to be problematic for the particle filter algorithm.\
+**D**. At least one of A, B, and C.\
+**E**. Either A or B or both, but not C. If the model fits the data well, the particle filter is guaranteed to work well. 
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

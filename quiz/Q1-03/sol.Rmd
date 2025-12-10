@@ -1,0 +1,8 @@
+
+\color{blue}
+
+**Solution**. A.\
+The ADF test has a null hypothesis of a unit root linear model and an alternative of a stationary linear model, so neither of these describes a nonlinear trend. Here, the role of the COVID-19 pandemic is large enough that it does not make much sense to build a model that omits it, or describes it as a large perturbation of a stationary process. The conventional interpretation of the ADF test is option B (we reject the unit root hypothesis, and so we are invited to fit a stationary model). Here, a nonlinear trend (which is neither a unit root nor a stationary model) makes sense.
+
+\color{black}
+

@@ -1,0 +1,25 @@
+
+![Iterated filtering diagnostic plot \label{mif-diagnostics-gamestop-winter21-project6}](data/mif-diagnostics-gamestop-winter21-project6.png "Iterated filtering diagnostics")
+
+The iterated filtering convergence diagnostics in figure \ref{mif-diagnostics-gamestop-winter21-project6} come from a [student project investigating the market value of Gamestop](https://ionides.github.io/531w21/final_project/project06/blinded.html). What is the best interpretation?
+
+**A**.  Everything seems to be working fine.
+  The likelihood is climbing. The replicated searches are giving consistent runs.
+  The spread of convergence points for $\sigma_{\nu}$ and $H_0$ indicates weak identifability, which is a statistical fact worth noticing but not a weakness of the model.
+  
+**B**. The consistently climbing likelihood is promising, but the failure of $\sigma_{\nu}$ and $H_0$ to converge needs attention.
+  Additional searching is needed, experimenting with **larger** values of the random walk perturbation standard deviation for these parameters to make sure the parameter space is properly searched.
+  
+**C**. The consistently climbing likelihood is promising, but the failure of $\sigma_{\nu}$ and $H_0$ to converge needs attention. Additional searching is needed, experimenting with **smaller** values of the random walk perturbation standard deviation for these parameters to make sure the parameter space is properly searched.
+
+**D**.  The consistently climbing likelihood is promising, but the failure of $\sigma_{\nu}$ and $H_0$ to converge needs attention. This indicates weak identifiability which cannot be solved by improving the searching algorithm. Instead, we should change the model, or fix one or more parameters at scientifically plausible values, to resolve the identifiability issue before proceeding.
+
+**E**. Although the log likelihood seems to be climbing during the search, until the convergence problems with $\sigma_{\nu}$ and $H_0$ have been addressed we should not be confident about the successful optimization of the likelihood function or the other parameter estimates. 
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

@@ -1,0 +1,30 @@
+
+A generalized autoregressive conditional heteroskedasticity (GARCH) model has $Y_n = \sigma_n Z_n$ where $Z_n\sim\mathrm{i.i.d. }N(0,1)$ and $\sigma^2_n = \alpha_0 + \sum_{i=1}^p \alpha_i Y_{n-i}^2 + \sum_{j=1}^q \beta_j \sigma_{n-j}^2$.
+There are many extensions to GARCH implemented by various R packages.
+When comparing models by likelihood or AIC, care is required since packages do not always use standard definitions.
+What is the most reasonable interpretation of this table?
+```{r echo=TRUE,eval=FALSE}
+for (i in 1:p) {
+  for (j in 1:q) {
+    fit_garch <- tseries::garch(log_returns, order = c(i, j))
+    garch_table[i, j] <- tseries:::logLik.garch(fit_garch)
+  }
+}
+```
+
+|    |     q1   |     q2   |    q3    |   q4     |
+| ---| -------- | -------- | -------- | -------- |
+|p1  | 2646.277 | 2642.919 | 2620.280 | 2616.151 | 
+|p2  | 2644.417 | 2625.417 | 2622.460 | 2616.427 | 
+|p3  | 2641.804 | 2637.538 | 2625.953 | 2625.740 |
+|p4  | 2639.728 | 2629.869 | 2629.969 | 2628.345 |
+
+**A**. The positive values of the log-likelihood are implausible. Perhaps the software actually reports the negative log-likelihood since many optimizers are designed to minimize rather than maximize.\
+**B**. The models are nested and so a larger model should mathematically have a larger likelihood. In this table, the larger model usually has lower likelihood, so optimization is problematic.\
+**C**. This table would make more sense if `logLik` in fact returns an AIC value. The preferred model is $(p,q)=(1,4)$.\
+**D**. The preferred model is $(p,q)=(1,1)$ since it is both the simplest model and the one with the highest log-likelihood.\
+**E**. `tseries::garch` produces something that is not the likelihood of $y_{1:N}$ or the AIC, and so we cannot readily compare it between models.
+
+
+
+

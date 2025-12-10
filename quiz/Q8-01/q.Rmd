@@ -1,0 +1,29 @@
+
+Consider a model $Y_{1:N}$ for data $y_{1:N}^*$, with a latent variable $X_{0:N}$, and a statistical model defined by a joint density $f_{X_{0:N},Y_{1:N}}(x_{0:N},y_{1:N};\theta)$. The likelihood function is
+\begin{equation}
+\nonumber
+L(\theta) = f_{Y_{1:N}}(y_{1:N}^*;\theta).
+\end{equation}
+Are the following identities (A) true for all statistical models; (B) true for general POMP models but not all models; (C) true for linear Gaussian POMP models but not general POMP models; (D) generally false?
+Give a letter answer for each identity.
+
+
+\begin{equation}
+L(\theta)= \int f_{Y_{1:N}|X_{0:N}}(y_{1:N}^*|x_{0:N};\theta)\, f_{X_{0:N}}(x_{0:N};\theta)\, dx_{0:N} 
+\end{equation}
+
+\begin{equation}
+L(\theta)= \prod_{n=1}^N f_{Y_n|Y_{1:n-1}}(y^*_n|y^*_{1:n-1};\theta)
+\end{equation}
+
+\begin{equation}
+\var \big\{ X_{n+1} \, | \, Y_{1:n} \big\} = E \big[ \var \{ X_{n+1}\, |\, X_n \} \, \big| \, Y_{1:n} \big]
++ \var\big\{ E[X_{n+1}\, |\, X_{n}] \, \big| \, Y_{1:n}\big\}
+\end{equation}
+
+\begin{equation}
+L(\theta)= \int \left[ \prod_{n=1}^N f_{Y_{n}|X_{n}}(y_{n}^*|x_{n};\theta) \right] f_{X_{0:N}}(x_{0:N};\theta)\, dx_{0:N} 
+\end{equation}
+
+
+

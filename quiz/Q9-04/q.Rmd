@@ -1,0 +1,24 @@
+
+In a particle filter, a particle that is resampled $k$ times is said to be the parent of these $k$ children, The complete ancestry graph of all the particles is an evolutionary tree for the population of particles. Each filtering iteration corresponds to a generation of this population process. Darwinian evolution on populations occurs when individuals with the fittest phenotype reproduce more offspring for the next generation, and these children inherit the parent's genotype subject to mutation. 
+
+
+| Particle filter | Darwinian evolution |
+| --------------- | ------------------- |
+| (1) Prediction step: simulation | (a) Genotype |
+| (2) Filtering step: resampling  | (b) Fitness |
+| (3) State value, $X_{n,j}$      | (c) Mutation |
+| (4) Measurement density, $f_{Y_n|X_n}(y_n^*|X_{n,j})$ | (d) Reproduction |
+
+What is the pairing between the particle filter concepts (numbers 1--4) and the analogous evolutionary concepts (letters a--d).
+
+**A**. (1a) (2b) (3c) (4d)\
+**B**. (1b) (2a) (3c) (4d)\
+**C**. (1c) (2d) (3a) (4b)\
+**D**. (1d) (2c) (3a) (4b)\
+**E**. A combination not listed above.
+
+
+
+
+
+

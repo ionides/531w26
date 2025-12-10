@@ -1,0 +1,12 @@
+
+\color{blue}
+
+**Solution**. E.\
+The AIC for each model $k\in\{0,1\}$ is $AIC_k = -2\ell_k + 2_{D_k}$, where $\ell_k$ is the log-likelihood for $M_k$ and $D_k$ is the number of parameters. Thus,
+$AIC_0-AIC_1 = 2(\ell_1-\ell_0) - 2 = 0.5$, and so $ 2(\ell_1-\ell_0)=2.5$.
+Under $M_0$, according to Wilks' approximation,
+$$ 2(\ell_1-\ell_0) \sim \chi^2_1.$$
+Therefore, the p-value is $P(\chi^2_1 > 2.5) = 0.11$.
+
+\color{black}
+

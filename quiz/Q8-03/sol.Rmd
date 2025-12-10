@@ -1,0 +1,17 @@
+
+\color{blue}
+
+**Solution**. C\
+  For scientific calculations, you generally have to pick an arbitrary set of units and use it consistently.
+  In `pomp`, this means that you have to use the same units for measurement times and within the latent process.
+  For example, if your measurement times are in days (7,14,$\dots$) then rate parameters should have units $\mathrm{day}^{-1}$.
+  A latent transition with mean duration 1 week would have corresponding rate $1/7 \mathrm{day}^{-1}$. 
+
+When you report your answers, you can use any appropriate units depending on the scale of the quantity---for example, mean life expectancy in years, mean infection duration in days, accumulated cases over a week or a month.
+Within the computer code, you are advised not to mix units.
+That is because computers are not good at representing units; a computer is good at representing a number, say 2.5, but usually our code does not know if this number corresponds to 2.5 days or weeks or years.
+2.5 hours is the same as 150 minutes, but we can't just replace 2.5 by 150 in our code and get the same answer.
+That is in contrast to scientific work, where every numerical quantity should have its unit attached, and answers of 2.5hr and 150min are equally correct.
+
+\color{black}
+

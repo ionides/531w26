@@ -1,0 +1,37 @@
+
+```{r read-mers-for-shapiro-wilks,echo=FALSE,fig.width=7,fig.height=2.5,out.width="4.5in",}
+# code adapted from
+# https://ionides.github.io/531w24/final_project/project15
+mers_df <- read.table(file="data/mers.csv",sep=",",header=TRUE)
+saudi <- mers_df[mers_df$Region=='Saudi Arabia',]
+mers <- saudi$New.Cases
+year <- saudi$Year + (saudi$Week-1)/52
+mers <- mers[year>2013.5]
+year <- year[year>2013.5]
+arma22 <- arima(mers,order=c(2,0,2))
+par(mai=c(0.5,1,0.1,0.1))
+par(mfrow=c(1,2))
+plot(year,mers, type="l", col="black", ylab="MERS Reports", xlab="Year",)
+text("A",x=2016,y=80,cex=2)
+qqnorm(resid(arma22),main="")
+qqline(resid(arma22))
+text("B",x=0,y=35,cex=2)
+
+```
+
+\(A) Weekly cases of Middle East Respiratory Syndome (MERS) in Saudi Arabia. (B) a normal quantile residual plot for ARMA(2,2). We can formally test for non-normality of these residuals by a Shapiro-Wilk test (p-value=$4.8\times 10^{-21}$). What best describes the value added by presenting the Shapiro-Wilk test here?
+
+```{r mers-shapiro-wilk, echo=FALSE,results=FALSE}
+signif(shapiro.test(resid(arma22))$p.value,3)
+```
+
+**A.** We should always be alert for the danger of seeing patterns in noise. The Shapiro-Wilk test is useful to confirm our assessment that the normal quantile plot shows long tails.\
+**B.** Presenting the Shapiro-Wilk test here is not very insightful here, since the long tails are obvious from the normal quantile plot. However, adding this test demonstrates technical competence so it is better to include it than to omit it.\
+**C.** The long tails are established from the normal quantile plot. We could consider a log transform, or a long-tailed model, or a bootstrap simulation study to investigate whether the conclusions are sensitive to non-normality. Adding a fairly uninformative test instead of investigating the consequences of the error distribution could be a distraction from good data analysis.\
+**D.** The Shapiro-Wilk test is useful, but has the problem that it only tells us about lack of normality, not whether the non-normality is due to skew or kurtosis. We should supplement with a Jarque-Bera test to assess those.
+
+
+
+
+
+

@@ -1,0 +1,68 @@
+
+```{r huron_ljung_box,echo=FALSE,results='asis',warnings=FALSE,messages=FALSE}
+dat <- read.table(file="data/huron_level.csv",sep=",",header=TRUE)
+huron_level <- dat$Jan
+year <- dat$Year
+# m <- arima(huron_level, order=c(2,0,2))
+# blt_test <- Box.test(resid(m), lag = 5, type = c("Box-Pierce", "Ljung-Box"),fitdf = 5)
+library(arima2,quietly=TRUE,warn.conflicts=FALSE)
+
+aic_blt_table <- function (data, P, Q, D = 0, ic = c("aic", "aicc"), blt_lag =5, ...) 
+{
+    ic <- match.arg(ic)
+    if (!is.numeric(P) | !is.numeric(Q) | !is.numeric(D)) {
+        stop("'P', 'Q' and 'D' must be numeric.")
+    }
+    P <- as.integer(P)
+    Q <- as.integer(Q)
+    D <- as.integer(D)
+    aic_table <- matrix(NA, (P + 1), (Q + 1))
+    blt_table <- matrix(NA, (P + 1), (Q + 1))
+    for (p in 0:P) {
+        for (q in 0:Q) {
+            mod <- arima(data, order = c(p, D, q), ...)
+            val <- mod$aic
+            if (ic == "aicc") {
+                k <- sum(mod$mask) + 1
+                val <- val + (2 * k^2 + 2 * k)/(mod$nobs - k - 1)
+            }
+            aic_table[p + 1, q + 1] <- round(val,2)
+	    blt_table[p + 1, q + 1] <- signif(
+	      Box.test(resid(mod), type="Ljung-Box",
+	      lag = blt_lag)$p.value, 3)
+
+        }
+    }
+    dimnames(aic_table) <- dimnames(blt_table) <- list(paste("AR", 0:P, sep = ""), paste("AIC MA", 0:Q, sep = ""))
+    dimnames(blt_table) <- list(paste("AR", 0:P, sep = ""), paste("LBT MA", 
+        0:Q, sep = ""))
+    list(aic=aic_table,blt=blt_table)
+}
+
+if(file.exists("data/aic_blt_table.rds")) {
+  ab_table <- readRDS("data/aic_blt_table.rds")
+} else {
+  ab_table <- aic_blt_table(huron_level,P=4,Q=4)
+  saveRDS(ab_table,file="data/aic_blt_table.rds")
+}
+knitr::kable(cbind(ab_table$aic,ab_table$blt))
+```
+
+The [Ljung-Box test (LBT)](https://wikipedia.org/wiki/Ljung-Box_test) provides an alternative approach to comparison of AIC values for selecting ARMA models. Whereas the standard sample autocorrelation function (ACF) residual plot tests each ACF component $\hat\rho_k$ under a null hypothesis of white noise, LBT tests $\sum_{k=1}^h \hat\rho_k^2$. Here, we present an AIC table and an LBT table (for $h=5$). This course have favored AIC, with visual inspection of ACF and checking whether residual patterns appear in the frequency domain. There may be reasons to prefer LBT. Which of the following are good reasons to use LBT?
+
+(i). LBT provides a p-value which is more formal than the comparison of AIC values.\
+(ii). Numerical issues involved in fitting an ARMA model may cause problems for comparing AIC values.\
+(iii). The LBT gives insights into what model to investigate next if the null hypothesis is rejected.\
+(iv). The LBT is useful in conjunction with AIC and ACF, since it provides an alternative perspective.\
+
+**A.** (i) only\
+**B.** (i, ii, iv)\
+**C.** (i,iii, iv)\
+**D.** (ii, iii, iv)\
+**E.** None of the above
+
+
+
+
+
+

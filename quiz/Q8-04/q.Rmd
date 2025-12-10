@@ -1,0 +1,25 @@
+
+Let $V_n$ be a Markov process and let $W_n=h(V_n)$ for some function $h$.
+Let  $(X_n,Y_n)$ be a POMP with latent process $X_n$ and observed process $Y_n$.
+Which of the following statements are true?
+
+i. $W_n$ is a Markov process for all choices of $h$.
+
+i. $W_n$ is a Markov process for some choices of $h$.
+
+i. $W_n$ is not a Markov process for any choice of $h$.
+
+i. If $V_n=(X_n,Y_n)$ and $h(X_n,Y_n)=X_n$ then $W_n$ is a Markov process.
+
+i. If $V_n=(X_n,Y_n)$ and $h(X_n,Y_n)=Y_n$ then $W_n$ is a Markov process.
+
+**A**. i,iv,v\
+**B**. ii,iv\
+**C**. ii,v\
+**D**. iii\
+**E**. Some combination other than those listed above
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+

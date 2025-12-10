@@ -1,0 +1,40 @@
+
+```{r read_huron_data,echo=FALSE}
+dat <- read.table(file="data/huron_level.csv",sep=",",header=TRUE)
+huron_level <- dat$Jan
+year <- dat$Year
+
+arma2.1 <- arima(huron_level,order=c(2,0,1))
+arma2.2 <- arima(huron_level,order=c(2,0,2))
+
+# Here, I'm using arima2::arima, which is equal to arima::arima when
+# max_iters=1
+# arma2.1 <- arima2::arima(huron_level,order=c(2,0,1),max_iters=1)
+# arma2.2 <- arima2::arima(huron_level,order=c(2,0,2),max_iters=1)
+
+# more experiments
+# set.seed(28)
+# arma2.2.1 <- arima2::arima(huron_level,order=c(2,0,0),
+#   max_iters=200,max_repeats=20)
+# arma2.2.2 <- arima2::arima(huron_level,order=c(2,0,1),
+#   max_iters=200,max_repeats=20)
+# aicTable(huron_level,P=3,Q=3)
+# aicTable(huron_level,P=3,Q=3,max_iters=1)
+# aicTable(huron_level,P=3,Q=3,max_iters=200,max_repeats=20)
+
+arma2.1
+arma2.2
+```
+
+The R output above uses `stats::arima` to fit ARMA(2,1) and ARMA(2,2) models to the January level (in meters above sea level) of Lake Huron from 1860 to 2024. Residual diagnostics (not shown) show no major violation of model assumptions. We aim to choose one of these as a null hypothesis of no trend for later comparison with models including a trend.
+
+Which is the best conclusion from the available evidence:
+
+A: The ARMA(2,2) model has a lower AIC so it should be preferred.
+
+B:  We cannot reject the null hypothesis of ARMA(2,1) since the ARMA(2,2) model has a likelihood less than 1.92 log units higher than ARMA(2,1). Since there is not sufficient evidence to the contrary, it is better to select the simpler ARMA(2,1) model.
+
+C: Since the comparison of AIC values and the likelihood ratio test come to different conclusions in this case, it is more-or-less equally reasonable to use either model.
+
+D: When the results are borderline, numerical errors in the `stats::arima` optimization may become relevant. We should check using optimization searches from multiple starting points in parameter space, for example, using `arima2::arima`.
+

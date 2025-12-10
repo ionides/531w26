@@ -1,0 +1,11 @@
+
+\color{blue}
+
+**Solution**. A.\
+The log-likelihood here is a quadratic function. We can see by inspection that this quadratic is given by
+$$\ell(\theta)= -2000-(\theta-5)^2.$$
+The observed Fisher information is the negative of the second derivative of the log-likelihood at the MLE, so $I_{\mathrm obs}=2$. 
+Thus, the standard error is $1/\sqrt{2}=0.707$
+
+\color{black}
+

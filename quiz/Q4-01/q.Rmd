@@ -1,0 +1,20 @@
+
+We consider data $y_{1:415}$ where $y_n$ is the time, in miliseconds, between the $n$th and $(n+1)$th firing event for a monkey neuron.
+Let $z_n = \log(y_n)$, with $\log$ being the natural logarithm.
+The sample autocorrelation function of $z_{1:415}$ is shown below.
+
+```{r monkey_log_acf,echo=FALSE,fig.width=6,fig.height=4}
+N2a <- unlist(read.table(file="data/akira2a.asc"))
+x<-ts(diff(N2a)[diff(N2a)<10000])/10 # units: milliseconds
+z <- log(x)
+acf(z)
+```
+
+We are interested about whether it is appropriate to model the time series as a stationary causal ARMA process. Which of the following is the best interpretation of the evidence from these plots:
+
+A. There is clear evidence of a violation of stationarity. We should consider fitting a time series model, such as ARMA, and see if the residuals become stationary.
+
+B. This plot suggests there would be no benefit from detrending or differencing the time series before fitting a stationary ARMA model. It does not rule out a sample covariance that varies with time, which is incompatible with ARMA.
+
+C. This plot is enough evidence to demonstrate that a stationary model is reasonable. We should proceed to check for normality, and if the data are also not far from normally distributed then it is reasonable to fit an ARMA model by Gaussian maximum likelihood.
+

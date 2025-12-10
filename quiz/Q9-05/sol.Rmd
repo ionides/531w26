@@ -1,0 +1,8 @@
+
+\color{blue}
+
+**Solution**. G.\
+The convexity of `log` together with **A** implies that the expected log-likelihood estimate is lower than the log of the expected likelihood estimate. **F** implies that the expected likelihood estimate has zero bias, and this in conjuction with **A** implies that the bias in the estimated log-liklihood is negative.
+
+\color{black}
+

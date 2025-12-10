@@ -1,0 +1,15 @@
+
+\color{blue}
+
+**Solution**. B.\
+
+This is a useful property to bear in mind when debugging statistical analysis carried out using plug-and-play methodology.
+By definition, the inference methodology defines the model via a simulator, and presumably the same simulator is used for inference as for the simulation used to test the inference.
+Thus, the parametric bootstrap exercise tests the inference methodology but not the correctness of the model implementation; errors in the latter will apply in the same way to both the simulation and the inference, so cannot show up as a mismatch between inferred parameters and re-estimated parameters.
+
+Errors in `rprocess` for a POMP model are hard to debug for this reason. Best practice is to present the Csnippet right next to the math representation, and use the same notation for both, so that the visual match is evident.
+
+It is a good idea to carry out a parametric bootstrap despite this limitation. 
+
+\color{black}
+

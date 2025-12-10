@@ -1,0 +1,44 @@
+
+```{r read_cpi_and_unemp,echo=FALSE,fig.width=7,fig.height=2.5,out.width="5in",}
+cpi_wide <- read.table(file="data/consumer_price_index.csv",sep=",",header=TRUE)
+cpi_long <- as.vector(t(as.matrix(cpi_wide[,2:13])))
+inflation <- diff(log(cpi_long))
+year <- seq(from=1913,length=length(cpi_long),by=1/12)[-1]
+inflation <- inflation[year>=1980]*12*100 # percent, annualized
+year <- year[year>=1980]
+i_smo <- loess(inflation~year,span=0.1)$fitted
+inflation <- i_smo
+
+unemp_wide <- read.table(file="data/adjusted_unemployment.csv",sep=",",header=TRUE)
+unemployment <- as.vector(t(as.matrix(unemp_wide[,2:13])))
+u_year <- seq(from=1948,length=length(unemployment),by=1/12)[-1]
+unemployment <- unemployment[u_year>=1980]
+u_year <- u_year[u_year>=1980]
+ols <- lm(inflation~unemployment)
+
+par(mai=c(0.5,1,0.35,0.1))
+par(mfrow=c(1,2))
+matplot(x=year,y=cbind(inflation,unemployment),ty="l",ylab="")
+text("A",x=2000,y=13,cex=2)
+#ccf(inflation,unemployment,lag.max=80)
+ccf(inflation,unemployment,lag.max=80)
+text("B",x=0,y=0.32,cex=2)
+
+```
+
+\(A) Inflation (black) and unemployment (red) for the USA, 1980-2024. (B) Cross-correlation function, `ccf(inflation,unemployment)`. What is the best interpretation of this plot?
+
+A: High inflation generally led high unemployment, with a lag of about 4 yr.\
+B: High inflation generally followed high unemployment, with a lag of about 4 yr.\
+C: Association is not causation, so we should not interpret a cross-correlation plot in terms of lead and lag relationships.
+
+
+
+
+
+
+
+ 
+
+
+

@@ -1,0 +1,16 @@
+
+When carrying out inference by iterated particle filtering, the likelihood increases for the first 10 iterations or so, and then steadily decreases. Testing the inference procedure on simulated data, this does not happen and the likelihood increases steadily toward convergence. Which of the following is the best explanation for this?
+
+**A**. One or more random walk standard deviations is too large.\
+**B**. One or more random walk standard deviations is too small.\
+**C**. The model is misspecified, so it does not fit the data adequately.\
+**D**. A combination of the parameters is weakly identified, leading to a ridge in the likelihood surface.\
+**E**. Too few particles are being used.
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

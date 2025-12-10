@@ -1,0 +1,13 @@
+
+\color{blue}
+
+**Solution**. B\
+(iv) is true by definition of a POMP model, and this rules out (iii).
+To see that (v) is not generally true, consider a Markov chain, $X_n$ on {1,2,3} which cycles $1\rightarrow 2 \rightarrow 3 \rightarrow 1$, with $X_0$ being uniform on {1,2,3}.
+Let $Y_n=A$ if $X_n\in\{1,2\}$ and $Y_n=B$ if $X_n=3$.
+Then, $P(Y_{n+1}=B|Y_n=A)=1/2$ which is not equal to $P(Y_{n+1}=B|Y_n=A,Y_{n-1}=A)=1$.
+This example also rules out (i).
+(ii) is clearly satisfied by the identity function, $h(x)=x$, so we are left with (ii) and (iv).
+
+\color{black}
+

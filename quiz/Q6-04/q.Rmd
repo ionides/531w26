@@ -1,0 +1,13 @@
+
+Why is it helpful for a course such as DATASCI/STATS 531, that permits the use of internet resources including GenAI and past solutions, to require students to say explicitly say when they do not use sources?
+
+A. Failure to give credit to sources is against the academic integrity rules of Rackham, the graduate school at University of Michigan.
+
+B. It helps the GSI to grade the homework when they know exactly what sources have been used and for what question.
+
+C. Students whose solution is more dependent on sources than they want to admit are reluctant to explicitly deny using sources.
+
+D. The GSI has the task of evaluating whether the student has demonstrated thought about the homework task beyond collecting material from sources into a solution. This is not an easy task even when the sources are clearly listed and referenced at the point (or points) where they are used.
+
+
+

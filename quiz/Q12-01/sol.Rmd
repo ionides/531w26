@@ -1,0 +1,11 @@
+
+\color{blue}
+
+**Solution**. B.\
+It would be surprising if substantial sample autocorrelation appeared in the residuals of a GARCH model, at least for a highly traded financial instrument.
+This would violate the efficient market hypothesis. 
+But that observation is just as true for an i.i.d. white noise model.
+The reason to prefer GARCH over an i.i.d. white noise model is to explain the conditional heteroskedasticity, but the ACF does not reveal whether or not that is successful.
+
+\color{black}
+

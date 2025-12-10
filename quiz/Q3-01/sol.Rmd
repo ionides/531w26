@@ -1,0 +1,13 @@
+
+\color{blue}
+
+**Solution**. E.\
+Adding one parameter in a nested model cannot decrease the maximized log-likelihood, so it can increase the AIC by at most 2 units.
+Adjacent pairs $\{(p,q),(p',q')\}$ inconsistent with this are
+$\{(3,2),(3,3)\}$,
+$\{(2,3),(3,3)\}$,
+$\{(2,1),(3,1)\}$,
+$\{(2,2),(3,2)\}$.
+
+\color{black}
+

@@ -1,0 +1,11 @@
+
+\color{blue}
+
+**Solution**. C.\
+Inherited similarities between generations is based on the genotype, which in a POMP model is the Markovian state.
+The mutation process that randomly generates the genotype of the child is therefore `rprocess`, the state simulation process.
+The expected number of children depends on the fitness, which here is the measurement density.
+The actual number of children is a random process, corresponding to the resampling of particles.
+
+\color{black}
+

@@ -1,0 +1,8 @@
+
+\color{blue}
+
+**Solution**. B.\
+Association is not causation. Inflation and unemployment are two aspects of a complex system. They may have some direct effect on each other, but they are also both driven by other aspects of the economy such as interest rates, consumer spending, and international trade. Mathematically, we could wish away these confounding variables (as proposed in answer C) but for practical purposes it does not make sense to do so.
+
+\color{black}
+

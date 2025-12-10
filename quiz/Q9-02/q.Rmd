@@ -1,0 +1,16 @@
+
+A particle filter is repeated 5 times to evaluate the likelihood at a proposed maximum likelihood estimate, each time with $10^4$ particles. Suppose the log likelihood estimates are $-2446.0$, $-2444.0$, $-2443.0$, $-2442.0$, $-2440.0$. Which of the following is an appropriate estimate for the log likelihood at this parameter value and its standard error.
+
+**A**. Estimate $= -2443.0$, with standard error 1.0\
+**B**. Estimate $= -2443.0$, with standard error 2.2\
+**C**. Estimate $= -2443.0$, with standard error 5.0\
+**D**. Estimate $= -2441.4$, with standard error 2.2\
+**E**. Estimate $= -2441.4$, with standard error 1.4
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

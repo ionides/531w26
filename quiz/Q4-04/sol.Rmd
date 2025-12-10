@@ -1,0 +1,16 @@
+
+\color{blue}
+
+**Solution**. C.\
+The key step after plotting B is to notice that the residuals have a long tail, especially to the right. This may remind us to try a log transform, which is successful here.
+
+It is rather uninteresting to test a null hypothesis that is no longer plausible after plotting the data. If the normal quantile plot shows little deviation from normal, then it may be interesting to test whether that is enough to reject a Gaussian null, though in that case we probably do not have to modify the model (recall that statistical significance and practical significance can differ).
+
+If it is not obvious to you that the deviation shown in the normal quantile plot is entirely incompatible with a Gaussian model, train your intuition by plotting some simulated normal quantile plots for data generated using `rnorm`.
+
+If making useless tests is harmless, it might not matter whether we make a formal test for normality here. However, in practice, useless analysis distract from useful analysis.
+
+The normal quantile plot has diagnostic value beyond simply rejecting the null of normality. For example, we can see whether there are outliers, and we can compare the left and right tails. Tests such as Shapiro-Wilk and Jarque Bera may be useful in some situations. However, they often add little to a normal quantile plot.
+
+\color{black}
+

@@ -1,0 +1,8 @@
+
+\color{blue}
+
+**Solution**. D.\
+  An example of a situation where the model fits the data well, but filtering is hard, arises when the measurement error is small relative to the process noise. In this case, the particles are scattered by the process noise and very few of them are compatible with the data due to the precise measurement. Thus, almost all the particles must be discarded as unfeasible given the data, corresponding to a low ESS.
+
+\color{black}
+

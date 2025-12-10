@@ -1,0 +1,26 @@
+
+Scientifically, our conclusions should not depend on the units of measurement we use, but we can make errors if we don't get the details right.
+Suppose our data are two years of weekly aggregated case reports of a disease and we have a continuous-time model solved numerically by an Euler timestep of size $dt$.
+Which of the following is a correct explanation of our options for properly implementing this in a pomp object called `po`?
+
+**A**. The measurement times, `time(po)`, should be in units of weeks, such as $1,2,\dots,104$.
+The latent process can be modeled using arbitrary time units, say days or weeks or years.
+The units of $dt$ should match the time units of the **latent** process.\
+**B**. The measurement times, `time(po)`, should be in units of weeks, such as $1,2,\dots,104$.
+The latent process can be modeled using arbitrary time units, say days or weeks or years.
+The units of $dt$ should be in weeks (in practice, usually a fraction of a week) to match the units of the **measurement** times.\
+**C**. The measurement times do not have to be in units of weeks.
+For example, we could use `time(po)`=$1/52$, $2/52$, $\dots, 2$.
+The latent process and $dt$ should use the same units of time as the measurement times.\
+**D**. The measurement times do not have to be in units of weeks.
+For example, we could use `time(po)`=$1/52$, $2/52$, $\dots, 2$.
+The latent process can also use arbitrary units of time, which do not necessarily match the units of the measurement times.
+The units of $dt$ should match the units used for the **latent** process.\
+**E**. The measurement times do not have to be in units of weeks.
+For example, we could use `time(po)`=$1/52$, $2/52$, $\dots, 2$.
+The latent process can also use arbitrary units of time, which do not necessarily match the units of the measurement times.
+The units of $dt$ should match the units used for the **measurement** times.
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->

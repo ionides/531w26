@@ -1,0 +1,24 @@
+
+![Diagnostic plot for a COVID-19 model\label{mif-diagnostics-covid}](data/mif-diagnostics-poor.pdf "Iterated filtering diagnostics")
+
+The iterated filtering convergence diagnostics plot in figure \ref{mif-diagnostics-covid} comes from a 2021 [student project](https://ionides.github.io/531w21/final_project/project15/blinded.html) investigating COVID-19. The calculation used $10^3$ particles. What is the best interpretation?
+
+**A**. Everything seems to be working fine. There is a clear consensus from the different searches concerning the highest likelihood that can be found. Therefore, the search is doing a good job of maximization. Occasional searches get lost, such as the purple line with a low likelihood, but that is not a problem.
+
+**B**. The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units. We should use more particles and/or more iterations to achieve this.
+
+**C**. The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units.
+We should compare the best likelihoods obtained with simple statistical models, such as an auto-regressive moving average model, to look for evidence of model misspecification.
+
+**D**. The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units.
+We should look at the effective sample size plot for the best fit we have found yet, to see whether there are problems with the particle filtering.
+
+**E**. All of B, C, and D.
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

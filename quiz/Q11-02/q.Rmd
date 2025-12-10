@@ -1,0 +1,16 @@
+
+A compartment model is first implemented as a system of ordinary differential equations (ODEs). This leads to qualitatively reasonable trajectories, but poor likelihood values. The researchers add stochasticity in an attempt to improve the fit of the model by interpreting the ODEs as rates of a Markov chain. The likelihood, maximized by iterated particle filtering, remains poor compared to ARMA benchmarks. In addition, the effective sample size for the particle filtering is low at many time points despite even using as many as $10^4$ particles. Which of the following is the most promising next step?
+
+**A**. Increase to $10^5$ particles, moving the computations to a cluster if necessary.\
+**B**. Add noise to one or more rates to allow for overdispersion.\
+**C**. Try adding extra features to the model to capture scientific details not present in the original model.\
+**D**. Experiment with variations in the iterated filtering procedure; maybe more iterations, or a different cooling schedule.\
+**E**. To address the possibility of reporting errors, see if the model fits better when the most problematic data points are removed.
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

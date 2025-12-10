@@ -1,0 +1,16 @@
+
+\color{blue}
+
+**Solution**. E.\
+"None of the above" is correct in two senses, since none of the reasons proposed are strong. Perhaps LBT had more value in an era of less computatoinal power, before maximum likelihood estimation became routine for ARMA models. LBT usually adds little or nothing to the methods covered in class. We consider each in turn.
+
+AIC values are a formal quantitative measure, just like p-values. They measure different things, as explained in the notes. Using p-values for model diagnostics is actually informal, since a formal p-value should correspond to a hypothesis specified before examining the data. So, (i) is not a good answer.
+
+It is correct that numerical optimization can be problematic for fitting ARMA models. However, both AIC and LBT assess the same fitted model and so they share any consequences of imperfect optimization. So, (ii) is not a good answer.
+
+Null hypothesis tests have the feature that they are relatively weak at telling you what to do if the null hypothesis is rejected, especially when they test against a very general alternative as for LBT. AIC provides a ranking of the models under investigation (though there may be reasons not to proceed with the top ranked model according to AIC). By contrast, it is unclear from the LBT table which model to choose. We can see that AR(0) models are inappropriate, but that is also clear from AIC. So, (iii) is not a good answer.
+
+If LBT added anything substantial beyond AIC, it could be a useful extra component to the analysis. However, in this example, we see that every model with reasonable AIC values does not reject the LBT null. This is commonly the case; if there is substantial autocorrelation in the residuals then a larger ARMA model will have better AIC. It can be useful to supplement AIC with a likelihood ratio test, since this provides a complementary perspective: AIC asks which model has better estimated predictive skill, whereas the null hypothesis test asks whether the simpler model is statistically plausible against the alternative of the more complex model. LBT does not address that. So, (iv) is not a good answer.
+
+\color{black}
+

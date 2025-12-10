@@ -1,0 +1,19 @@
+
+\color{blue}
+
+**Solution**. E.\
+```{r logLik-garch-help,echo=TRUE,eval=FALSE}
+?tseries::logLik.garch
+```
+reveals that
+```
+     ‘logLik’ returns the log-likelihood value of the GARCH(p, q) model
+     represented by ‘object’ evaluated at the estimated coefficients.
+     It is assumed that first max(p, q) values are fixed.
+```
+Therefore, the log-likelihood for fiting GARCH(p,q) corresponds only to $y^*_{(\max(p,q)+1):N}$.
+The violations of nesting occur because different amounts of data are used for differeng values of $\max(p,q)$.
+Therefore, we cannot easily compare likelihoods or AIC values.
+
+\color{black}
+

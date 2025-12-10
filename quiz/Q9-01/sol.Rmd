@@ -1,0 +1,12 @@
+
+\color{blue}
+
+**Solution**. C.\
+Using the linear dependence, also called proportionality, of the computing effort on various algorithmic parameters, we calculate
+```{r particle-filter-effort}
+15 * (10000/1000) * (20/10) * (1/4)
+```
+
+
+\color{black}
+

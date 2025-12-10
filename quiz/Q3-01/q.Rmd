@@ -1,0 +1,21 @@
+
+The following table of AIC values results from fitting ARMA(p,q) models to a time series $y_{1:415}$ where $y_n$ is the time, in miliseconds, between the $n$th and $(n+1)$th firing event for a monkey neuron. The experimental details are irrelevant here. You are asked to check how many adjacent pairs of AIC values in this table are inconsistent, such that they could mathematically arise only from a numerical error? Adjacent pairs of models are those directly above or below or left or right of each other in the table.
+
+
+|     | MA0    |    MA1 |    MA2 |    MA3 | 
+|-----|--------|--------|--------|--------|
+| AR0 | 3966.0 | 3961.5 | 3962.7 | 3964.7 |
+| AR1 | 3961.1 | 3962.6 | 3964.6 | 3966.6 | 
+| AR2 | 3962.7 | 3960.5 | 3959.8 | 3961.7 | 
+| AR3 | 3964.6 | 3965.5 | 3962.6 | 3968.4 | 
+
+A: 0, so the table is mathematically plausible.
+
+B: 1
+
+C: 2
+
+D: 3
+
+E: 4 or more
+

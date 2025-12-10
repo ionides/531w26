@@ -1,0 +1,11 @@
+
+The particle filter provides a log-likelihood estimate that is negatively biased. Is this a consequence of:
+
+**A**. Jensen's inequality.\
+**B**. Fubini's theorem.\
+**C**. Wilks' theorem.\
+**D**. Chebyshev's inequality.\
+**E**. Consistency of the Metropolis-Hastings algorithm.\
+**F**. Unbiasedness of the likelihood estimate for sequential Monte Carlo.\
+**G**. Two or more of the above.
+

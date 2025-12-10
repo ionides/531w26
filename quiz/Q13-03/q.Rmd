@@ -1,0 +1,14 @@
+
+A useful way to check statistical methodology is to apply an inference method to a collection of simulated datasets from the fitted model with the estimated parameter values (say, the maximum likelihood estimate, MLE). This is sometimes called a "parametric bootstrap". Suppose that we carry out this check for a POMP data analysis, using plug-and-play inference methodology such as iterated filtering, and we find that the re-estimated parameters from inference on the simulated data are close to the MLE. What can we infer about the correctness of our inference.
+
+**A**. This is a strong check that both the model and the methodology are correctly implemented. Except for some rare special cases, an error in either one of these will lead the check to fail.
+
+**B**. This checks the implementation of the inference methodology but not the model. Even if the model is implemented wrongly, the check will still show us whether the inference methodology is correct.
+
+**C**. This checks the implementation of the model but not the inference methodology. As long as the model is implemented correctly, any reasonable inference methodology should pass the check successfully.
+
+**D**. This is not a strong check of either the model or the methodology. It shows self-consistency but that is different from showing accuracy.
+
+
+
+

@@ -1,0 +1,16 @@
+
+Suppose that 10 replications of a particle filter, each using $10^3$ particles, runs in 15 minutes with no parallelization. To look for a more precise likelihood evaulation, you consider running 20 replicates, each with $10^4$ particles. Approximately how many minutes will this take, if you distribute the calculation across 4 cores?
+
+**A**. 50\
+**B**. 60\
+**C**. 75\
+**D**. 120\
+**E**. 300
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

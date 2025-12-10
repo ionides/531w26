@@ -1,0 +1,18 @@
+
+People sometimes confuse likelihood profiles with likelihood slices.
+When you read a report claiming to have computed a profile it can be worth checking whether it is actually computed as a slice.
+Suppose you read a figure which claims to construct a profile confidence interval for a parameter $\rho$ in a POMP model with four unknown parameters. Which of the following confirms that the plot is, or is not, a properly constructed profile confidence interval.
+
+**A**. The CI is constructed by obtaining the interval of rho values whose log likelihood is within 1.92 of the maximum on a smoothed curve of likelihood values plotted against $\rho$.\
+**B**. The code (made available to you by the authors as an Rmarkdown file) involves evaluation of the likelihood but not maximization.\
+**C**. The points along the $\rho$ axis are not equally spaced.\
+**D**. The smoothed line shown in the plot is close to quadratic.\
+**E**. A and D together.
+
+<!--
+This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)
+-->
+
+
+
+

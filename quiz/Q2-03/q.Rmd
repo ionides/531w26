@@ -1,0 +1,10 @@
+
+Is it possible for an $AR(2)$ model to have a finite moving average representation, so that it is equivalent to some $MA(q)$ model for $q<\infty$?
+
+A. No. Any moving average representation of any $AR(2)$ model is $MA(\infty)$
+
+B. Yes. Although it is not true for any $AR(2)$ process, it is possible to find particular choices of the autoregressive coefficients, $p_1$ and $p_2$, that lead to a finite $MA(q)$ representation.
+
+C. It is not possible for any real-valued $p_1$ and $p_2$, but it is possible if you permit $p_1$ and $p_2$ to be complex-valued.
+
+

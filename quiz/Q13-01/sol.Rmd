@@ -1,0 +1,32 @@
+
+\color{blue}
+
+**Solution**. A.\
+  The code producing the error is below.
+  Within C snippets, the C versions of R distribution functions are available but they have slightly different syntax from their more familiar R children.
+  A complete reference guide to R's C interface is available [as part of R's documentation](https://cran.r-project.org/doc/manuals/r-release/R-exts.html\#The-R-API).
+  In particular, the [C form of R's distribution functions](https://cran.r-project.org/doc/manuals/r-release/R-exts.html\#Distribution-functions) is
+  useful for writing C snippets.
+
+```{r error-code-C-vs-R,eval=F}
+  sir4 <- simulate(
+    sir1,
+    statenames=c("S","I","R","cases","W"),
+    paramnames=c(
+      "gamma","mu","iota",
+      "beta1","beta_sd","pop","rho",
+      "S_0","I_0","R_0"
+    ),
+    rmeasure=Csnippet("
+      double mean, sd;
+      double rep;
+      mean = cases*rho;
+      sd = sqrt(cases*rho*(1-rho));
+      rep = nearbyint(rnorm(1,mean,sd));
+      reports = (rep > 0) ? rep : 0;"
+    )
+  )
+```
+
+\color{black}
+

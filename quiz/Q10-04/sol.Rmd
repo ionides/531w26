@@ -1,0 +1,21 @@
+
+\color{blue}
+
+**Solution**. E.\
+The wide spread in likelihood, thousands of log units, shown in this convergence plot suggests that the numerics are not working smoothly. The question is, what to do about it?
+
+Once you think your code is debugged, if evidence for poor Monte Carlo convergence remains, it is worth increasing the computational effort to see if that solves the problem. An overnight job on greatlakes could be appropriate. That supports answer B.
+
+Comparing with simple statistical benchmarks is always a good idea. If your model fits more poorly than an ARMA model, or some other simple model appropriate for your data, then it is plausible that the numerical difficulties with the particle filter are due to model misspecification.
+The diagnostic plots here show some success at global maximization for their model (multiple searches attain a similar likelihood value).
+Their maximized likelihood was 47 log units lower than ARMA model.
+This shows that it is worth considering some extra time on model development, supporting answer C. 
+The ARMA benchmark is not given in the question, but you should know that it (or something similar) is useful to calculate.
+
+Identifying time points with low effective sample size can help to identify which parts of the data are problemtic for the model to explain.
+Thus, D is a standard and useful diagnostic practice.
+This could help to identify an outlier in the data.
+Maybe there is an outlier, or maybe there is some other kind of model misspecification; at this point in the investigation we can't tell for sure.
+
+\color{black}
+

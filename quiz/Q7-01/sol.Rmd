@@ -1,0 +1,10 @@
+
+\color{blue}
+
+**Solution**. A.\
+The cross-correlation, $\rho_{XY}(h)$, is the correlation between $X_{n+h}$ and $Y_n$ where $X_{1:N}$ and $Y_{1:N}$ are jointly stationary. The sample cross-correlation is the standard estimator of this. The large peak at $h=-48\mathrm{month} = -4\mathrm{yr}$ means that $X_{n}$ can predict $Y_{n+h}$, so $X_n$ leads $Y_n$. 
+
+For answer C, lead and lag relationships are generally used to refer to assocations. The cross-correlation plot is a measure of lagged association, and we should not give it a causal interpretation without carefully explaining the justification.
+
+\color{black}
+

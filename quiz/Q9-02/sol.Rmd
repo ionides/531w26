@@ -1,0 +1,17 @@
+
+\color{blue}
+
+**Solution**. E.\
+  Answers A, B and C estimate using a mean on the log scale. However, the particle filter provides an unbiased likelihood estimate on a natural scale but not on a log scale. Note that the particle filter also has some bias for most quantities on a natural scale, which reduces to zero as the number of particles tends to infinity, but it happens to be unbiased for the likelihood. The standard error for the log of the mean of the likelihoods can be computed by the delta method or a jack-knife, for example using the logmeanexp function in pomp.
+
+```{r logmeanexp}
+  ll <- c(-2446,-2444,-2443,-2442,-2440)
+  mean(ll)
+  sd(ll)
+  sd(ll)/sqrt(length(ll))
+  pomp::logmeanexp(ll,se=TRUE)
+```
+
+
+\color{black}
+

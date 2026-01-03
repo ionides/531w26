@@ -26,14 +26,18 @@ __AI policy__. The use of AI is encouraged for projects and data analysis homewo
 
 __Course GitHub site__. Documents, code and data are posted at available at https://github.com/ionides/531w26.
 
-__Use of GitHub issuess__. Discussion on course material or course assignments can be generated or followed via [GitHub issues](https://github.com/ionides/531w26/issues). Set `Watch` on the top right of the GitHub repository to `All Activity` to make sure you are notifed of all posted issues.
+__Use of GitHub issues__. Discussion on course material or course assignments can be generated or followed via [GitHub issues](https://github.com/ionides/531w26/issues). Set `Watch` on the top right of the GitHub repository to `All Activity` to make sure you are notifed of all posted issues.
 
-__Supplementary textbook__. R. Shumway and D. Stoffer _Time Series Analysis and its Applications_, 4th edition (2017). 
-A [pdf](https://link.springer.com/book/10.1007%2F978-3-319-52452-8) is available using the UM Library's Springer subscription.
+__Use of GitHub pull requests__. Up to 2% extra credit is available for pull requests that fix bugs and errors on the course website.
+
+__Supplementary textbooks__.
+(1) R. Shumway and D. Stoffer _Time Series Analysis and its Applications_, 4th edition (2017). 
+A [pdf](https://link.springer.com/book/10.1007%2F978-3-319-52452-8) is available using the UM Library's Springer subscription. 
+(2) __[TBD]__.
 
 __Prerequisites__. STATS 500 and prior or concurrent enrollment in STATS 511. For undergraduates, STATS 525 or 510, in conjunction with STATS 413 and STATS 426. For review, see "Mathematical Statistics and Data Analysis" by J. A. Rice. A certain amount of basic linear algebra will be required, reviewed by [www.sosmath.com/matrix/matrix.html](http://www.sosmath.com/matrix/matrix.html).
 
-__Statistical computing background__.  We carry out data analysis using R. There is no formal R prerequisite, but we will be working with R extensively and so you should allow extra time for this course if you are new to R programming. If you are not familiar with R then it is helpful to have some background in Python or a similar language to learn R fairly easily. The R Core Team's  [Introduction to R](https://cran.r-project.org/doc/manuals/r-release/R-intro.pdf) may be useful for review or study. Another resource is the [Tutorial Introduction to R by King, Field, Bolker and Ellner](https://kingaa.github.io/R_Tutorial/).
+__Statistical computing background__.  We carry out data analysis using Python. There is no formal programming prerequisite, but we will be working with some advanced statistical computing by the end of the semester. Statistical computing training to the level of DATASCI 507 is helpful. 
 
 __Computing support__. If you have a coding problem you cannot debug, first try aksing AI, internet sources, and your colleagues. If the problem persists, develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain, via a GitHub issue or otherwise.
 
@@ -62,7 +66,7 @@ __Computing support__. If you have a coding problem you cannot debug, first try 
 
 10. Introduction to partially observed Markov process (POMP) models.
 
-11. Introduction to simulation-based inference for epidemiological dynamics via the pomp R package.
+11. Introduction to simulation-based inference for epidemiological dynamics via the pypomp package.
 
 12. Simulation of stochastic dynamic models.
 
@@ -80,9 +84,9 @@ __Computing support__. If you have a coding problem you cannot debug, first try 
 
 ## Groups
 
-* Groups for the midterm project will be randomly assigned, around the third week of classes.
+* Groups for the midterm project will be established around the third week of classes. Groups will be self-assigned, of size 3 (preferable) or 2 (acceptable).
 
-* Groups for the final project will be re-randomized after the midterm project. 
+* Groups for the final project can be the same or different.
 
 -------------
 
@@ -113,12 +117,12 @@ Reviews should include discussion relating to reproducibility of the project's n
 
 5. Learn how to follow scientific standards for citation of references, credit to sources, and construction of reproducible data analysis embedded in a scientific report. 
 
-6. Build sufficient understanding of time series theory and methods to take full responsibility for decisions and choices made during data analysis, whether or not AI is involved.
+6. Build sufficient understanding of time series theory and methods to take full responsibility for decisions made during data analysis, whether or not AI is involved.
 
 
 ### Grading for scholarship
 
-Homework will be primarily based on scholarship, not correctness. Answers are available online, even before the solutions are posted. Hints are available from GenAI. In practice, that means that the grading will emphasizes scholarship, i.e., the process by which the solution was obtained and the explanation of this. Scholarship is also an important component of the grading for projects.
+Homework will be primarily based on scholarship, not correctness. Answers are available online, even before the solutions are posted. Hints are available from AI. In practice, that means that the grading will emphasizes scholarship, i.e., the process by which the solution was obtained and the explanation of this. Scholarship is also an important component of the grading for projects.
 
 **Attribution of sources**. Explaining what sources were used, and where, is central to scientific work. It ensures you get credit for your own contribution but not somebody elses. It also facilitates fact-checking, and tracking down the source of any error that might arise. Failure to attribute sources may lead to deduction of points and can become academic misconduct. 
 
@@ -126,9 +130,9 @@ Homework will be primarily based on scholarship, not correctness. Answers are av
 
 **AI and scholarship**.
 
-+ GenAI is a source, and so its role should be credited. Note that current GenAI can write poorly in some situations. You should be careful to edit and error-check any material written using GenAI. You take full responsibility for work submitted under your name.
++ AI is a source, and so its role should be credited. Note that current AI can write poorly in some situations. You should be careful to edit and error-check any material written using AI. You take full responsibility for work submitted under your name.
 
-+ Explaining how you used GenAI can also be part of your "demonstrated effort."
++ Explaining how you used AI can also be part of your "demonstrated effort."
 
 + In group work, you are responsible for checking that the sources of your collaborators are properly documented. The whole group must take responsibility for material that the group submits. 
 

@@ -29,3 +29,5 @@ local
 cache
 figure
 
+*.venv
+slides_files

@@ -1,0 +1,17 @@
+
+Different criteria for selecting a time series model include (i) Akaike's Information Criterion; (ii) leave-one-out cross-validation; (iii) out-of-sample $k$-step-ahead prediction error; (iv) holding out the most recent 20% of the data for testing, while fitting to the first 80%. Suppose our goal is to make predictions for a collection of forecasting windows, and that the model fits the data fairly well. Which of the following are correct:
+
+A. AIC is based on one-step prediction, so for longer-term forecasts it is less reliable than fitting by $k$-step prediction error for $k>1$.
+
+B. Leave-one-out cross-validation is not designed for dependent data.
+
+C. Ideally, we should use a different model for each time in the forecasting window, fitting using $k$-step prediction error when forecasting $k$ steps ahead.
+
+D. The model that best predicts the most recent data when fitted to earlier data (i.e, (iv)) is more reliable for subsequent forecasting than methods which evaluate based on the whole time series history (i, ii, iii). 
+
+E. More than 1 of (A, B, C, D)
+
+Note: You can suppose that the time series model is ARMA, but that is unimportant. All we need is that the model has a likelihood that can be computed, and a conditional expectation that can be evaluated to give a prediction rule. 
+
+
+

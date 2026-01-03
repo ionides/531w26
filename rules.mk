@@ -3,9 +3,11 @@
 REXE = Rscript --no-save --no-restore --no-init-file
 ROOT_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-slides.pdf handout.pdf notes.pdf: main.tex
+slides.pdf : slides.qmd
+	quarto render "slides.qmd" --to beamer
 
-.INTERMEDIATE: main.tex slides.tex notes.tex
+notes.pdf : slides.qmd
+	quarto render "slides.qmd" --to pdf --output notes.pdf
 
 %.html: %.Rmd
 	PATH=/usr/lib/rstudio/bin/pandoc:$$PATH \
@@ -41,4 +43,7 @@ clean:
 fresh: clean
 	$(RM) *.bbl
 	$(RM) -r tmp
+
+%.pdf: %.qmd
+	quarto render "$*.qmd" --to beamer
 

@@ -1,0 +1,11 @@
+name: computo-quarto-extension
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - jupyter
+  - plotly
+  - numpy
+  - pandas
+  - python-kaleido
+

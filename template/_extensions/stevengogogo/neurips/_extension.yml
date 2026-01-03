@@ -1,0 +1,73 @@
+title: NeurIPS Format Template
+author: Shao-Ting Chiu
+version: 0.1.0
+contributes:
+  formats:
+    common:
+      # define below YAML configuration common to all formats
+      filters:
+        # You can include here Lua filters from your extension format
+        - diagram
+        - pseudocode
+        - abstract-section
+        - color-text.lua
+        - list-table.lua
+      shortcodes:
+        # You can include here Lua filters defining shortcodes from your extension
+        - shortcodes.lua
+      knitr:
+        opts_chunk:
+          screenshot.opts:
+            cliprect: viewport
+            vwidth: 640
+            vheight: 400
+      number-sections: true
+      toc: true
+      toc-title: Contents
+      code-copy: true
+      code-block-background: true
+    html:
+      theme: [code-block-all.scss, custom.scss]
+      title-block-banner: "#034E79"
+      title-block-banner-color: "#FFFFFF"
+      license: "CC BY"
+      reference-section-title: Bibliography
+      date-format: long
+      hover-citations: true
+      hover-footnotes: true
+      fig-format: svg
+      highlight-style: github
+      code-block-background: true
+      code-tools:
+        source: true
+        toggle: false
+        caption: "source"
+      code-copy: true
+      code-summary: "Hide/Show the code"
+      code-fold: hide
+      anchor-sections: true
+      link-external-icon: false
+      link-external-newwindow: true
+      crossref:
+      sec-prefix: Section
+      eq-prefix: Equation
+      fig-prefix: Figure
+      tbl-prefix: Table
+      #html-math-method: mathjax
+      template-partials:
+        - "partials/html/title-block.html"
+        - "partials/html/title-metadata.html"
+    pdf:
+      documentclass: article
+      number-sections: true
+      pdf-engine: pdflatex
+      papersize: letter
+      toc: false
+      include-in-header:
+        - "partials/pdf/include-in-header.tex"
+      template-partials:
+        - "partials/pdf/before-body.tex"
+        - "partials/pdf/_authors.tex"
+        - "partials/pdf/title.tex"
+      format-resources:
+        - neurips_2023.sty

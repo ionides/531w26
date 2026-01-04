@@ -79,7 +79,7 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 ## Homework and participation assignments
 
 
-* [Homework 0](hw00/hw00.html). Some course preparation. Nothing to submit.
+* [Homework 0](hw00). Some course preparation.
 
 
 <!--

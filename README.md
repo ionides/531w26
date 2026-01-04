@@ -1,12 +1,6 @@
----
-title: "STATS 531/631 (Winter 2026) <br>'Modeling and Analysis of Time Series Data'"
-author: "Instructor: Edward L. Ionides"
-output:
-  html_document:
-    toc: yes
----
+# Modeling and Analysis of Time Series Data
 
-------
+University of Michigan STATS 531/631 Winter 2026. Instructor: Edward L. Ionides
 
 ## Course description
 
@@ -199,7 +193,7 @@ If building on old source code, note that there are some differences between ver
 
 ## Acknowledgements and License
 
-This course and the code involved are made available with an [Creative Commons](LICENSE).
+This course and the code involved are made available with a [Creative Commons license](LICENSE).
 A list of acknowledgments is [available](acknowledge.html).
 
 

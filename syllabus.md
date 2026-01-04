@@ -10,77 +10,38 @@ output:
 
 __Course components__.
 
-* classes Mon/Wed, 2:30-4:00 p.m. in WEIS 260. Notes are posted at https://ionides.github.io/531w26
-* homework
-* group midterm project, with individual peer review
-* group final project, with individual peer review
+* Classes, Mon/Wed, 2:30-4:00 p.m. in WEIS 260. Notes are posted at https://ionides.github.io/531w26. A provisional outline of topics for each class is [posted](cal/cal.pdf).
+* Homework
+* Group midterm project, with individual peer review
+* Group final project, with individual peer review
 * Frequent mini-quizzes for self-evaluation and feedback
-* two in-class midterm exams
+* Two in-class midterm exams
 * For [631](631) only, weekly discussion of a research paper
 
-__Instructor contact information__. email: ionides@umich.edu. web: dept.stat.lsa.umich.edu/~ionides. office hours: Wed 4-5pm, Thu 2-3pm in 453 West Hall. 
+__Instructor contact information__. email: ionides@umich.edu. web: https://ionides.github.io/. office hours: TBD
+<!---
+Wed 4-5pm, Thu 2-3pm in 453 West Hall. 
+--->
 
 __GSI__, Aaron Abkemeier. email: aaronabk@umich.edu. office hours: TBD. Location: TBD
 
-__AI policy__. The use of AI is encouraged for projects and data analysis homework. The midterm exams are pencil and paper, and will test foundational knowledge and reasoning skills without AI support. Some homework problems will be labeled as exam preparation and should be mastered without AI support. Mini-quiz problems will be drawn from the same problem pool as the midterm exams.
+__AI policy__. Appropriate use of AI is encouraged for projects and data analysis homework. Uses of AI can be effective or ineffective, as well as honest or dishonest, and we seek honest and effective use of AI. The midterm exams are pencil and paper, and will test foundational knowledge and reasoning skills without AI support. Some homework problems will be labeled as exam preparation and should be mastered without AI support. Mini-quiz problems will be drawn from the same problem pool as the midterm exams.
 
 __Course GitHub site__. Documents, code and data are posted at available at https://github.com/ionides/531w26.
 
-__Use of GitHub issues__. Discussion on course material or course assignments can be generated or followed via [GitHub issues](https://github.com/ionides/531w26/issues). Set `Watch` on the top right of the GitHub repository to `All Activity` to make sure you are notifed of all posted issues.
+__Use of GitHub issues and pull requests__. Discussion on course material or course assignments can be generated or followed via [GitHub issues](https://github.com/ionides/531w26/issues). Set `Watch` on the top right of the GitHub repository to `All Activity` to make sure you are notifed of all posted issues. Pull requests that fix bugs and errors on the course website are especially appreciated. Up to 2% extra credit is available for contributions to the course git repository. If you have a contribution to make but are not yet comfortable with git, the GSI and instructor will be happy to teach that.
 
-__Use of GitHub pull requests__. Up to 2% extra credit is available for pull requests that fix bugs and errors on the course website.
+__Supplementary textbooks__\
+1. R. Shumway and D. Stoffer, _Time Series Analysis and its Applications_, 4th edition (2017).  A [pdf](https://link.springer.com/book/10.1007%2F978-3-319-52452-8) is available using the UM Library's Springer subscription.\
+2. C. Huang and A. Petukhina, _Applied Time Series Analysis and Forecasting with Python_ (2022). A [pdf](https://link.springer.com/book/10.1007/978-3-031-13584-2) is available using the UM Library's Springer subscription.  
 
-__Supplementary textbooks__.
-(1) R. Shumway and D. Stoffer _Time Series Analysis and its Applications_, 4th edition (2017). 
-A [pdf](https://link.springer.com/book/10.1007%2F978-3-319-52452-8) is available using the UM Library's Springer subscription. 
-(2) __[TBD]__.
-
-__Prerequisites__. STATS 500 and prior or concurrent enrollment in STATS 511. For undergraduates, STATS 525 or 510, in conjunction with STATS 413 and STATS 426. For review, see "Mathematical Statistics and Data Analysis" by J. A. Rice. A certain amount of basic linear algebra will be required, reviewed by [www.sosmath.com/matrix/matrix.html](http://www.sosmath.com/matrix/matrix.html).
+__Prerequisites__. STATS 500 and prior or concurrent enrollment in STATS 511. For undergraduates, STATS 525 or 510, in conjunction with STATS 413 and STATS 426. For review, see "Mathematical Statistics and Data Analysis" by J. A. Rice.
 
 __Statistical computing background__.  We carry out data analysis using Python. There is no formal programming prerequisite, but we will be working with some advanced statistical computing by the end of the semester. Statistical computing training to the level of DATASCI 507 is helpful. 
 
 __Computing support__. If you have a coding problem you cannot debug, first try aksing AI, internet sources, and your colleagues. If the problem persists, develop a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example) that others can run to help you. You can share this, and the error message you obtain, via a GitHub issue or otherwise.
 
 -----------
-
-## Course outline
-
-
-1. Introduction to time series analysis.
-
-2. Time series models: Estimating trend and autocovariance.
-
-3. Stationarity, white noise, and some basic time series models.
-
-4. Linear time series models and the algebra of autoregressive moving average (ARMA) models.
-
-5. Parameter estimation and model identification for ARMA models.
-
-6. Extending the ARMA model: Seasonality and trend.
-
-7. Introduction to the frequency domain.
-
-8. Smoothing in the time and frequency domains.
-
-9. Case study: An association between unemployment and mortality?
-
-10. Introduction to partially observed Markov process (POMP) models.
-
-11. Introduction to simulation-based inference for epidemiological dynamics via the pypomp package.
-
-12. Simulation of stochastic dynamic models.
-
-13. Likelihood for POMP models: Theory and practice.
-
-14. Likelihood maximization for POMP models.
-
-15. A case study of polio including covariates, seasonality & over-dispersion.
-
-16. A case study of financial volatility and a POMP model with observations driving latent dynamics.
-
-17. A case study of measles: Dynamics revealed in long time series.
-
---------------
 
 ## Groups
 

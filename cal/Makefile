@@ -1,4 +1,4 @@
-default: html-docs
+default: cal.pdf
 
 html-docs: index.html
 

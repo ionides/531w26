@@ -107,6 +107,8 @@ $$\hat\mu_1= \frac{1}{N}\sum_{n=1}^N y_n, \hspace{1.5cm}
 
 **Question**: What are the assumptions behind this confidence interval?
 
+\
+
 # Computing the estimates
 
 1955 has missing data, requiring a minor modification. So, we compute $\hat\mu_1$ and $SE_1=\hat\sigma_1/\sqrt{N}$ as:
@@ -120,25 +122,30 @@ print(f"mu1 = {mu1:.2f}, se1 = {se1:.2f}")
 
 **Question**: If you had to give an uncertainty estimate on the mean, is it reasonable to present the confidence interval, `{python} f"{mu1:.2f}"` $\pm$ `{python} f"{1.96*se1:.2f}"`? Do you have ideas of a better alternative?
 
-# Some data analysis
+
+\
+
+\
+
+----
 
 The first rule of data analysis is to plot the data in as many ways as you can think of. For time series, we usually start with a time plot.
 
 ```{python}
 #| echo: true
-#| fig-width: 8
-#| fig-height: 4
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(10, 3))
 plt.plot(y['Year'], y['Low'], '-')
-plt.xlabel('Year')
-plt.ylabel('January low (F)')
-plt.tight_layout()
-plt.show()
+plt.xlabel('Year'); plt.ylabel('January low (F)')
+plt.tight_layout(); plt.show()
 ```
+
+**Question**: Do you see any patterns in the data?
+
+\
 
 # The auto-regressive moving average (ARMA) model
 
-Another basic thing to do is to fit an **auto-regressive moving average** (ARMA) model. We'll look at ARMA models in much more detail later in the course. Let's fit an ARMA model given by
+A basic way to look for dependence is to fit an **auto-regressive moving average** (ARMA) model. We'll see ARMA models in more detail later in the course. Let's fit an ARMA model given by
 $$Y_n = \mu + \alpha(Y_{n-1}-\mu) + \epsilon_n + \beta \epsilon_{n-1}.$$
 
 This has a one-lag autoregressive term, $\alpha(Y_{n-1}-\mu)$, and a one-lag moving average term, $\beta \epsilon_{n-1}$. It is therefore called an ARMA(1,1) model. These lags give the model some time dependence.
@@ -225,9 +232,7 @@ In fact, Python's statsmodels does something slightly more sophisticated.
 
 ```{python}
 #| echo: true
-#| fig-width: 8
-#| fig-height: 4
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(10, 3))
 plt.plot(arma11.resid)
 plt.xlabel('Index')
 plt.ylabel('Residuals')
@@ -328,7 +333,6 @@ H_n &= \mu_h(1-\phi) + \phi H_{n-1} \\
 
 - $H_n$ is unobserved volatility at time $t_n$, with auto-regressive behavior, having dependence on $Y_{n-1}$ and a slowly varying process $G_n$. We only observe the return, modeled by $Y_n$.
 
-- $H_n$ has 
 
 # Questions to be addressed later in the course
 

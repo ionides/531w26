@@ -123,9 +123,7 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 These are drawn from the same problem bank as the daily quizzes. They are done without electronic devices and aim to reinforce the foundational course material.
 
 * Midterm 1. In class on Monday 2/16.
-<!--
-[Sample questions](quiz/quiz1-all.pdf). [With solutions](quiz/quiz1-sol.pdf). [Sample quiz](quiz/quiz1-sample.pdf) randomly drawn from the quiz generator; the actual quiz will use a different seed.
--->
+[Sample questions](mt1/mt1-all-questions.pdf). [With solutions](mt1/mt1-all-sol.pdf). [Sample quiz](mt1/mt1-sample.pdf) randomly drawn from the quiz generator; the actual test will use a different seed.
 
 * Midterm 2. In class on Wednesday 4/15.
 <!--

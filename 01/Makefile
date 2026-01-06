@@ -1,3 +1,3 @@
-default: slides.pdf notes.pdf index.html 
+default: slides.pdf notes.pdf
 
 include ../rules.mk

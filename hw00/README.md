@@ -8,7 +8,7 @@ This homework has nothing to turn in, but it prepares you for future assignments
 
 ## Internet repositories for collaboration and open-source research: git and GitHub
 
-* All the course materials are in a git repository, at https://github.com/ionides/531w26. Keeping a local copy of the course repo is a good way to maintain up-to-date copies of all the files. Additional features of GitHub, such as issues and pull requests, are also recommended.
+* All the course materials are in a git repository, at [https://github.com/ionides/531w26](https://github.com/ionides/531w26). Keeping a local copy of the course repo is a good way to maintain up-to-date copies of all the files. Additional features of GitHub, such as issues and pull requests, are also recommended.
 
 * Read [https://missing.csail.mit.edu/2020/version-control](https://missing.csail.mit.edu/2020/version-control) if you are not yet familiar with git and GitHub. Another resource is Karl Broman's [practical and minimal git/github tutorial](https://kbroman.org/github_tutorial). A deeper, more technical tutorial is https://www.atlassian.com/git/tutorials/.
 

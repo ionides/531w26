@@ -23,6 +23,16 @@ if(EXAM){
   SOL <- FALSE
   QLABELS <- FALSE
 }
+
+# install necessary packages
+packages <- c("png","tidyverse","tseries","rmarkdown")
+installed_packages <- installed.packages()[,1]
+options(repos=structure(c(CRAN="https://repo.miserver.it.umich.edu/cran/")))
+install_if_not_installed <- function(pkg) {
+  if (!pkg%in%installed_packages) install.packages(pkg,dependencies = TRUE, quiet=TRUE)
+}
+invisible(sapply(packages, install_if_not_installed))
+
 ```
 
 \newcommand\exam[1]{#1}

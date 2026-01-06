@@ -1,15 +1,6 @@
----
-title: "STATS 631"
-author: "Instructor: Edward L. Ionides"
-output:
-  html_document:
-    toc: no
----
+# 631 Schedule
 
-
-## Schedule
-
-STATS 631 is new this year, so suggestions on how to make it work well are particularly appreciated.
+This is the second year of STATS 631. It is a small group, so we can be flexible and suggestions on how to make it work well are particularly appreciated.
 In addition to all the activities of 531, we will arrange a one-hour meeting at a time we call all make, at which we will discuss a paper.
 Everyone is expected to have something to say, for example, a fairly brief reading of the paper should be sufficient to have an opinion on one or more of the "generic questions" listed below.
 You are expected to spend at least an hour reading the paper.
@@ -17,72 +8,59 @@ The primary intention here is that we learn about research in time series analys
 
 Meetings are TBD.
 
-1. Week starting Jan 12: [__akaike74__](https://doi.org/10.1109/TAC.1974.1100705)
-<br>
+1. Week starting Jan 12: [__akaike74__](https://doi.org/10.1109/TAC.1974.1100705)\
 Hirotugu Akaike's information criterion (AIC) is used in many recent time series papers, including those later on our reading list.
 Akaike developed his ideas in a sequence of papers, with time series analysis being one of his main motivations.
 This paper is the first one which focuses on the current standard definition of AIC.
 Akaike's foundational papers are 50 years old, and there has been much work on model selection since then.
 Why have  Akaike's ideas been so persistent?  
 
-1. Week starting Jan 19: [__box76__](https://doi.org/10.1080/01621459.1976.10480949)
-<br>
+2. Week starting Jan 19: [__box76__](https://doi.org/10.1080/01621459.1976.10480949)\
 George Box's work popularized the autoregressive integrated moving average (ARIMA) framework for time series.
 Among many other notable contributions, he is responsible what is perhaps the most widely quoted advice for applied statistics, "All models are wrong, but some models are useful."
 This influential discussion of the relationship between science and statistics, and the role of models in this relationship, is informed by Box's extensive work in time series analysis.
 Look for places where dependence, including temporal dependence, play a role.
 
-1. Week starting Jan 26: [__hyndman08__](https://doi.org/10.18637/jss.v027.i03)
-<br>
+3. Week starting Jan 26: [__hyndman08__](https://doi.org/10.18637/jss.v027.i03)\
 Rob Hyndman's many contributions to time series analysis include the development of `auto.arima`, a widely used approach for choosing ARIMA models.
 This paper explains the construction of this procedure and its motivation, as well as mentioning alternative approaches. 
 
-1. Week starting Feb 2: [__taylor18__](https://doi.org/10.1080/00031305.2017.1380080)
-<br>
+4. Week starting Feb 2: [__taylor18__](https://doi.org/10.1080/00031305.2017.1380080)\
 This paper introduces a widely used modern forecasting tool, Facebook Prophet, implemented by the R package [__prophet__](https://cran.r-project.org/web/packages/prophet/index.html).
 Facebook Prophet is not based on ARIMA modeling, and the difference between these approaches is worth consideration.
 
-1. Week starting Feb 9: [__lim21__](https://doi.org/10.1098/rsta.2020.0209)
-<br>
+5. Week starting Feb 9: [__lim21__](https://doi.org/10.1098/rsta.2020.0209)\
 Deep learning has been influential throughout statistics, and time series analysis is no exception.
 This review discusses the deep learning for time series, situated before the widespread popularization of transformers.
 
-1. Week starting Feb 16: [__gruver23__](https://proceedings.neurips.cc/paper_files/paper/2023/file/3eb7ca52e8207697361b2c0fb3926511-Paper-Conference.pdf)
-<br>
+6. Week starting Feb 16: [__gruver23__](https://proceedings.neurips.cc/paper_files/paper/2023/file/3eb7ca52e8207697361b2c0fb3926511-Paper-Conference.pdf)\
 When is GenAI useful for time series analysis? 
 
-1. Week starting Feb 23: [__bjornstad01__](https://doi.org/10.1126/science.1062226)
-<br>
+7. Week starting Feb 23: [__bjornstad01__](https://doi.org/10.1126/science.1062226)\
 There are surprisingly many important ideas about time series analysis for nonlinear stochastic dynamic systems discussed in this compact paper.
 The issues it raises have prompted much work over the past two decades, and some issues remain unresolved.
 
 Spring Break
 
-8. Week starting Mar 9: [__doucet09__](http://www.warwick.ac.uk/fac/sci/statistics/staff/academic-research/johansen/publications/dj11.pdf)
-<br>
+8. Week starting Mar 9: [__doucet09__](http://www.warwick.ac.uk/fac/sci/statistics/staff/academic-research/johansen/publications/dj11.pdf)\
 Particle filtering facilitates time series analysis for many nonlinear systems. We study a review of this technique by two leading experts.  
 
-1. Week starting Mar 16: [__kristensen16__](https://doi.org/10.18637/jss.v070.i05)
-<br>
+9. Week starting Mar 16: [__kristensen16__](https://doi.org/10.18637/jss.v070.i05)\
 Perhaps the main alternative to likelihood-based inference for partially observed Markov process (POMP) models is the locally Gaussian approximation used in the integrated nested Laplace approximation method.
 A popular implemention is Template Model Builder, described in this paper.
 
-1. Week starting Mar 23: [__stock21__](https://doi.org/10.1016/j.fishres.2021.105967)
-<br>
+10. Week starting Mar 23: [__stock21__](https://doi.org/10.1016/j.fishres.2021.105967)\
 Fishery management is a major economic and environmental task that is based on POMP models for time series data.
 Template Model Builder is widely used in this context.
 Would there be an advantage to using particle filter methods to avoid the approximations inherent in Template Model Builder, or does this class of problems expose the limitations of the particle filter?
 
-1. Week starting Mar 30: [__wheeler24__](https://doi.org/10.1371/journal.pcbi.1012032)
-<br>
+11. Week starting Mar 30: [__wheeler24__](https://doi.org/10.1371/journal.pcbi.1012032)\
 A paper dealing with various practical issues in data analysis via mechanistic models, including residual analysis and benchmarking to help identify model misspecification.
 
-1. Week starting Apr 6: [__subramanian21__](https://doi.org/10.1073/pnas.2019716118)
-<br>
+12. Week starting Apr 6: [__subramanian21__](https://doi.org/10.1073/pnas.2019716118)\
 Many papers were written fitting mechanistic models to learn about COVID-19 transmission and to forecast its trajectory. This paper shows how it is critical to understand both the reporting process and the disease dynamics.
 
-1. Week starting Apr 13: [__madden24__](https://doi.org/10.1371/journal.pcbi.1012616)
-<br>
+13. Week starting Apr 13: [__madden24__](https://doi.org/10.1371/journal.pcbi.1012616)\
 Integrating deep learning with mechanistic modeling for time series data, in the context of measles epidemiology.
 
 ## References for the STATS 631 reading group

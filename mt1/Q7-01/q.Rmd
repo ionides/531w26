@@ -1,5 +1,5 @@
 
-```{r read_cpi_and_unemp,echo=FALSE,fig.width=7,fig.height=2.5,out.width="5in",}
+```{r read_data_for_lead_lag_question,echo=FALSE,fig.width=7,fig.height=2.5,out.width="5in",}
 cpi_wide <- read.table(file="data/consumer_price_index.csv",sep=",",header=TRUE)
 cpi_long <- as.vector(t(as.matrix(cpi_wide[,2:13])))
 inflation <- diff(log(cpi_long))

@@ -1,7 +1,7 @@
 default: pdf-docs
 
-pdf-docs: quiz1.pdf
-html-docs: quiz1.html
+pdf-docs: mt1.pdf
+html-docs: mt1.html
 
 
 %.html: %.Rmd

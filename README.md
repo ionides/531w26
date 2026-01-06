@@ -17,7 +17,7 @@ Please follow the [issues](https://github.com/ionides/531w26/issues) for the cou
 You are more than welcome to contribute issues and/or pull requests to the course repo.
 The repository is public, so your contributions should be polite and respectful.
 
-631 includes a [reading group](631/631.html) where we discuss a research paper each week.
+631 includes a [reading group](631/) where we discuss a research paper each week.
 Students registering for 631 are expected to have taken at least one core PhD-level class such as STATS 600.
 
 --------------

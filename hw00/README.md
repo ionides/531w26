@@ -4,15 +4,15 @@ This homework has nothing to turn in, but it prepares you for future assignments
 
 ## Read the syllabus
 
-* As the [syllabus](../syllabus.html) explains, the [grading rubric](../rubric_homework.html) puts considerable emphasis on scholarship, including the need to cite all sources and to be explicit about the lack of sources when you do not consult any. You are expected to make it easy for the reader to assess your own contribution and what help you did (and did not) get from sources. This is necessary in order to allow full use of internet resources, including the many past projects and homework solutions available online, while maintaining the course integrity. If you follow standard scientific citation practices, the scholarship points are easy credit and we can happily focus on learning time series. If we have to spend time learning how to give proper credit to sources, that is also not wasted effort.
+* As the [syllabus](../syllabus.html) explains, the [grading rubric](../rubric_homework.html) puts considerable emphasis on scholarship, including the need to cite all sources and to be explicit about the lack of sources when you do not consult any. You are expected to make it easy for the reader to assess your own contribution and what help you did (and did not) get from sources. This is necessary in order to allow full use of internet resources, including the many past projects and homework solutions available online, as well as AI, while maintaining the course integrity. If you follow standard scientific citation practices, the scholarship points are easy credit and we can happily focus on learning time series. If we have to spend time learning how to give proper credit to sources, that is also not wasted effort.
 
 ## Internet repositories for collaboration and open-source research: git and GitHub
 
 * All the course materials are in a git repository, at https://github.com/ionides/531w26. Keeping a local copy of the course repo is a good way to maintain up-to-date copies of all the files. Additional features of GitHub, such as issues and pull requests, are also recommended.
 
-* Read https://missing.csail.mit.edu/2020/version-control if you are not yet familiar with git and GitHub. Another resource is [Karl Broman's practical and minimal git/github tutorial](https://kbroman.org/github_tutorial). A deeper, more technical tutorial is https://www.atlassian.com/git/tutorials/.
+* Read [https://missing.csail.mit.edu/2020/version-control](https://missing.csail.mit.edu/2020/version-control) if you are not yet familiar with git and GitHub. Another resource is Karl Broman's [practical and minimal git/github tutorial](https://kbroman.org/github_tutorial). A deeper, more technical tutorial is https://www.atlassian.com/git/tutorials/.
 
-* The GitHub repository is mirrored to the website at https://ionides.github.io/531w26/. This can be convenient for viewing the material, however, use of GitHub and a local clone of the repo is recommended.
+* The GitHub repository is mirrored to the website at [https://ionides.github.io/531w26/](https://ionides.github.io/531w26/). This can be convenient for viewing the material, however, use of GitHub and a local clone of the repo is recommended.
 
 ## File formats and IDEs
 
@@ -20,7 +20,7 @@ This homework has nothing to turn in, but it prepares you for future assignments
 
 * Integrated development environment (IDE) options for working with qmd include vscode (using the Quarto extension), Positron and RStudio. [Positron](https://positron.posit.co/) is a recent product by Posit, the makers of RStudio, and it is currently being developed more actively than RStudio.
 
-* The midterm and final projects will be required to be in qmd format, so newcomers are advised to start familiarizing themselves with it. Check that you can render https://github.com/ionides/531w26/blob/main/01/slides.qmd to give slides.pdf. To do this, you will need a Python installation, and it is good practice to use a virtual environment. Here is the python setup used for the slides:
+* The midterm and final projects will be required to be in qmd format, so newcomers are advised to start familiarizing themselves with it. Check that you can render [https://github.com/ionides/531w26/blob/main/01/slides.qmd](https://github.com/ionides/531w26/blob/main/01/slides.qmd) to give slides.pdf. To do this, you will need a Python installation, and it is good practice to use a virtual environment. Here is the python setup used for the slides:
 ```
 python3.12 -m venv .venv
 source .venv/bin/activate

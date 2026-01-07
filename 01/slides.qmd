@@ -48,7 +48,11 @@ The second half of this course focuses on:
 
 2. Using time series data to carry out statistical inference on these models.
 
-Example questions: Can we develop a better model for understanding variability of financial markets (known in finance as volatility)? How do we assess our model and decide whether it is indeed an improvement?
+Example questions:
+
+- Can we develop a better model for understanding variability of financial markets (known in finance as volatility)? How do we assess our model and decide whether it is indeed an improvement for some purpose?
+
+- Why is a new strain of ebola spreading quickly? Has it evolved to be more contagious? Has something else changed?
 
 # Example: Winter in Michigan
 
@@ -346,6 +350,6 @@ This is an example of a **mechanistic model**, where scientific or engineering c
 
 Likelihood-based inference for this partially observed stochastic dynamic system is possible, and enables addressing these questions \parencite{breto14}.
 
-By the end of this course, you will be able to carry out data analysis developing complex models and fitting them to time series. See past final projects for [2018](https://ionides.github.io/531w18/final_project/), [2020](https://ionides.github.io/531w20/final_project/), [2021](https://ionides.github.io/531w21/final_project/), [2022](https://ionides.github.io/531w22/final_project/), [2024](https://ionides.github.io/531w24/final_project/).
+By the end of this course, you will be able to carry out data analysis developing complex models and fitting them to time series. See past final projects for [2018](https://ionides.github.io/531w18/final_project/), [2020](https://ionides.github.io/531w20/final_project/), [2021](https://ionides.github.io/531w21/final_project/), [2022](https://ionides.github.io/531w22/final_project/), [2024](https://ionides.github.io/531w24/final_project/), [2025](https://ionides.github.io/531w25/final_project/)
 
 # References

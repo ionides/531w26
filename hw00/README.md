@@ -20,12 +20,25 @@ This homework has nothing to turn in, but it prepares you for future assignments
 
 * Integrated development environment (IDE) options for working with qmd include vscode (using the Quarto extension), Positron and RStudio. [Positron](https://positron.posit.co/) is a recent product by Posit, the makers of RStudio, and it is currently being developed more actively than RStudio.
 
-* The midterm and final projects will be required to be in qmd format, so newcomers are advised to start familiarizing themselves with it. Check that you can render [https://github.com/ionides/531w26/blob/main/01/slides.qmd](https://github.com/ionides/531w26/blob/main/01/slides.qmd) to give slides.pdf. To do this, you will need a Python installation, and it is good practice to use a virtual environment. Here is the python setup used for the slides:
+* The midterm and final projects will be required to be in qmd format, so newcomers are advised to start familiarizing themselves with it. Check that you can render [https://github.com/ionides/531w26/blob/main/01/source.qmd](https://github.com/ionides/531w26/blob/main/01/source.qmd) to give slides.pdf. To do this, you will need a Python installation, and it is good practice to use a virtual environment. Here is the python setup used for the slides:
 ```
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install jupyter matplotlib pandas statsmodels
+```
+Then, slides.pdf can be built by
+```
+quarto render source.qmd --to beamer
+```
+and a more compact version, in an article format, can be built by
+```
+quarto render source.qmd --to pdf
+```
+Alternatively, using the Makefile in the repository, you can get the same effect by running
+```
+make slides.pdf
+make notes.pdf
 ```
 If you have difficulties reproducing slides.pdf, please solve the problem via the usual order for debugging: (i) internet search; (ii) ask colleagues; (iii) contact the instructional team by posting an issue on the class GitHub site and/or asking in class and/or email and/or office hours. 
 

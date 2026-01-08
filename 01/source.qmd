@@ -7,8 +7,10 @@ format:
     cite-method: biblatex
     header-includes: |
       \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
   pdf:
     cite-method: biblatex
+    output-file: notes.pdf
 
 bibliography: ../bib531.bib
 

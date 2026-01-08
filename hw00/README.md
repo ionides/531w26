@@ -31,7 +31,7 @@ Then, slides.pdf can be built by
 ```
 quarto render source.qmd --to beamer
 ```
-and a more compact version, in an article format, can be built by
+and notes.pdf, a more compact version in an article format, can be built by
 ```
 quarto render source.qmd --to pdf
 ```

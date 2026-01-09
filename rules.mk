@@ -47,3 +47,6 @@ fresh: clean
 %.pdf: %.qmd
 	quarto render "$*.qmd" --to beamer
 
+%.html: %.qmd
+	quarto render "$*.qmd" --to html
+

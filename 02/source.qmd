@@ -1,0 +1,461 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 2: Estimating trend and autocovariance"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2025"
+format:
+  beamer:
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+
+---
+
+
+## General notation for time series data and models
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.formula.api import ols
+from statsmodels.graphics.tsaplots import plot_acf
+```
+
+\newcommand\given{\,;\,}
+
+**Definition:** A **time series** is a sequence of numbers, called **data**. In general, we will suppose that there are $N$ numbers, $y^*_1, y^*_2, \dots, y^*_N$, collected at an increasing sequence of times, $t_1, t_2, \dots, t_N$.
+
+- We write $1{:}N$ for the sequence $\{1,2,\dots,N\}$ and we write the collection of numbers $\{y^*_n, n=1,\dots,N\}$ as $y^*_{1:N}$.
+
+- A **time series model** is a collection of jointly defined random variables, $Y_1, Y_2, \dots, Y_N$.
+
+- We write this collection of random variables as  $Y_{1:N}$.
+
+## Joint density function
+
+- Like all jointly defined random variables, the distribution of $Y_{1:N}$ is defined by a joint density function, which we write as
+\begin{equation}
+f_{Y_{1:N}}(y_1,\dots,y_N \given \theta).
+\end{equation}
+
+- Here, $\theta$ is a vector of parameters.
+
+- The density is defined for arbitrary outcomes $y_{1:N}$. Its value at the data, $y^*_{1:N}$, is called the **likelihood**,
+
+\begin{equation}
+L(\theta) = f_{Y_{1:N}}(y^*_1,\dots,y^*_N \given \theta).
+\end{equation}
+
+
+
+## Notation for densities
+
+- Our notation for densities generalizes. We write $f_Y(y)$ for the density of a random variable $Y$ evaluated at $y$, and $f_{YZ}(y,z)$ for the joint density of the pair of random variables $(Y,Z)$ evaluated at $(y,z)$. We can also write $f_{Y|Z}(y\mid z)$ for the conditional density of $Y$ given $Z$.
+
+- For discrete data, such as count data, our model may also be discrete and we interpret the density function as a probability mass function. Expectations and probabilities are integrals for continuous models, and sums for discrete models. Otherwise, everything remains the same. We will write formulas only for the continuous case. You can swap integrals for sums when working with discrete models.
+
+----
+
+- Scientifically, we consider the hypothesis that $y^*_{1:N}$ is well described as a realization of $Y_{1:N}$ for an unknown value of $\theta$.
+
+- Our notation distinguishes between the model, $Y_{1:N}$; an arbitrary realization of the model, $y_{1:N}$; the specific sequence of numbers that we observed as data, $y^*_{1:N}$.
+
+- Time series texts commonly ignore these distinctions. For example, \textcite{shumway17} call all these quantities $y_t$.
+
+## Review: Random variables
+
+**Question.** What is a random variable?
+
+**Question.** What is a collection of jointly defined random variables?
+
+**Question.** What is a probability density function? What is a joint density function? What is a conditional density function?
+
+**Question.** What does it mean to say that "$\theta$ is a vector of parameters?"
+
+\
+
+There are different answers to these questions, but you should be able to write down an answer that you are satisfied with.
+
+## Review: Expectation
+
+Random variables usually have an **expected value**, and in this course they always do. We write $\mathrm{E}[X]$ for the expected value of a random variable $X$.
+
+**Question.** Review question: What is expected value? How is it defined? How can it fail to exist for a properly defined random variable?
+
+\
+
+## Trend, also called the mean function
+
+**Definition:** The **mean function**, for $n\in 1{:}N$, is
+$$ \mu_n = \mathrm{E}[Y_n] = \int_{-\infty}^\infty y_n \, f^{}_{Y_n}(y_n)\, dy_n$$
+
+- **Mean function** and **trend** are synonyms. We can say **model trend** to clarify that this is a property of the model, not data.
+
+- We say "function" since $\mu_n$ is formally a function of $n$.
+
+- Sometimes, it makes sense to think of time as continuous. Then, we write
+$\mu(t)$
+for the expected value of an observation at time $t$.
+We only make observations at the discrete collection of times $t_{1:N}$ and so we require
+$\mu(t_n)= \mu_n$.
+
+- A time series may have measurements evenly spaced in time, but our notation does not insist on this. Time series data may contain missing values or unequally spaced observations.
+
+----
+
+- $\mu_n$ may depend on $\theta$, the parameter vector. We can write $\mu_n(\theta)$ or $\mu(t \given \theta)$ to make this explicit.
+
+- We write $\hat\mu_n(y_{1:N})$ to be some estimator of $\mu_n$, i.e., a map which is applied to data to give an estimate of $\mu_n$.  An appropriate choice of $\hat\mu_n$ will depend on the data and the model.
+
+- The **estimated mean function** or **estimated trend** is the value of the estimator when applied to our data, written as
+\begin{equation}
+\hat\mu_n = \hat\mu_n(y^*_{1:N}).
+\end{equation}
+
+- $\hat\mu_n$ denotes both the estimator function and its value evaluated at $y^*_{1:N}$. This is standard terminology for data analysis. The ambiguity can be clarified when it is helpful.
+
+## Mean stationary models
+
+**Definition:** If $\mu_n=\mu$, so the mean is assumed constant, the model is called **mean stationary**.
+
+In this case, we might estimate $\mu$ using the mean estimator,
+\begin{equation}
+\hat\mu(y_{1:N})=\frac{1}{N}\sum_{n=1}^N y_n.
+\end{equation}
+
+- $\hat\mu=\hat\mu(y^*_{1:N})$ is the **sample mean** or **data mean**.
+
+- We can compute $\hat\mu$ for any dataset. It is only a reasonable estimate of the mean function when a mean stationary model is appropriate.
+
+- Data cannot formally be mean stationary. Mean stationarity is a property of a model.
+
+## Properties of models vs properties of data
+
+**Question.** Properties of models vs properties of data.
+
+Consider these two statements. Does is matter which we use?
+
+1. "The data look mean stationary."
+2. "A mean stationary model looks appropriate for these data."
+
+## Autocovariance and autocorrelation
+
+**Definition:**  Assuming that variances and covariances exist for the random variables $Y_{1:N}$, we write
+\begin{equation}
+\gamma_{m,n} = \mathrm{E}\big[(Y_m-\mu_m)(Y_n-\mu_n)\big].
+\end{equation}
+This is the **autocovariance** function, a function of $m$ and $n$.
+
+- We write $\Gamma$ for the $N\times N$ matrix whose $(m,n)$ entry is $\gamma_{m,n}$.
+
+**Definition:** If the covariance between two observations depends only on their time difference, the time series model is **covariance stationary**. For observations equally spaced in time, the autocovariance function is a function of a lag, $h$,
+\begin{equation}
+\gamma_{h} = \gamma_{n,n+h}.
+\end{equation}
+
+- For a covariance stationary model, and some mean estimate $\hat\mu_n$, an estimate for $\gamma_h$ is the **sample autovariance function**,
+\begin{equation}
+\hat\gamma_h = \frac{1}{N}\sum_{n=1}^{N-h} \big( y_n - \hat\mu_n \big)\, \big(y_{n+h}-\hat\mu_{n+h} \big).
+\end{equation}
+
+----
+
+**Definition:** Dividing the autocovariance by the variance gives the **autocorrelation function** $\rho_h$,
+$$ \rho_h = \frac{\gamma_h}{\gamma_0}.$$
+We can analogously construct the standard autocorrelation estimator,
+$$ \hat\rho_h(y_{1:N}) = \frac{\hat\gamma_h(y_{1:N})}{\hat\gamma_0(y_{1:N})},$$
+which leads to an estimate known as the **sample autocorrelation**,
+$$ \hat\rho_h = \hat\rho_h(y_{1:N})= \frac{\hat\gamma_h}{\hat\gamma_0}.$$
+
+- It is common to use ACF as an acronym for any or all of the autocorrelation function, sample autocorrelation function, autocovariance function, and sample autocovariance function. **If you use the acronym ACF, it is good to remove ambiguity by defining it**.
+
+## Sample statistics exist without a model
+
+- The sample autocorrelation and sample autocovariance functions are statistics computed from the data. They exist, and can be computed, even when the data are not well modeled as covariance stationary. However, in that case, it does not make sense to view them as estimators of the autocorrelation and autocovariance functions (which exist as functions of a lag $h$ only for covariance stationary models).
+
+- Formally, we should not talk about the correlation or covariance of data. These are properties of models. We can talk about the sample autocorrelation or sample autocovariance of data.
+
+## Least squares estimation of a trend
+
+We analyze a time series of global mean annual temperature from
+[https://climate.nasa.gov/vital-signs/global-temperature/](https://climate.nasa.gov/vital-signs/global-temperature/).\
+These data are in degrees Celsius measured as an anomaly from a 1951-1980 base. This is climatology jargon for saying that the sample mean of the temperature over the interval 1951-1980 was subtracted from all time points.
+
+```{python}
+#| echo: true
+global_temp = pd.read_csv("Global_Temperature.txt", 
+  sep='\s+', comment='#', engine='python')
+print(global_temp.head(3))
+```
+
+## Time series plot code
+
+```{python}
+#| echo: true
+#| eval: false
+plt.figure(figsize=(10, 4))
+plt.plot(global_temp['Year'],
+    global_temp['Annual'], '-')
+plt.xlabel('Year')
+plt.ylabel('Temperature anomaly (°C)')
+plt.tight_layout()
+plt.show()
+```
+
+## Mean global temperature anomaly, degrees C
+
+```{python}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 4
+plt.figure(figsize=(10, 4))
+plt.plot(global_temp['Year'], 
+    global_temp['Annual'], '-')
+plt.xlabel('Year')
+plt.ylabel('Temperature anomaly (°C)')
+plt.tight_layout()
+plt.show()
+```
+
+## Climate change and statistical analysis
+
+- These data should make all of us pause for thought about the future of our planet.
+
+- Understanding climate change involves understanding a highly complex system of physical, chemical and biological processes. It is hard to know if gigantic models that attempt to capture all important parts of the global climate dynamics are an accurate description of what is happening.
+
+- There is value in statistical analysis, which can tell us what evidence there is for how things are, or are not, changing.
+
+A quote from *Science* (18 December 2015, volume 350, page 1461) remains pertinent:
+
+"Scientists are still debating whether---and, if so, how---warming in the Arctic and dwindling sea ice influences extreme weather events at midlatitudes. **Model limitations**, **scarce data** on the warming Arctic, and the **inherent variability** of the systems make answers elusive."
+
+## Fitting a least squares model with a quadratic trend
+
+Perhaps the simplest trend model that makes sense looking at these data is a quadratic trend,
+\begin{equation}
+\mu(t)= \beta_0 + \beta_1 t + \beta_2 t^2.
+\end{equation}
+To write the least squares estimate of $\beta_0$, $\beta_1$ and $\beta_2$, we set up matrix notation. Write
+\begin{equation}
+\mu = (\mu_1,\mu_2,\dots,\mu_N)^\top
+\end{equation}
+for the column vector describing the mean function, and similarly,
+\begin{equation}
+\beta = (\beta_0,\beta_1,\beta_2)^\top.
+\end{equation}
+
+## Design matrix
+
+Then, defining
+\begin{equation}
+Z = \left(\begin{array}{ccc}
+1 & 1880 & 1880^2 \\
+1 & 1881 & 1881^2 \\
+1 & 1882 & 1882^2 \\
+\vdots & \vdots & \vdots
+\end{array}\right),
+\end{equation}
+we can write
+$$ \mu = Z\beta.$$
+
+## OLS estimator
+
+We write $y_{1:N}$ as a column vector,
+\begin{eqnarray}
+y &=& (y_1,y_2,\dots,y_N)^\top.
+\end{eqnarray}
+The ordinary least squares (OLS) estimator of $\beta$ is
+\begin{equation}
+\hat\beta_{\mathrm{OLS}}(y_{1:N}) = (Z^\top Z)^{-1}Z^\top y,
+\end{equation}
+with corresponding OLS estimate
+$$
+\hat\beta_{\mathrm{OLS}}=\hat\beta_{\mathrm{OLS}}(y_{1:N}) = (Z^\top Z)^{-1}Z^\top y.
+$$
+
+## Fitting the model in Python
+
+We can carry out this computation in Python by
+
+```{python}
+#| echo: true
+global_temp['Year_sq'] = global_temp['Year'] ** 2
+lm_fit = ols('Annual ~ Year + Year_sq', 
+    data=global_temp).fit()
+```
+
+```{python}
+#| echo: true
+#| eval: false
+print(lm_fit.summary())
+```
+
+----
+
+\scriptsize
+```{python}
+#| echo: false
+print(lm_fit.summary())
+```
+\normalsize
+
+----
+
+We can check visually how well this model fits the data.
+
+```{python}
+#| echo: true
+#| eval: false
+yr = np.arange(1880, 2027)
+X_pred = np.column_stack([np.ones(len(yr)),yr,yr**2])
+beta = lm_fit.params.values
+prediction = X_pred @ beta
+plt.figure(figsize=(10, 4))
+plt.plot(global_temp['Year'], global_temp['Annual'], 
+    'k--', label='Observed')
+plt.plot(yr, prediction, 'r-', linewidth=2, 
+    label='Fitted trend')
+plt.xlabel('Year')
+plt.ylabel('Temperature anomaly (°C)')
+plt.xlim(yr.min(), yr.max())
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## Fitted trend plot
+
+```{python}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 4
+yr = np.arange(1880, 2027)
+X_pred = np.column_stack([np.ones(len(yr)),yr,yr**2])
+beta = lm_fit.params.values
+prediction = X_pred @ beta
+
+plt.figure(figsize=(10, 4))
+plt.plot(global_temp['Year'], global_temp['Annual'], 
+    'k--', label='Observed')
+plt.plot(yr, prediction, 'r-', linewidth=2, 
+    label='Fitted trend')
+plt.xlabel('Year')
+plt.ylabel('Temperature anomaly (°C)')
+plt.xlim(yr.min(), yr.max())
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## Assessment
+
+- The overall estimated trend seems a reasonable fit for the data.
+
+- If we want to attach uncertainty to our parameter estimates, and consequently to our forecast, we need a time series model $Y_{1:N}$, which we write in column vector form as
+$$Y = (Y_1,Y_2,\dots,Y_N)^\top.$$
+
+## White noise error model
+
+The usual model behind OLS is the independent error model, known in time series analysis as the **white noise** error model:
+
+[L1] $\quad\quad\quad\quad\quad Y = Z\beta + \epsilon,$
+
+where $\epsilon=\epsilon_{1:N}$ is a vector of independent identically distributed (iid) random variables with mean zero and constant variance,
+$\mathrm{E}[\epsilon_n]=0$ and $\mathrm{Var}(\epsilon_n) = \sigma^2$.
+
+
+- Standard linear model software, such as `ols` in Python's `statsmodels`, provides confidence intervals based on this model.
+
+----
+
+For model L1, the estimator $\hat\beta_{\mathrm{OLS}}(y_{1:N})$ is unbiased, since
+\begin{eqnarray*}
+\mathrm{E}\big[\hat\beta_{\mathrm{OLS}}(Y_{1:N})\big] &=&\mathrm{E}\big[ (Z^\top Z)^{-1}Z^\top Y \big]\\
+&=& \mathrm{E}\big[ (Z^\top Z)^{-1}Z^\top \{Z\beta + \epsilon \}\big]\\
+&=&  (Z^\top Z)^{-1}Z^\top \{Z\beta + \mathrm{E}[\epsilon]\} \\
+&=&  (Z^\top Z)^{-1}(Z^\top Z)\beta \\
+&=& \beta
+\end{eqnarray*}
+
+- A result for linear models is that $\hat\beta_{\mathrm{OLS}}(y_{1:N})$ is the minimum variance unbiased estimator for model L1.
+
+## Variance/covariance for the white noise error model
+
+- The variance/covariance matrix of $\hat\beta_{\mathrm{OLS}}(Y_{1:N})$ under this model \parencite{faraway02} is
+$$\mathrm{Var}[\hat\beta_{\mathrm{OLS}}(Y_{1:N})] = \sigma^2 \big( Z^\top Z\big)^{-1},$$
+which is estimated using an estimate for $\sigma$ of
+$$\hat\sigma_{\mathrm{OLS}}= \sqrt{\frac{1}{N-d} \big(y-Z\hat\beta_{\mathrm{OLS}}\big)^\top \big(y-Z\hat\beta_{\mathrm{OLS}}\big)},$$
+where $d$ is the number of covariates, i.e., the number of columns of $Z$.
+
+## Autocorrelated residuals and trend estimation
+
+Let's look at the residuals to assess how appropriate this model is here.
+
+```{python}
+#| echo: true
+#| fig-width: 10
+#| fig-height: 4
+fig, ax = plt.subplots(figsize=(10, 4))
+plot_acf(lm_fit.resid, ax=ax, lags=20,
+    bartlett_confint=False)
+plt.tight_layout()
+plt.show()
+```
+
+## Investigating the ACF plot
+
+- The horizontal dashed lines on the graph of the sample autocorrelation function (ACF) give a measure of chance variation under the null hypothesis that the residuals are iid.
+
+- At each lag $h$, the chance that the estimated ACF falls within this band is approximately 95%, under the null hypothesis.
+
+- Thus, under the null hypothesis, one expects a fraction of $1/20$ of the lags of the sample ACF to fall outside this band.
+
+- Here, the sample ACF confirms what we can probably see from the plot of the fitted model: the variation around the fitted model is clustered in time, so the sample ACF of the residuals is not consistent with a model having independent error terms.
+
+**Question.** How does Python/statsmodels construct these horizontal dashed lines?
+
+## Understanding confidence bands
+
+- The confidence bands use a normal distribution approximation for the sample autocorrelation estimator, with mean zero and standard deviation $1/\sqrt{N}$.
+
+- For 95% confidence, the bands are approximately at $\pm 1.96/\sqrt{N}$.
+
+- This approximation is appropriate when the residuals are truly independent (under the null hypothesis).
+
+## Generalized least squares for trend estimation
+
+Suppose that we knew the covariance matrix, $\Gamma$, for a model with dependent errors,
+
+[L2] $\quad\quad\quad\quad Y = Z\beta + \zeta, \quad \quad \zeta \sim N[0,\Gamma].$
+
+We read "$\zeta \sim N[0,\Gamma]$" as "$\zeta$ follows a multivariate normal distribution with mean zero and covariance matrix $\Gamma$."
+
+- The minimum variance unbiased estimator of $\beta$ for model L2 is the generalized least square (GLS) estimator \parencite[][Chapter 5]{faraway02}
+$$\hat \beta_{\mathrm{GLS}}(y_{1:N}) = \big( Z^\top \Gamma^{-1} Z \big)^{-1} \, Z^\top \Gamma^{-1} y.$$
+
+- The OLS estimator remains unbiased for L2 (you can check this as an exercise). In this sense it remains a reasonable estimator. It is often a practical solution to use the OLS estimator, especially for preliminary data analysis. We don't know $\Gamma$ so can't necessarily make a good estimator based on the GLS model. It might be easier to get an estimate of $\Gamma$ once we have a reasonable estimate of the trend.
+
+## Variance under model L2
+
+- For model L2, the variance of the OLS estimator is
+\begin{equation}
+\mathrm{Var}[\hat \beta_{\mathrm{OLS}}(Y_{1:N})] = (Z^\top Z)^{-1} \, Z^\top \Gamma Z\, (Z^\top Z)^{-1}.
+\end{equation}
+This is different from the variance under model L1.
+
+- **CONCLUSION. It is okay to do ordinary linear regression for data which are not well modeled with uncorrelated errors. However, if we do so, we should not trust the error estimates coming from L1.**
+
+- This is an example of a situation where some parts of the output from statistical software are reasonable (here, the parameter estimates from `ols`) and other parts are unreasonable (the corresponding standard errors and any tests based on them). The theory helps us decide which bits of computer output to use and which to ignore.
+
+## References and Acknowledgements
+
+- Compiled on \today{}.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [students and instructors for previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).

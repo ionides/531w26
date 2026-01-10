@@ -18,10 +18,7 @@ __Course components__.
 * Two in-class midterm exams
 * For [631](631) only, weekly discussion of a research paper
 
-__Instructor contact information__. email: ionides@umich.edu. web: https://ionides.github.io/. office hours: TBD
-<!---
-Wed 4-5pm, Thu 2-3pm in 453 West Hall. 
---->
+__Instructor contact information__. email: ionides@umich.edu. web: https://ionides.github.io/. office hours: Tue 1-2pm, Wed 10-11am in 453 West Hall. 
 
 __GSI__, Aaron Abkemeier. email: aaronabk@umich.edu. office hours: TBD. Location: TBD
 

@@ -1,0 +1,15 @@
+
+\color{blue}
+
+**Solution**. D.\
+
+First, note that C is a correct statement, though it is not a conclusion drawn from the data so it cannot be the best answer to the question.
+
+Both A and B suppose that it would make sense to say that the time series is iid. This is wrong, as pointed out by C.
+
+Note that some time series authors (e.g., the textbook by Huang & Petukhina, 2022) attempt to avoid this difficulty by asserting that a time series is a collection of jointly distributed random variables, which in this course we call a time series model. However, Huang & Petukhina then refer to datasets as "time series" which leads to the same inconsistency by a different route.
+
+D explains what can be concluded by a statistical test for an iid model, no more and no less.
+
+\color{black}
+

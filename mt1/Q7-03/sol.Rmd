@@ -11,5 +11,7 @@ Note that some time series authors (e.g., the textbook by Huang & Petukhina, 202
 
 D explains what can be concluded by a statistical test for an iid model, no more and no less.
 
+For E, visual inspection might suggest a wave pattern in the residuals. Because the data here are simulated iid Normal, any pattern your eye might see is spurious.
+
 \color{black}
 

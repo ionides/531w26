@@ -17,4 +17,4 @@ C. It is meaningless to say that a time series is iid, since a time series is a 
 
 D. The statistical evidence in the sample ACF is consistent with using an iid model to describe the data.
 
-
+E. There is an oscillating pattern in the sample ACF. Even though no individual lag contradicts an iid model assumption at the 5% level, the overall pattern is clear evidence against iid.

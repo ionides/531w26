@@ -1,7 +1,7 @@
 ---
 title: ""
 author: ""
-geometry: paperheight=4.2in,paperwidth=6.2in,margin=0.3in
+geometry: paperheight=4.5in,paperwidth=6.2in,margin=0.3in
 output:
     pdf_document
 ---

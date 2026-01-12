@@ -1,0 +1,31 @@
+Class 2 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class02.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title: Reading an ACF plot: https://ionides.github.io/531w26/quiz/class02.pdf
+
+Question text: The question is posted at https://ionides.github.io/531w26/quiz/class02.pdf
+
+Answers: 
+
+(A). The sample ACF is statistically consistent with an iid model. Therefore, standard statistical reasoning lets us conclude that the time series is iid.
+
+(B). The time series passed this test for being iid, but it might fail other tests. In practice, we can never make all possible tests so we cannot reliably conclude that the time series is iid.
+
+(C). It is meaningless to say that a time series is iid, since a time series is a sequence of numbers and iid is a property of a sequence of random variables.
+
+(D). The statistical evidence in the sample ACF is consistent with using an iid model to describe the data.
+
+(E). There is an oscillating pattern in the sample ACF. Even though no individual lag contradicts an iid model assumption at the 5% level, the overall pattern is clear evidence against iid.
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. A sentence or two about each option would be appropriate.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

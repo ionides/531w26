@@ -172,7 +172,7 @@ $$ \rho_h = \frac{\gamma_h}{\gamma_0}.$$
 We can analogously construct the standard autocorrelation estimator,
 $$ \hat\rho_h(y_{1:N}) = \frac{\hat\gamma_h(y_{1:N})}{\hat\gamma_0(y_{1:N})},$$
 which leads to an estimate known as the **sample autocorrelation**,
-$$ \hat\rho_h = \hat\rho_h(y_{1:N})= \frac{\hat\gamma_h}{\hat\gamma_0}.$$
+$$ \hat\rho_h = \hat\rho_h(y^*_{1:N})= \frac{\hat\gamma_h}{\hat\gamma_0}.$$
 
 - It is common to use ACF as an acronym for any or all of the autocorrelation function, sample autocorrelation function, autocovariance function, and sample autocovariance function. **If you use the acronym ACF, it is good to remove ambiguity by defining it**.
 

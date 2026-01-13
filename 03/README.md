@@ -1,15 +1,14 @@
 # Modeling and Analysis of Time Series Data (STATS 531)
 
-## Chapter 2: Estimating trend and autocovariance
+## Chapter 3: Stationarity, white noise, and some basic time series models
 
 | Lecture material          | Link                         |
 |:-----------------------|:------------------------:|
 | Slides  | [pdf](slides.pdf) |
-| Annotated slides | [pdf](slides-annotated.pdf) |
 | Notes   | [pdf](notes.pdf) |
-| Recording, Winter 2021: Chapter 2, Part 1  | [(17 mins)](https://youtu.be/lKQHUlBJafo) |
-| Recording, Winter 2021: Chapter 2, Part 2  | [(14 mins)](https://youtu.be/RiBDMz17ldM) |
-| Recording, Winter 2021: Chapter 2, Part 3  | [(10 mins)](https://youtu.be/WX-nJEEyeNA) |
+| Recording, Winter 2021: Chapter 3, Part 1  | [(27 mins)](https://youtu.be/tLCAJ74cvnA) |
+| Recording, Winter 2021: Chapter 3, Part 2  | [(24 mins)](https://youtu.be/HSWLJnLbCC0) |
+| Recording, Winter 2021: Chapter 3, Part 3  | [(19 mins)](https://youtu.be/rU8MnB6zAvM) |
 
 <!---
 | Annotated slides | [pdf](slides-annotated.pdf) |

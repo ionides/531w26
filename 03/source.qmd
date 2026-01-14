@@ -37,7 +37,7 @@ from statsmodels.tsa.arima_process import ArmaProcess
 ----
 
 - In our general notation for densities, this strict stationarity requirement can be written as
-\begin{eqnarray}&&f_{Y_{n_1},Y_{n_2},\dots, Y_{n_K}}(y_1,y_2,\dots,y_K)\\
+\begin{eqnarray}&&f_{Y_{n_1},Y_{n_2},\dots, Y_{n_K}}(y_1,y_2,\dots,y_K) \nonumber \\
 &&\quad\quad = f_{Y_{n_1+h},Y_{n_2+h},\dots, Y_{n_K+h}}(y_1,y_2,\dots,y_K).
 \end{eqnarray}
 
@@ -45,11 +45,17 @@ from statsmodels.tsa.arima_process import ArmaProcess
 
 \
 
-**Question.** How could we assess whether a weak stationary model is appropriate for a time series dataset?
+
 
 ## Assessing stationarity
 
+**Question.** How could we assess whether a weak stationary model is appropriate for a time series dataset?
+
+\
+
 **Question.** How could we assess whether a strictly stationary model is appropriate for a time series dataset?
+
+\
 
 ## Prevalence of stationarity
 
@@ -262,11 +268,11 @@ plt.show()
 
 - Does your intuition tell you that these simulated data are evidence for a model with a linear trend?
 
-- The eye looks for patterns in data, and often finds them even when there is no strong statistical evidence.
+- The eye looks for patterns in data, and often finds them even when there is no strong statistical evidence.  It is easy to see patterns even in white noise. Dependent models produce spurious patterns even more often.
 
 - That is why we need statistical tests!
 
-- It is easy to see patterns even in white noise. Dependent models produce spurious patterns even more often.
+- Fitting the usual OLS regression model results in a highly statistically significant trend estimate. We need methods that allow for dependence.
 
 - Play with simulating different models with different seeds to train your intuition.
 
@@ -309,7 +315,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-Note: The simulations may differ slightly from R's arima.sim due to different initialization methods.
+In this case, `generate_sample` exactly matches the direct approach.
 
 ## Simulation methods
 
@@ -339,14 +345,13 @@ where $\epsilon_n\sim \mathrm{iid} \,  N[0,1]$.
 
 ## Simulating a moving average model
 
-We simulate M4 using similar methods as for the autoregressive model.
+We simulate M4 using software and a direct approach
 
 ```{python}
 #| echo: true
 #| eval: false
 N = 100
-#np.random.seed(11235)
-np.random.seed(1)
+np.random.seed(11235)
 # Using statsmodels
 maparams = np.array([1.5, 1])
 ar = np.array([1])
@@ -437,7 +442,7 @@ $$ Y_n = \sum_{k=1}^n\epsilon_k.$$
 
 We can also call $Y_{0:N}$ an **integrated white noise process**. We think of summation as a discrete version of integration.
 
-If data $y_{1:N}$ are modeled as a random walk, the value of $Y_0$ is usually an unknown. Rather than introducing an unknown parameter to our model, we may initialize our model at time $t_1$ with $Y_1=y_1$.
+If data $y_{1:N}$ are modeled as a random walk, the value of $Y_0$ is usually an unknown. We can treat this as an unknown parameter, or initialize our model at time $t_1$ with $Y_1=y^*_1$.
 
 ----
 
@@ -471,7 +476,8 @@ We test this on daily S&P 500 data.
 ```{python}
 #| echo: true
 #| eval: false
-sp = pd.read_csv("sp500.csv", sep=' ', comment='#', index_col=0)
+sp = pd.read_csv("sp500.csv", sep=' ', comment='#',
+    index_col=0)
 date = pd.to_datetime(sp['Date'])
 sp500 = sp['Close'].values
 plt.figure(figsize=(10, 4))
@@ -509,10 +515,10 @@ To train our intuition, we compare the data with simulations from a fitted model
 mu = np.mean(np.diff(np.log(sp500)))
 sigma = np.std(np.diff(np.log(sp500)))
 N = len(sp500)
-X1 = (np.log(sp500[0]) +
-    np.cumsum(np.r_[0, np.random.normal(mu, sigma, N-1)]))
-X2 = (np.log(sp500[0]) +
-    np.cumsum(np.r_[0, np.random.normal(mu, sigma, N-1)]))
+X1 = np.log(sp500[0]) + np.cumsum(
+    np.r_[0, np.random.normal(mu, sigma, N-1)])
+X2 = np.log(sp500[0]) + np.cumsum(
+    np.r_[0, np.random.normal(mu, sigma, N-1)])
 ```
 
 ## Random walk simulations

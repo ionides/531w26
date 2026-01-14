@@ -8,6 +8,7 @@ format:
     header-includes: |
       \setbeamertemplate{footline}[page number]
     output-file: slides.pdf
+    classoption: t
   pdf:
     cite-method: biblatex
     output-file: notes.pdf
@@ -61,7 +62,7 @@ from statsmodels.tsa.arima_process import ArmaProcess
 
 \
 
-## Example time series
+----
 
 **Question.** Is a stationary model appropriate for either (or both) the time series below? Explain.
 
@@ -69,7 +70,7 @@ from statsmodels.tsa.arima_process import ArmaProcess
 #| echo: false
 #| fig-width: 10
 #| fig-height: 4
-np.random.seed(73413)
+np.random.seed(11)
 N = 500
 times = np.arange(1, N+1)
 T1 = 120
@@ -144,6 +145,8 @@ Let $\epsilon_n = \sin(2\pi n U)$, with a single draw $U\sim\mathrm{Uniform}[0,1
 
 \
 
+\
+
 ----
 
 **Question.** Show that $\epsilon_{1:N}$ is NOT strictly stationary.
@@ -200,6 +203,8 @@ where $\{\epsilon_n\}$ is a white noise process.
 - Often, we consider the **Gaussian AR(p)** model, where $\{\epsilon_n\}$ is a Gaussian white noise process.
 
 - M1 is a **stochastic difference equation**. It is a [difference equation (also known as a recurrence relation)](https://en.wikipedia.org/wiki/Recurrence_relation) since each time point is specified recursively in terms of previous time points. Stochastic just means random.
+
+- M1 is centered, with mean zero. We can add a mean parameter.
 
 ## Initialization of AR models
 
@@ -311,15 +316,15 @@ plt.show()
 
 Note: The simulations may differ slightly from R's arima.sim due to different initialization methods.
 
-## Simulation methods
+----
 
 **Question.** What are the advantages and disadvantages of using library simulation functions over the direct simulation method?
 
-\
+
+----
 
 **Question.** Compute the autocovariance function for model M2.
 
-\
 
 ## The MA(q) moving average model
 
@@ -339,7 +344,7 @@ where $\epsilon_n\sim \mathrm{iid} \,  N[0,1]$.
 
 ## Simulating a moving average model
 
-We simulate M4 using similar methods as for the autoregressive model.
+We can simulate M4 using `statsmodels` or directly.
 
 ```{python}
 #| echo: true
@@ -391,10 +396,6 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Question:** Why are these not quite equal? Note that
-
-
-
 ## Comparing simulations
 
 - The two methods look similar, with a lag shift. We can check this is true:
@@ -422,9 +423,9 @@ plt.tight_layout(); plt.show()
 ```
 
 
-## The random walk model
+----
 
-The **random walk** model is\
+**Definition:**. The **random walk** model is\
 [M5] $\quad\quad\quad Y_n = Y_{n-1} + \epsilon_n$,\
 where $\{\epsilon_n\}$ is white noise. Unless otherwise specified, we usually initialize with $Y_0=0$.
 

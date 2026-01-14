@@ -1,0 +1,29 @@
+Class 3 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class03.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+Multiple choice question title: Stationary or non-stationary? https://ionides.github.io/531w26/quiz/class03.pdf
+
+Question text: The question is posted at https://ionides.github.io/531w26/quiz/class03.pdf
+
+Answers: 
+
+(A). The plot shows that the data are clearly non-stationary. We could make a formal hypothesis test to confirm that, but it would not be insightful. To describe the data using a statistical model, we will need to develop a model with non-constant variance.
+
+(B). The sample variance is evidently different in different time intervals. However, we should not conclude that the underlying data generating mechanism is non-stationary before making a formal statistical test of equality of variances between the time regions that have lower sample variance and the regions that have higher sample variance. Visual impressions without a formal hypothesis test can be deceptive.
+
+(C). A model with randomly changing variance looks appropriate for these data. Since the variance for such a model is time-varying, the model must be non-stationary.
+
+(D). A model with randomly changing variance looks appropriate for these data. Despite the variance for such a model being time-varying, the model is stationary.
+
+(E). The sample variance is evidently different in different time intervals. An appropriate next step to investigate stationary would be to plot the sample autocorrelation function for different intervals to see if the dependence between time points is also time-varying.
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. A few sentences is sufficient.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

@@ -149,7 +149,7 @@ Consider these two statements. Does is matter which we use?
 
 **Definition:**  Assuming that variances and covariances exist for the random variables $Y_{1:N}$, we write
 \begin{equation}
-\gamma_{m,n} = \mathrm{E}\big[(Y_m-\mu_m)(Y_n-\mu_n)\big].
+\gamma_{m,n} = \mathrm{Cov}(Y_m,Y_n) = \mathrm{E}\big[(Y_m-\mu_m)(Y_n-\mu_n)\big].
 \end{equation}
 This is the **autocovariance** function, a function of $m$ and $n$.
 
@@ -160,7 +160,7 @@ This is the **autocovariance** function, a function of $m$ and $n$.
 \gamma_{h} = \gamma_{n,n+h}.
 \end{equation}
 
-- For a covariance stationary model, and some mean estimate $\hat\mu_n$, an estimate for $\gamma_h$ is the **sample autovariance function**,
+- For a covariance stationary model, and a mean estimate $\hat\mu_n$, an estimate for $\gamma_h$ is the **sample autocovariance function**,
 \begin{equation}
 \hat\gamma_h = \frac{1}{N}\sum_{n=1}^{N-h} \big( y_n - \hat\mu_n \big)\, \big(y_{n+h}-\hat\mu_{n+h} \big).
 \end{equation}
@@ -277,7 +277,7 @@ The ordinary least squares (OLS) estimator of $\beta$ is
 \end{equation}
 with corresponding OLS estimate
 $$
-\hat\beta_{\mathrm{OLS}}=\hat\beta_{\mathrm{OLS}}(y_{1:N}) = (Z^\top Z)^{-1}Z^\top y.
+\hat\beta_{\mathrm{OLS}}=\hat\beta_{\mathrm{OLS}}(y^*_{1:N}) = (Z^\top Z)^{-1}Z^\top y^*.
 $$
 
 ## Fitting the model in Python
@@ -411,7 +411,7 @@ plt.show()
 
 ## Investigating the ACF plot
 
-- The horizontal dashed lines on the graph of the sample autocorrelation function (ACF) give a measure of chance variation under the null hypothesis that the residuals are iid.
+- The horizontal shaded region on the sample autocorrelation function (ACF) gives a measure of chance variation under the null hypothesis that the residuals are iid.
 
 - At each lag $h$, the chance that the estimated ACF falls within this band is approximately 95%, under the null hypothesis.
 

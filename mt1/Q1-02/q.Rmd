@@ -1,5 +1,5 @@
 
-```{r timeplot,echo=FALSE,fig.width=6,fig.height=4,out.width="5in"}
+```{r timeplot,echo=FALSE,fig.width=6,fig.height=3.5,out.width="5in"}
 set.seed(33)
 N <- 1000
 sd1 <- rep(1,N)
@@ -10,7 +10,8 @@ sd2 <- sd1 + filter(events,
   dnorm(seq(from=-2.5*sigma,to=2.5*sigma,length=5*sigma),sd=sigma)*sigma*amplitude,
   circular=T)
 Y <- rnorm(n=N,mean=0,sd=sd2)
-plot(Y,xlab="Time index, n", ylab="y",ty="l")
+par(mai=c(0.5,0.6,0.1,0.1))
+plot(Y,xlab="", ylab="y",ty="l")
 ```
 
 Consider the time series plotted above. Which of the below is the most accurate statement about stationarity?

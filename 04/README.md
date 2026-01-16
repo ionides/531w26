@@ -1,15 +1,14 @@
 # Modeling and Analysis of Time Series Data (STATS 531)
 
-## Chapter 3: Stationarity, white noise, and some basic time series models
+## Chapter 4: Linear time series models and the algebra of ARMA models
 
 | Lecture material          | Link                         |
 |:-----------------------|:------------------------:|
 | Slides  | [pdf](slides.pdf) |
-| Annotated slides | [pdf](slides-annotated.pdf) |
 | Notes   | [pdf](notes.pdf) |
-| Recording, Winter 2021: Chapter 3, Part 1  | [(27 mins)](https://youtu.be/tLCAJ74cvnA) |
-| Recording, Winter 2021: Chapter 3, Part 2  | [(24 mins)](https://youtu.be/HSWLJnLbCC0) |
-| Recording, Winter 2021: Chapter 3, Part 3  | [(19 mins)](https://youtu.be/rU8MnB6zAvM) |
+| Recording, Winter 2021: Chapter 4, Part 1  | [Video (27 mins)](https://youtu.be/dtef_fgyrIc) |
+| Recording, Winter 2021: Chapter 4, Part 2  | [Video (19 mins)](https://youtu.be/hPeCV-MSnag) |
+| Recording, Winter 2021: Chapter 4, Part 3  | [Video (21 mins)](https://youtu.be/qcx_-C3WKA0)
 
 <!---
 | Annotated slides | [pdf](slides-annotated.pdf) |

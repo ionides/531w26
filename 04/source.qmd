@@ -1,0 +1,488 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 4: Linear time series models and the algebra of ARMA models"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2026"
+format:
+  beamer:
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+
+---
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima_process import ArmaProcess
+from statsmodels.graphics.tsaplots import plot_acf
+
+np.random.seed(2050320976)
+```
+
+## Definition: Stationary causal linear process
+
+- A **stationary causal linear process** is a time series model that can be written as
+
+[M7] $\quad Y_n = \mu + g_0\epsilon_n + g_1\epsilon_{n-1}+g_2\epsilon_{n-2}+g_3\epsilon_{n-3} + g_4\epsilon_{n-4}+\dots$
+
+where $\{\epsilon_n, n=\dots,-2,-1,0,1,2,\dots\}$ is a white noise process, defined for all integer timepoints, with variance $\mathrm{Var}(\epsilon_n)=\sigma^2$.
+
+- We do not need to define any initial values. The doubly infinite noise process $\{\epsilon_n, n=\dots,-2,-1,0,1,2,\dots\}$ is enough to define $Y_n$ for every $n$ as long as the infinite sum in [M7] converges.
+
+\
+
+**Question.** When does "stationary" here mean weak stationarity, and when does it mean strict stationarity?
+
+----
+
+- **causal** in [M7] refers to $\{\epsilon_n\}$ being a causal driver of $\{Y_n\}$. The value of $Y_n$ depends only on noise process values already determined by time $n$.
+
+- This matches a requirement that causes must precede effects ([Bradford Hill criteria](https://wikipedia.org/wiki/Bradford_Hill_criteria)).
+
+- **linear** refers to linearity of $Y_n$ as a function of $\{\epsilon_n\}$.
+
+## The autocovariance function for a linear process
+\begin{eqnarray}
+\gamma_h &=& \mathrm{Cov}(Y_n,Y_{n+h})\\
+&=& \mathrm{Cov}\left(\sum_{j=0}^\infty g_j\epsilon_{n-j},\sum_{k=0}^\infty g_k\epsilon_{n+h-k}\right)\\
+&=& \sum_{j=0}^\infty \sum_{k=0}^\infty  g_j g_k\mathrm{Cov}(\epsilon_{n-j},\epsilon_{n+h-k})\\
+&=& \sum_{j=0}^\infty g_jg_{j+h} \sigma^2, \mbox{ for $h\ge 0$}.
+\end{eqnarray}
+
+- For the autocovariance function to be finite, we need
+\begin{equation}
+\sum_{j=0}^\infty g_j^2 < \infty.
+\end{equation}
+
+- Note: we assumed we can move $\sum_{j=0}^\infty \sum_{k=0}^\infty$ through $\mathrm{Cov}$.
+
+----
+
+- The interchange of expectation and infinite sums cannot be taken for granted. $\mathrm{Cov}\left(\sum_{i=1}^m X_i,\sum_{j=1}^n Y_j\right)=\sum_{i=1}^m\sum_{j=1}^n \mathrm{Cov}(X_i,Y_j)$ is true for finite $m$ and $n$, but not necessarily for infinite sums.
+
+- In this course, we do not focus on interchange issues, but we try to notice when we make assumptions.
+
+- The interchange of $\sum_{0}^\infty$ and $\mathrm{Cov}$ can be justified by requiring a stronger condition,
+\begin{equation}
+\sum_{j=0}^\infty |g_j| < \infty.
+\end{equation}
+
+- The MA(q) model that we defined in equation M3 is an example of a stationary, causal linear process.
+
+- The general stationary, causal linear process model, M7, can also be called the MA($\infty$) model.
+
+## Causal and non-causal AR(1) models
+
+Consider the stochastic difference equation defining the AR(1) model:
+
+[M8] $\quad Y_n = \phi Y_{n-1}+\epsilon_n$.
+
+This has a causal solution,
+
+[M8.1] $\quad Y_n = \sum_{j=0}^\infty \phi^j\epsilon_{n-j}$.
+
+It also has a non-causal solution,
+
+[M8.2] $\quad Y_n = -\sum_{j=1}^\infty \phi^{-j}\epsilon_{n+j}$.
+
+**Question.** Work through the algebra to check that M8.1 and M8.2 both solve equation M8.
+
+----
+
+## Convergence of the infinite sums in M8.1 and M8.2
+
+**Question.** For what values of $\phi$ is the causal solution M8.1 a convergent infinite sum, meaning that it converges to a random variable with finite variance? For what values is the non-causal solution M8.2 a convergent infinite sum?
+
+----
+
+### Using the MA($\infty$) representation to compute the autocovariance of an ARMA model
+
+**Question.** The linear process representation can be a convenient way to calculate autocovariance functions. Use the linear process representation in M8.1, together with our expression for the autocovariance of the general linear process M7, to get an expression for the autocovariance function of the AR(1) model.
+
+## ARMA models written using the backshift operator
+
+- The **backshift** operator $B$, also called the **lag** operator, is
+\begin{equation}
+B Y_n = Y_{n-1}.
+\end{equation}
+
+- The **difference** operator $\Delta=1-B$ is
+\begin{equation}
+\Delta Y_n = (1-B)Y_n = Y_n - Y_{n-1}.
+\end{equation}
+
+- Powers of the backshift operator correspond to different time shifts, e.g.,
+\begin{equation}
+B^2 Y_n = B (BY_n) = B(Y_{n-1}) = Y_{n-2}.
+\end{equation}
+
+- We can also take a second difference,
+\begin{eqnarray} \nonumber
+\Delta^2 Y_n &=& (1-B)(1-B) Y_n\\
+&=& (1-2B+B^2) Y_n = Y_n - 2Y_{n-1} + Y_{n-2}.
+\end{eqnarray}
+
+- The backshift operator is linear, i.e.,
+\begin{equation}
+B(\alpha X_n + \beta Y_n) = \alpha BX_n +\beta BY_n = \alpha X_{n-1} +\beta Y_{n-1}
+\end{equation}
+
+----
+
+- Backshift operators and their powers can be added, multiplied by each other, and multiplied by a scalar.
+
+- Mathematically, backshift operators follow the same rules as the algebra of polynomial functions.
+
+- For example, a distributive rule for $\alpha+\beta B$ is
+\begin{equation} \nonumber
+(\alpha +\beta B)Y_n = (\alpha B^0 +\beta B^1)Y_n = \alpha Y_n + \beta BY_n = \alpha Y_n + \beta Y_{n-1}.
+\end{equation}
+
+- Mathematical properties we know about polynomials can be used to work with backshift operators.
+
+- The AR, MA and linear process model equations can all be written in terms of polynomials in the backshift operator.
+
+- Write $\phi(x)= 1-\phi_1 x -\phi_2 x^2 -\dots -\phi_p x^p$, an order $p$ polynomial. The equation M1 for the AR(p) model becomes
+\begin{equation}
+Y_n - \phi_1 Y_{n-1}- \phi_2Y_{n-2}-\dots-\phi_pY_{n-p} = \epsilon_n,
+\end{equation}
+which can be written using the backshift operator as
+
+[M1$'$] $\quad\quad \phi(B) Y_n = \epsilon_n$.
+
+----
+
+- Write $\theta(x)$ for a polynomial of order $q$,
+\begin{equation}\theta(x) = 1+\theta_1 x +\theta_2 x^2 + \dots +\theta_q x^q.
+\end{equation}
+
+- The MA(q) equation M3 is equivalent to
+
+[M3$'$] $\quad\quad Y_n = \theta(B) \epsilon_n$.
+
+- If $g(x)$ is a function defined by the [Taylor series](https://wikipedia.org/wiki/Taylor_series)
+\begin{equation}
+g(x)= g_0 + g_1 x + g_2 x^2 + g_3 x^3 + g_4 x^4 + \dots,
+\end{equation}
+we can write the stationary causal linear process equation [M7] as
+
+[M7$'$] $\quad\quad Y_n = \mu + g(B)\epsilon_n$.
+
+- Whatever you know or learn about working with Taylor series expansions helps you understand AR, MA and ARMA models.
+
+## The general ARMA model
+
+- Putting together M1 and M3 suggests an **autoregressive moving average** ARMA(p,q) model given by
+
+[M9] $\quad Y_n = \phi_1 Y_{n-1}+\phi_2Y_{n-2}+\dots+\phi_pY_{n-p} + \epsilon_n +\theta_1 \epsilon_{n-1} +\dots+\theta_q\epsilon_{n-q}$,
+
+where $\{\epsilon_n\}$ is a white noise process. Using the backshift operator, we can write this more succinctly as
+
+[M9$'$] $\quad\quad \phi(B) Y_n = \theta(B) \epsilon_n$.
+
+- Experience with data analysis suggests that models with both AR and MA components often fit data better than a pure AR or MA process.
+
+- The general stationary ARMA(p,q) also has a mean $\mu$ so we get
+
+[M9$''$] $\quad\quad \phi(B) (Y_n-\mu) = \theta(B) \epsilon_n$.
+
+## Obtaining the MA($\infty$) representation and autocovariance of the ARMA(1,1) model
+
+Consider $Y_n = \phi Y_{n-1} + \epsilon_n + \theta \epsilon_{n-1}$.
+
+**Step 1. Put the model in the form $Y_n = g(B) \epsilon_n$**.
+
+Formally, we can write
+\begin{equation}   (1-\phi B)Y_n = (1+\theta B)\epsilon_n,
+\end{equation}
+which algebraically is equivalent to
+\begin{equation}
+Y_n = \left(\frac{1+\theta B}{1-\phi B}\right)\epsilon_n.
+\end{equation}
+We can write this as
+\begin{equation}
+Y_n = g(B) \epsilon_n,
+\end{equation}
+where
+\begin{equation}
+g(x) = \left(\frac{1+\theta x}{1-\phi x}\right).
+\end{equation}
+
+----
+
+**Step 2. Work out the Taylor series expansion**,
+\begin{equation}
+g(x) = g_0 + g_1 x + g_2 x^2 + g_3 x^3 + \dots
+\end{equation}
+You can do this either by hand or using your favorite math software.
+
+**Step 3. Obtain the MA($\infty$) representation**, by putting the Taylor series into the form $Y_n = g(B) \epsilon_n$.
+
+**Step 4. Obtain the autocovariance function**, by using the general formula for an MA($\infty$) process.
+
+Carrying out this calculation is an exercise.
+
+## Causal, invertible ARMA models
+
+- We say that the ARMA model [M9] is **causal** if its MA($\infty$) representation is a convergent series.
+
+- Recall that **causality** is about writing $Y_n$ in terms of the driving noise process $\{\epsilon_n,\epsilon_{n-1},\epsilon_{n-2},\dots\}$.
+
+- **Invertibility** is about writing $\epsilon_n$ in terms of $Y_n$, $Y_{n-1}$, $\dots$.
+
+- To assess causality, we consider the convergence of the Taylor series expansion of $\theta(x)/\phi(x)$ in the ARMA representation
+$$ Y_n = \frac{\theta(B)}{\phi(B)} \epsilon_n.$$
+
+- To assess invertibility, we consider the convergence of the Taylor series expansion of $\phi(x)/\theta(x)$ in the inversion of the ARMA model given by
+$$ \epsilon_n = \frac{\phi(B)}{\theta(B)} Y_n.$$
+
+----
+
+- Fortunately, there is a simple way to check causality and invertibility without calculating the Taylor series.
+
+- The ARMA model is causal if the AR polynomial,
+$$ \phi(x) = 1-\phi_1 x - \phi_2 x^2 - \dots - \phi_p x^p$$
+has all its roots (i.e., solutions to $\phi(x)=0$) outside the unit circle in the complex plane.
+
+- The ARMA model is invertible if the MA polynomial,
+$$ \theta(x) = 1+\theta_1 x + \theta_2 x^2 + \dots + \theta_q x^q$$
+has all its roots outside the unit circle.
+
+- We can check the roots using NumPy's `roots` function. For example, consider the MA(2) model, $Y_n = \epsilon_n + 2\epsilon_{n-1} + 2\epsilon_{n-2}$. The roots to $\theta(x)= 1+2x+2x^2$ are
+
+```{python}
+#| echo: true
+roots = np.roots([2, 2, 1])
+print(roots)
+```
+
+----
+
+- Finding the absolute value shows that we have two roots inside the unit circle, so this MA(2) model is not invertible.
+
+```{python}
+#| echo: true
+print(np.abs(roots))
+```
+
+- In this case, you should be able to find the roots algebraically. In general, numerical evaluation of roots is useful.
+
+\
+
+**Question.** It is undesirable to use a non-invertible model for data analysis. Why? Hint: One answer to this question involves diagnosing model misspecification.
+
+## Reducible and irreducible ARMA models
+
+- We have seen the ARMA model written as a ratio of two polynomials,
+\begin{equation}
+Y_n = \frac{\theta(B)}{\phi(B)} \epsilon_n.
+\end{equation}
+
+- If the two polynomials $\phi(x)$ and $\theta(x)$ share a common factor, it can be canceled out without changing the model.
+
+- The [**fundamental theorem of algebra**](https://en.wikipedia.org/wiki/Fundamental_theorem_of_algebra) says that every polynomial $\phi(x) = 1-\phi_1 x - \dots - \phi_p x^p$ of degree $p$ can be written in the form
+\begin{equation}
+(1-x/\lambda_1) \times (1-x/\lambda_2) \times \dots \times (1-x/\lambda_p),
+\end{equation}
+where $\lambda_{1:p}$ are the $p$ roots of the polynomial, which may be real or complex valued.
+
+- The Taylor series expansion of $\phi(B)^{-1}$ is convergent if and only if $(1-B/\lambda_i)^{-1}$ has a convergent expansion for each $i\in 1:p$. This happens if $|\lambda_i|>1$ for each $i$.
+
+----
+
+- The polynomials $\phi(x)$ and $\theta(x)$ share a common factor if, and only if, they share a common root.
+
+- It is not clear, just from looking at the model equations, that
+\begin{equation}
+Y_n = \frac{5}{6} Y_{n-1} -  \frac{1}{6} Y_{n-2} + \epsilon_n- \epsilon_{n-1}+\frac{1}{4} \epsilon_{n-2}
+\end{equation}
+is **exactly the same model** as
+\begin{equation}
+Y_n = \frac{1}{3} Y_{n-1} + \epsilon_n- \frac{1}{2}\epsilon_{n-1}.
+\end{equation}
+
+- To see this, you have to do the math! We see that the second of these equations is derived from the first by canceling out the common factor $(1-0.5B)$ in the ARMA model specification.
+
+```{python}
+#| echo: true
+ar_roots = np.roots([1/6, -5/6, 1])
+ma_roots = np.roots([1/4, -1, 1])
+print(f"AR roots: {ar_roots}")
+print(f"MA roots: {ma_roots}")
+```
+
+# AR(2) models and oscillating behavior
+
+- Non-random physical processes evolving through time have been modeled using differential equations ever since the ground-breaking work by \textcite{newton1687}.
+
+- We have to attend to the considerable amount of randomness (unpredictability) present in data and systems we want to study.
+
+- However, it is helpful to study related deterministic systems.
+
+- The **deterministic skeleton** of a time series model is the non-random process obtained by removing randomness from a stochastic model.
+
+- For a discrete-time model, we can define a continuous-time deterministic skeleton by replacing the discrete-time difference equation with a differential equation.
+
+- Rather than deriving a deterministic skeleton from a stochastic time series model, we can instead add stochasticity to a deterministic model to get a model that can explain non-deterministic phenomena.
+
+## Oscillatory behavior modeled using an AR(2) process
+
+- In physics, a basic model for processes that oscillate (springs, pendulums, vibrating machine parts, etc) is simple harmonic motion.
+
+- The differential equation for a simple harmonic motion process $x(t)$ is
+
+[M10] $\quad\quad \displaystyle \frac{d^2}{dt^2} x(t) = -\omega^2 x(t)$.
+
+- This is a second order linear differential equation with constant coefficients. Such equations have a closed form solution. You may already know that the solution to M10 is **sinusoidal**.
+
+- Finding the solution to a linear differential equation is very similar to the task of solving difference equations which is useful elsewhere in time series analysis. It also gives a chance to review complex numbers. Let's see how it is done.
+
+----
+
+1. Look for solutions of the form $x(t)=e^{\lambda t}$. Substituting this into the differential equation [M10] we get
+\begin{equation}
+\lambda^2 e^{\lambda t} = -\omega^2 e^{\lambda t}.
+\end{equation}
+
+2. Canceling the term $e^{\lambda t}$, we see that this has two solutions, with
+\begin{equation}
+\lambda = \pm \omega i, \quad \mbox{ where } i=\sqrt{-1}.
+\end{equation}
+
+3. The linearity of the differential equation means that if $y_1(t)$ and $y_2(t)$ are two solutions, then $a y_1(t)+b y_2(t)$ is also a solution for any $a$ and $b$. So, the **general solution** to M10 is
+\begin{equation}
+x(t) = a e^{i\omega t} + b e^{-i\omega t}.
+\end{equation}
+Here, $a$ and $b$ could be complex numbers.
+
+----
+
+4. We may suspect that $x(t) = a e^{i\omega t} + b e^{-i\omega t}$ is sinusoidal by recalling the identities
+\begin{equation}
+\sin(\omega t) = \frac{1}{2i}(e^{i\omega t} - e^{-i\omega t}),
+\quad\quad
+\cos(\omega t) = \frac{1}{2}(e^{i\omega t} + e^{-i\omega t}).
+\end{equation}
+
+5. For physical systems, $x(t)$ is real so we know that the complex part must be zero. Thus, the two terms on the right are complex conjugates. Writing $a = (A/2) e^{i\phi}$, this implies $b=(A/2) e^{-i\phi}$ for real $A$ and $\phi$. The factor of $1/2$ is arbitrary. This gives
+\begin{equation}
+x(t) = \frac{A}{2} \left( e^{i(\omega t+\phi)} + e^{-i(\omega t + \phi)} \right).
+\end{equation}
+
+6. Putting together these identities we get
+\begin{equation}
+x(t) = A \cos(\omega t + \phi),
+\end{equation}
+which explains why the factor of $1/2$ is convenient.
+
+## Frequency, amplitude and phase for $x(t) = A\cos(\omega t + \phi)$
+
+- $\omega$ is called the **frequency**, and $\phi$ is called the **phase**.
+- Angle is usually measured in **radians**, so the units of $\omega$ are radians per unit time, and units of $\phi$ are radians.
+- The **period** is $2\pi/\omega$, the time for one cycle.
+- $A$ is called the **amplitude**.
+- The frequency of the oscillation is determined by $\omega$ in M10, but the amplitude and phase are unspecified constants which may be determined by initial conditions.
+- It may be convenient to rescale to **cycles per unit time**,
+\begin{equation}
+x(t) = A \cos( 2\pi(\omega' t + \phi') )
+\end{equation}
+where $\omega' = \omega/2\pi$, $\phi' = \phi/2\pi$.
+
+----
+
+- A discrete time version of M10 is a deterministic linear difference equation, replacing $\frac{d^2}{dt^2}$ by the second difference operator, $\Delta^2 = (1-B)^2$. This corresponds to a deterministic model equation,
+$$\Delta^2 y_n = - \omega^2 y_n.$$
+
+- Adding white noise, and expanding out $\Delta^2 = (1-B)^2$, we get a stochastic model,
+
+[M11] $\displaystyle \quad Y_n = \frac{2Y_{n-1}}{1+\omega^2} - \frac{Y_{n-2}}{1+\omega^2}  + \epsilon_n$.
+
+- Model M11 may be appropriate to describe systems that have semi-regular but somewhat erratic fluctuations, called **quasi-periodic** behavior. Such behavior is evident in business cycles or wild animal populations.
+
+----
+
+We look at a simulation from M11 with $\omega=0.1$ and $\epsilon_n\sim \mathrm{iid} \, N[0,1]$. From our exact solution to the deterministic skeleton, we expect that a typical period of the oscillations should be $2\pi/\omega \approx 60$.
+
+```{python}
+#| echo: true
+#| eval: false
+omega = 0.1
+ar_coefs = [2/(1+omega**2), -1/(1+omega**2)]
+# Using ArmaProcess for simulation
+ar_poly = np.r_[1, -np.array(ar_coefs)]
+ma_poly = np.array([1])
+ar_process = ArmaProcess(ar_poly, ma_poly)
+X = ar_process.generate_sample(nsample=500, scale=1.0)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3.5))
+ax1.plot(X)
+ax1.set_ylabel('X')
+# Compute theoretical ACF
+acf_vals = ar_process.acf(lags=500)
+ax2.plot(acf_vals)
+ax2.set_ylabel('ACF of X')
+ax2.set_xlabel('Lag')
+plt.tight_layout()
+plt.show()
+```
+
+## Quasi-periodic AR(2) simulation
+
+```{python}
+#| echo: false
+#| fig-width: 12
+#| fig-height: 3.5
+np.random.seed(8395200)
+omega = 0.1
+ar_coefs = [2/(1+omega**2), -1/(1+omega**2)]
+ar_poly = np.r_[1, -np.array(ar_coefs)]
+ma_poly = np.array([1])
+ar_process = ArmaProcess(ar_poly, ma_poly)
+X = ar_process.generate_sample(nsample=500, scale=1.0)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 3.5))
+ax1.plot(X)
+ax1.set_ylabel('X')
+acf_vals = ar_process.acf(lags=500)
+ax2.plot(acf_vals)
+ax2.set_ylabel('ACF of X')
+ax2.set_xlabel('Lag')
+plt.tight_layout()
+plt.show()
+```
+
+----
+
+- Quasi-periodic fluctuations are **phase locked** when the random perturbations are not able to knock the oscillations away from being close to their initial phase.
+
+- Eventually, the randomness should mean that the process is equally likely to have any phase, regardless of the initial phase.
+
+\
+
+**Question.** What is the timescale on which the simulated model shows phase locked behavior? Equivalently, on what timescale does the phase of the fluctuations lose memory of its initial phase?
+
+## Further reading
+
+- Section 2.2 of \textcite{shumway17} introduces the backshift operator.
+
+- Section 3.1 develops the theory of ARMA models in a similar way to this chapter.
+
+- Section 3.2 gives a difference equation approach to calculating ARMA autocovariance functions which gives an opportunity to practice algebra similar to our study of the AR(2) model.
+
+## Acknowledgments
+
+- Compiled on \today{} using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).
+
+# References
+

@@ -448,13 +448,15 @@ print(huron_aic_table.round(2))
 
 \
 
-----
+We proceed to inspect the ARMA(2,1) model with lowest AIC.
 
-- Let's inspect the ARMA(2,1) model with lowest AIC.
+\setlength{\leftskip}{-5em}
+
+----
 
 \scriptsize
 ```{python}
-#| echo: true
+#| echo: false
 huron_arma21 = ARIMA(huron_level, order=(2,0,1)).fit()
 print(huron_arma21.summary())
 ```
@@ -466,11 +468,9 @@ print(huron_arma21.summary())
 
 ```{python}
 #| echo: true
-ar_params = huron_arma21.arparams
-ar_poly = np.r_[1, -ar_params]
-AR_roots = np.roots(ar_poly)
-print(f"AR roots: {AR_roots}")
-print(f"AR root magnitudes: {np.abs(AR_roots)}")
+ar_pars = huron_arma21.arparams
+ar_poly = np.polynomial.Polynomial(np.r_[1,-ar_pars])
+print(f"AR roots: {ar_poly.roots()}")
 ```
 
 - The roots are just outside the unit circle, suggesting we have a stationary causal fitted ARMA.
@@ -479,41 +479,36 @@ print(f"AR root magnitudes: {np.abs(AR_roots)}")
 
 ```{python}
 #| echo: true
-ma_params = huron_arma21.maparams
-ma_poly = np.r_[1, ma_params]
-MA_roots = np.roots(ma_poly)
-print(f"MA root: {MA_roots[0]:.3f}")
-print(f"MA root magnitude: {np.abs(MA_roots[0]):.3f}")
+ma_pars = huron_arma21.maparams
+ma_poly = np.polynomial.Polynomial(np.r_[1,ma_pars])
+print(f"MA root: {ma_poly.roots()}")
 ```
 
 The fitted model is close to the threshold of non-invertibility.
 
 ----
 
-- Do we have a non-invertibility problem? We investigate this using profile and bootstrap methods. The claimed standard error on the MA1 coefficient, from the Fisher information approach, is small.
+- Do we have a non-invertibility problem? We investigate this using profile and bootstrap standard error to check the Fisher Information approach.
 
-- First, we can see if the approximate confidence interval constructed using profile likelihood is in agreement with the approximate confidence interval constructed using the observed Fisher information.
-
-- To do this, we need to maximize the ARMA likelihood while fixing the MA1 coefficient at a range of values.
+- First, we compute the profile likelihood confidence interval. To do this, we maximize the ARMA likelihood while fixing the MA1 coefficient at a range of values.
 
 ```{python}
 #| echo: true
-#| eval: false
 K = 500
 ma1_vals = np.linspace(0.2, 1.1, K)
 profile_loglik = np.zeros(K)
 for k in range(K):
-    try:
-        # Fit with MA1 fixed
-        model = ARIMA(huron_level, order=(2,0,1))
-        # Set starting values and constrain MA1
-        start_params = huron_arma21.params.copy()
-        start_params[3] = ma1_vals[k]  # MA1 is index 3
-        results = model.fit(start_params=start_params, method='nm')
+    model = ARIMA(huron_level, order=(2,0,1))
+    with model.fix_params({'ma.L1': ma1_vals[k]}):
+        results = model.fit()
         profile_loglik[k] = results.llf
-    except:
-        profile_loglik[k] = np.nan
+K = 500
+```
 
+----
+
+```{python}
+#| echo: false
 plt.figure(figsize=(9, 4))
 plt.plot(ma1_vals, profile_loglik)
 plt.xlabel('ma1')
@@ -522,38 +517,9 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
-
-```{python}
-#| echo: false
-#| fig-width: 9
-#| fig-height: 4
-K = 100  # Reduced for computational efficiency
-ma1_vals = np.linspace(0.2, 1.05, K)
-profile_loglik = np.zeros(K)
-
-# Note: Exact profile likelihood with fixed parameters is complex in statsmodels
-# This is an approximate approach
-for k in range(K):
-    try:
-        model = ARIMA(huron_level, order=(2,0,1))
-        # Use different starting values centered on ma1_vals[k]
-        start = huron_arma21.params.copy()
-        start[3] = ma1_vals[k]
-        results = model.fit(start_params=start, method='bfgs', maxiter=5)
-        profile_loglik[k] = results.llf
-    except:
-        profile_loglik[k] = np.nan
-
-plt.figure(figsize=(9, 4))
-plt.plot(ma1_vals, profile_loglik)
-plt.xlabel('ma1')
-plt.ylabel('Profile log likelihood')
-plt.tight_layout()
-plt.show()
-```
-
 **Question.** Interpret the profile likelihood plot for $\theta_1$.
+
+\
 
 ----
 
@@ -571,67 +537,28 @@ plt.show()
 
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 np.random.seed(578922)
 J = 1000
 params = huron_arma21.params
-ar = params[:2]  # AR parameters
-ma = params[2:3]  # MA parameter
-intercept = params[3]
+ar = params[1:3]; ar_poly = np.r_[1, -ar]
+ma = params[3:4]; ma_poly = np.r_[1, ma]
+intercept = params[0]
 sigma = np.sqrt(huron_arma21.scale)
-
-# Simulate and fit
 theta_list = []
 for j in range(J):
-    try:
-        # Generate data
-        ar_poly = np.r_[1, -ar]
-        ma_poly = np.r_[1, ma]
-        arma_process = ArmaProcess(ar_poly, ma_poly)
-        Y_j = arma_process.generate_sample(nsample=len(huron_level),
-                                            scale=sigma) + intercept
-        # Fit model
-        model_j = ARIMA(Y_j, order=(2,0,1)).fit()
-        theta_list.append(model_j.params[2])  # MA1 coefficient
-    except:
-        pass
-
-theta_ma1 = np.array(theta_list)
-plt.figure(figsize=(10, 4))
-plt.hist(theta_ma1, bins=30, density=True)
-plt.xlabel('ma1')
-plt.ylabel('Density')
-plt.tight_layout()
-plt.show()
+    arma_process = ArmaProcess(ar_poly, ma_poly)
+    Y_j = arma_process.generate_sample(
+        nsample=len(huron_level),
+        scale=sigma) + intercept
+    model_j = ARIMA(Y_j, order=(2,0,1)).fit()
+    theta_list.append(model_j.params[3])  
 ```
 
 ----
 
 ```{python}
 #| echo: false
-#| fig-width: 10
-#| fig-height: 4
-np.random.seed(578922)
-J = 200  # Reduced for compilation speed
-params = huron_arma21.params
-ar = params[:2]
-ma = params[2:3]
-intercept = params[3]
-sigma = np.sqrt(huron_arma21.scale)
-
-theta_list = []
-for j in range(J):
-    try:
-        ar_poly = np.r_[1, -ar]
-        ma_poly = np.r_[1, ma]
-        arma_process = ArmaProcess(ar_poly, ma_poly)
-        Y_j = arma_process.generate_sample(nsample=len(huron_level),
-                                            scale=sigma) + intercept
-        model_j = ARIMA(Y_j, order=(2,0,1)).fit()
-        theta_list.append(model_j.params[2])
-    except:
-        pass
-
 theta_ma1 = np.array(theta_list)
 plt.figure(figsize=(10, 4))
 plt.hist(theta_ma1, bins=30, density=True)
@@ -643,55 +570,13 @@ plt.show()
 
 - This seems consistent with the profile likelihood plot.
 
-- A density plot shows this similarity even more clearly.
-
-----
-
-```{python}
-#| echo: true
-#| eval: false
-plt.figure(figsize=(9, 4))
-plt.hist(theta_ma1, bins=30, density=True, alpha=0.7, edgecolor='black')
-plt.xlabel('ma1')
-plt.ylabel('Density')
-plt.tight_layout()
-plt.show()
-```
-
-----
-
-```{python}
-#| echo: false
-#| fig-width: 9
-#| fig-height: 4
-plt.figure(figsize=(9, 4))
-plt.hist(theta_ma1, bins=30, density=True, alpha=0.7, edgecolor='black')
-plt.xlabel('ma1')
-plt.ylabel('Density')
-plt.tight_layout()
-plt.show()
-```
-
-- Here, we look at the raw plot for instructional purposes. For a report, one should improve the default axis labels and title.
-
 - Note that statsmodels ARIMA transforms the model to invertibility. Thus, the estimated value of $\theta_1$ can only fall in the interval $[-1,1]$.
 
-```{python}
-#| echo: true
-print(f"Range of ma1 estimates: [{theta_ma1.min():.3f}, {theta_ma1.max():.3f}]")
-```
-
 ----
 
-- A minor technical issue: estimated densities outside $[-1,1]$ are artifacts of the density estimation procedure.
-
-**Question.** How would you refine this density estimation procedure to respect the range of the parameter estimation procedure?
-
-\
+## Using parallel computing for simulation studies
 
 - We do a simulation study for which we fit ARMA(2,1) when the true model is AR(1).
-
-## Using parallel computing for simulation studies
 
 - When doing simulation studies, **parallel computing** is helpful. All modern computers have multiple cores.
 
@@ -720,8 +605,9 @@ def fit_arma21(j):
         ar_poly = np.r_[1, -ar]
         ma_poly = np.array([1])
         arma_process = ArmaProcess(ar_poly, ma_poly)
-        Y_j = arma_process.generate_sample(nsample=len(huron_level),
-                                            scale=sigma) + intercept
+        Y_j = arma_process.generate_sample(
+            nsample=len(huron_level),
+            scale=sigma) + intercept
         model_j = ARIMA(Y_j, order=(2,0,1)).fit()
         return model_j.params[2]  # MA1 coefficient
     except:

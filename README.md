@@ -86,26 +86,29 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 
 <!--
   [Solution](hw01/sol01.html).
+-->
 
-* [Homework 2](hw02/hw02.html), due Tue Jan 28, 11:59pm.
+* [Homework 2](hw02/q.pdf), due Tue Jan 27, 11:59pm.
+
+<!--
 [Solution](hw02/sol02.html).
 
-* [Homework 3](hw03/hw03.html), due Sun Feb 9, 11:59pm.
+* [Homework 3](hw03/q.pdf), due Sun Feb 9, 11:59pm.
 [Solution](hw03/sol03.html).
 
-* [Homework 4](hw04/hw04.html), due Sun Feb 16, 11:59pm.
+* [Homework 4](hw04/q.pdf), due Sun Feb 16, 11:59pm.
 [Solution](hw04/sol04.html).
 
-* [Homework 5](hw05/hw05.html), due Sun Mar 16, 11:59pm.
+* [Homework 5](hw05/q.pdf), due Sun Mar 16, 11:59pm.
 [Solution](hw05/sol05.html).
 
-* [Homework 6](hw06/hw06.html), due Sun Mar 23, 11:59pm.
+* [Homework 6](hw06/q.pdf), due Sun Mar 23, 11:59pm.
 [Solution](hw06/sol06.html).
 
-* [Homework 7](hw07/hw07.html), due Sun Mar 30. **Deadline extended to Wed Apr 2, due to canceled class**, 11:59pm.
+* [Homework 7](hw07/q.pdf), due Sun Mar 30. **Deadline extended to Wed Apr 2, due to canceled class**, 11:59pm.
 [Solution](hw07/sol07.html).
 
-* [Homework 8](hw08/hw08.html), due Sun Apr 13, 11:59pm.
+* [Homework 8](hw08/q.pdf), due Sun Apr 13, 11:59pm.
 
 -->
 

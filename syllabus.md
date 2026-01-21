@@ -20,7 +20,7 @@ __Course components__.
 
 __Instructor contact information__. email: ionides@umich.edu. web: https://ionides.github.io/. office hours: Tue 1-2pm, Wed 10-11am in 453 West Hall. 
 
-__GSI__, Aaron Abkemeier. email: aaronabk@umich.edu. office hours: TBD. Location: TBD
+__GSI__, Aaron Abkemeier. email: aaronabk@umich.edu. office hours: MF 5:30-6:00. Location: G219 Angell Hall
 
 __AI policy__. Appropriate use of AI is encouraged for projects and data analysis homework. Uses of AI can be effective or ineffective, as well as honest or dishonest, and we seek honest and effective use of AI. The midterm exams are pencil and paper, and will test foundational knowledge and reasoning skills without AI support. Some homework problems will be labeled as exam preparation and should be mastered without AI support. Mini-quiz problems will be drawn from the same problem pool as the midterm exams.
 

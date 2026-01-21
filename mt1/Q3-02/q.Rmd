@@ -1,9 +1,10 @@
 
-The R function `arima()` provides standard errors calculated using observed Fisher information. This question tests your understanding of what that means. Suppose a parametric model has a single parameter, $\theta$, and the log-likelihood function when fitting this model to dataset is as follows:
+The Python function `statsmodels.tsa.arima.model.ARIMA.fit` and the R function `arima()` provide standard errors calculated by observed Fisher information. This question tests your understanding of what that means. Suppose a parametric model has a single parameter, $\theta$, and the log-likelihood function when fitting this model to dataset is as follows:
 
-```{r fisher_info, fig.width=6,fig.height=4,echo=FALSE,out.width="3.5in"}
+```{r fisher_info, fig.width=5,fig.height=3.5,echo=FALSE,out.width="3in",crop=NULL}
 theta <- seq(from=0,to=10,length=200)
 loglik <- -2000-(theta-5)^2
+par(mai=c(0.8,0.8,0.1,0.1))
 plot(theta,loglik,ty="l")
 ```
 

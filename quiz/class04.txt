@@ -1,0 +1,29 @@
+Class 3 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class04.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+Multiple choice question title: Fisher information for confidence intervals. https://ionides.github.io/531w26/quiz/class04.pdf
+
+Question text: The question is posted at https://ionides.github.io/531w26/quiz/class04.pdf
+
+Answers: 
+
+(A) I_obs = 2
+
+(B)  I_obs = 1
+
+(C)  I_obs = 1/2 
+
+(D)  I_obs = 1/4 
+
+(E)  None of the above
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. A few sentences is sufficient.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

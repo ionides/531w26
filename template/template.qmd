@@ -23,28 +23,33 @@ format:
         ]{subsubsection}
         \usepackage{fullpage}
 number-sections: true
+jupyter: python3
 ---
 
-# Abstract {.unnumbered}
+## Abstract {.unnumbered}
 
 This is the abstract. It should briefly describe the context of the report and highlight the findings of highest interest to the target readers (other students in the class, the GSI, and the instructor). 
 Usually, the abstract is 150-300 words.
 
 # Introduction
 
-This document provides a template based on the [quarto system](https://quarto.org/) for STATS 531,
-We show how `Python` [@perez2011python] or  `R` [@R-base] code can be included.
+The [source code](https://github.com/ionides/531w26/tree/main/template) for this document provides a template based on [Quarto](https://quarto.org/) for STATS 531,
+We demonstrate `Python` [@perez2011python] code with some discussion of how  `R` [@R-base] code can be included.
 
 # Methods
 
+This section covers basic markdown techniques.
+
 ## Formatting
 
-This section covers basic formatting guidelines. [Quarto](https://quarto.org/) is a versatile  formatting system for authoring HTML based on markdown, integrating LaTeX and various code block interpreted either via Jupyter or Knitr (and thus deal with Python, R and many other langages). It relies on the [Pandoc Markdown](https://rmarkdown.rstudio.com/authoring_pandoc_markdown.html) markup language. 
+[Quarto](https://quarto.org/) is a versatile  formatting system for authoring HTML based on markdown, integrating LaTeX and various code block interpreted either via Jupyter or Knitr (and thus deal with Python, R and many other langages). It relies on the [Pandoc Markdown](https://rmarkdown.rstudio.com/authoring_pandoc_markdown.html) markup language. 
 
-To render/compile a document, run `quarto render`. A document will be generated that includes both content as well as the output of any embedded code chunks within the document:
+To render/compile a document, run `quarto render`.
+A document will be generated that includes both content as well as the output of any embedded code chunks within the document.
+To generate `template.pdf`,
 
 ``` .bash
-quarto render template.qmd # will render to pdf
+quarto render template.qmd 
 ```
 
 ## Basic markdown 
@@ -61,9 +66,9 @@ But we can also do a numbered list
 2. This is my second item
 3. This is my third item
 
-## Mathematics
+In scientific reports, bullet points are seldom used.
 
-### Mathematical formulae
+## Mathematics
 
 [LaTeX](https://www.latex-project.org/) code is natively supported, which makes it possible to use mathematical formulae:
 $$
@@ -101,19 +106,7 @@ jupyter: python3
 ---
 ```
 
-
-For knitr (R + knitr must be installed on your computer)
-
-``` yaml
----
-title: "My Document"
-author "Jane Doe"
----
-```
-
-
-Use R and KnitR for if you want to mix R with Python (via the package reticulate @R-reticulate).
-Here, we use Python, starting with a sample `Python` chunk:
+Here, we use Jupyter with Python. As an example of a simple `Python` chunk:
 ```{python}
 #| echo: true
 #| label: python-code
@@ -121,8 +114,11 @@ import numpy as np
 np.random.seed(0)
 x = np.random.normal(size=10)
 ```
-
 Variables can be accessed inline, outside of code chunks, for example, the mean of the variable `x` is `{python} f"{np.mean(x):.3f}"`.
+
+To incorporate some R, called from Python, you can use `%%R` cell magic via the `rpy2` package.
+Alternatively, you can run the qmd file via R and include some Python via the `reticulate` package [@R-reticulate].
+It may be simplest to use a single language, and here we stick to Python.
 
 ## Figures
 
@@ -143,11 +139,8 @@ The qmd source should be available for those who want to check the code.
 
 ## Tables
 
-### Markdown syntax
-
-Tables (with label: `@tbl-mylabel` renders @tbl-mylabel) can be generated with markdown as follows
-
-DEMONSTRATE IN-TEXT PYTHON REFERENCES
+Tables can be generated with markdown as follows.
+The label, `@tbl-mylabel`, renders as @tbl-mylabel.
 
 ```markdown
 | Tables   |      Are      |  Cool |
@@ -165,58 +158,40 @@ DEMONSTRATE IN-TEXT PYTHON REFERENCES
 | col 3 is | right-aligned |    $1 |
 : my table caption {#tbl-mylabel}
 
-### List-table filter
+For tabulating results of a data analysis, it is useful to know that Quarto automatically renders the DataFrame as a markdown table when it is the last line of the chunk:
 
-We also integrate the [list tables](https://github.com/pandoc/lua-filters/tree/master/list-table) filter from Pandoc, so that you may alternatively use this format , easier to write and maintain:
+```{python}
+#| label: tbl-data-summary
+#| tbl-cap: "A summary table of example data."
+#| echo: true
+import pandas as pd
+data = {
+    'Fruit': ['Apple', 'Pear', 'Orange'],
+    'Price': [2.05, 1.37, 3.09],
+    'Quantity': [100, 150, 80]
+}
 
-```markdown
-:::list-table
-   * - row 1, column 1
-     - row 1, column 2
-     - row 1, column 3
-
-   * - row 2, column 1
-     -
-     - row 2, column 3
-
-   * - row 3, column 1
-     - row 3, column 2
-:::
+df = pd.DataFrame(data)
+df
 ```
 
-:::list-table
-   * - row 1, column 1
-     - row 1, column 2
-     - row 1, column 3
+# Conclusions
 
-   * - row 2, column 1
-     -
-     - row 2, column 3
+As well as discussing the main results, this section can include speculative interpretation. 
+References are welcome to connect your analysis to the broader literature.
 
-   * - row 3, column 1
-     - row 3, column 2
-:::
-
-### Table generated from code
-
-DEMONSTRATE THIS IN PYTHON
-
-Table can also be generated by some code
-
-
-## Handling references {#sec-references}
-
-### Bibliographic references
+## Bibliographic references
 
 References are displayed using [BibTeX](http://www.bibtex.org/), e.g. `[@computo]` will be displayed as [@computo], where `computo` is the bibtex key for this specific entry.
 `@computo` gives an unparenthesized reference to @computo.
 The bibliographic information is automatically retrieved from the `.bib` file specified in the header of this document (here:`references.bib`).
-Some BibTeX entries relevant to STATS 531 are already in `references.bib`, including @huang22, @notes531, @shumway17.
+Some BibTeX entries relevant to STATS 531 are already in [`references.bib`](https://github.com/ionides/531w26/blob/main/template/references.bib), including @huang22, @notes531, @shumway17.
 
-### Other cross-references
+## Other cross-references
 
-As already (partially) seen, Quarto includes a mecanism similar to the bibliographic references for sections, equations, theorems, figures,
-lists, etc. Have a look at [this page](https://quarto.org/docs/authoring/cross-references.html).
+As already (partially) seen, Quarto includes a mechanism similar to the bibliographic references for sections, equations, theorems, figures, lists, etc.
+Have a look at [this page](https://quarto.org/docs/authoring/cross-references.html).
+For example, you may want to cross-reference to the supplementary material (@sec-supp).
 
 ## Acknowledgments {.unnumbered}
 
@@ -229,7 +204,7 @@ Vscode with the Quarto extension was used for editing.
 ::: {#refs}
 :::
 
-# Supplementary material
+# Supplementary material {#sec-supp}
 
 You can put additional analysis here, or other relevant material.
 You should not assume the reader will read the supplement systematically.

@@ -16,38 +16,45 @@ format:
 
 -----------
 
-This homework is a small data analysis project designed as preparation for the midterm project. In particular, you are required to write your report using qmd format, using the project template at [https://github.com/ionides/531w26/tree/main/template](https://github.com/ionides/531w26/tree/main/template). Editing the qmd file in vscode using the Quarto extension is a recommended workflow. 
+_This homework is a small data analysis project designed as preparation for the midterm project. In particular, you are required to write your report using qmd format, using the project template at [https://github.com/ionides/531w26/tree/main/template](https://github.com/ionides/531w26/tree/main/template). A recommended workflow is to edit the qmd file in vscode using the Quarto extension._
 
-Submit the compiled pdf file and the source qmd file. Also submit any other files, such as `references.bib`, needed to compile the qmd to pdf. The grader will not necessarily compile your report, but if they do then it should reproduce the pdf. 
+_Submit the compiled pdf file and the source qmd file. Also submit any other files, such as `references.bib`, needed to compile the qmd to pdf. You do not need to submit the data files from the course repository. If the grader runs `quarto render` on your qmd file, it should reproduce the pdf._
 
-You will need to know some Latex to write equations in Rmarkdown. Many tutorials exist online, e.g. [http://www.latex-tutorial.com/tutorials](http://www.latex-tutorial.com/tutorials/). One legitimate approach is to identify equations in the notes that you would like to modify, and then dig out the source code from the course github repository. 
+_You will need to know some Latex to write equations in markdown. Many tutorials exist online, e.g. [http://www.latex-tutorial.com/tutorials](http://www.latex-tutorial.com/tutorials/). It may be helpful to identify equations in the notes that you would like to modify, and then dig out the source code from the course GitHub repository._
 
-Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, using a Bibtex reference in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The homework will be graded following the [posted rubric](../rubric_homework.html).
+**Report requirements**. Try out some of the ARMA techniques studied in class on the Ann Arbor January Low temperature time series that we saw in Chapter 1 of the notes. This is an open-ended assignment, but you're only expected to do what you can in a reasonable amount of time.
 
---------
+**Page limit and format requirements**. The main body of the report is limited to 5 pages. The reference list and Supplementary Material sections are not included in this limit, and there is no constraint on their length. You should not change the font size or other format specifications of the template. The strict page limit is a new requirement in STATS 531 this year. Projects will also have a strict page limit, but longer. The rationale for a page limit is: (i) it forces an emphasis on quality over quantity, and this is especially valuable when quantity can be generated easily with AI; (ii) readers have limited attention span, so it is helpful to focus on the most important results for the main body of the report, leaving longer supporting analysis in a supplementary appendix; (iii) professional research reports, e.g. scientific journal articles, have advisory or mandatory page limits for these reasons. If your report is constrained by the page limit, note that figures can often be compressed without loss of information. Make sure that the axis labels remain legible. 
 
-**<big>Question 3.1</big>**. Try out some of the ARMA techniques studied in class on the Ann Arbor January Low temperature time series that we saw in Chapter 1 of the notes. Write a report as an Rmd file and submit this file on the class Canvas site. This is an open-ended assignment, but you're only expected to do what you can in a reasonable amount of time. Some advice follows.
+**Bibliography and source requirements**. Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, using a Bibtex reference in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The homework will be graded following the [posted rubric](../rubric_homework.html).
 
-1.  You can read in the data with 
-```{r read_data, eval=FALSE}
-x <- read.table(file="http://ionides.github.io/531w25/01/ann_arbor_weather.csv",header=TRUE)
-plot(Low~Year,data=x,type="l")
+Some advice follows.
+
+1.  You can download the data from [https://github.com/ionides/531w26/tree/main/hw03/ann_arbor_weather.csv](https://github.com/ionides/531w26/tree/main/hw03/ann_arbor_weather.csv) and read it in with
+```{python}
+#| label: read_ann_arbor_data
+#| eval: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+y = pd.read_csv("ann_arbor_weather.csv", sep='\t', comment='#')
+plt.plot(y['Year'], y['Low'])
+plt.xlabel('Year'); plt.ylabel('Low'); plt.show()
 ```
 
 2.  Your report should involve model equations and hypotheses, and should define the notation used. Please be careful to distinguish between symbols representing random variables (usually using capital letters) and numbers. You are welcome to follow the notation in the course notes, and if you deviate from this notation it is especially necessary to define the notation that you choose. 
 
 3.  You are advised to try a few things from the notes, spot something that catches your attention, and try a few more things to investigate it. Write up what you found, and you're finished!
 
-4.  When writing up your homework report, you must choose which pieces of R code to include in the HTML document. To tell Rmarkdown not to include the R code in the HTML document, use the `echo=FALSE` chunk option, e.g.,
-<pre><code>```{r chunk_without_code, echo=FALSE}
-cat("only the output of this code chunk will be printed\n")
-```</code></pre>
-You should only display the code in the HTML document if you think that, in your context, the helpfulness of showing the code outweighs the extra burden on the reader, since the reader can work through the Rmd source file if necessary. For your homework report, it is helpful to show more code than you would in a project report. A suitable balance might be similar to the style of the course notes.
+4.  To tell Quarto not to include the code in the pdf document, use the `echo: false` chunk option. See the template for examples of `echo`. Presentation of raw code and unprocessed code output is usually best avoided in a report. Focus on discussing the specific numbers that are relevant to your conclusions. The page limit prevents excessive code and computer output in the main body of the report.
 
 5.  When you have got everything you can out of the Ann Arbor January Low temperature time series, consider it in the context of the global mean annual temperature time series on the class github site:
-```{r read_global_data, eval=FALSE}
-global <- read.table(file="http://ionides.github.io/531w25/02/Global_Temperature.txt",header=TRUE)
-plot(Annual~Year,data=global,type="l")
+```{python}
+#| label: read_global_data
+#| eval: false
+global_temp = pd.read_csv("Global_Temperature.txt",sep='\s+',comment='#')
+plt.plot(global_temp['Year'],global_temp['Annual'], '-')
+plt.xlabel('Year'); plt.ylabel('Temperature anomaly (°C)')
+plt.tight_layout(); plt.show()
 ```
 
------------

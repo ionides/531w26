@@ -32,7 +32,7 @@ $$g(x) = g_0 + g_1 x + g_2 x^2 + g_3 x^3 + \dots$$
 Do this either by hand or using your favorite math software (if you use software, please say what software you used and what you entered to get the output). 
 Use this Taylor series to write down the MA($\infty$) representation of an AR(1) model. Then, apply the general formula for the autocovariance function of an MA($\infty$) process.
 
-**C**. Check your work for the specific case of an AR(1) model with $\phi_1=0.8$ by comparing your formula with the result of the Python function `statsmodels.tsa.arima_process.arma_acf`.
+**C**. Check your work for the specific case of an AR(1) model with $\phi_1=0.8$ by comparing your formula with the result of the Python function `statsmodels.tsa.arima_process.arma_acf` or `statsmodels.tsa.arima_process.arma.acovf`.
 
 **Question 2.2** Compute the autocovariance function (ACF) of the random walk model. Specifically, find the ACF, $\gamma_{mn}=\cov(X_m,X_n)$, for the random walk model specified by 
 $$ X_{n} = X_{n-1}+\epsilon_n,$$

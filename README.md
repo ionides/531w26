@@ -138,7 +138,7 @@ These are drawn from the same problem bank as the daily quizzes. They are done w
 
 * [Information](midterm_project/midterm_project_info.html).
 
-<--
+<!--
 * [Midterm peer review report instructions](midterm_project/midterm_review.html)
 
 * [2025 midterm projects](midterm_project/index.html)

@@ -15,6 +15,7 @@ format:
     output-file: notes.pdf
 
 bibliography: ../bib531.bib
+jupyter: python3
 
 ---
 
@@ -97,7 +98,7 @@ time = years + months/12
 
 ----
 
-````{python}
+```{python}
 #| echo: false
 #| eval: true
 #| fig-width: 9
@@ -131,10 +132,13 @@ huron_sarma11x10 = SARIMAX(huron_level_sub,
     seasonal_order=(1, 0, 0, 12)).fit()
 ```
 
+\scriptsize
 ```{python}
 #| echo: false
 print(huron_sarma11x10.summary().tables[1])
 ```
+
+\normalsize
 
 ## Residual analysis
 
@@ -151,15 +155,12 @@ plt.tight_layout()
 plt.show()
 ```
 
-\
 
 **Question.** What do you conclude from this residual analysis? What would you do next?
 
-# Differencing and integration
-
 ## ARMA models for differenced data
 
-- Applying a difference operation to the data can make it look more stationary and therefore more appropriate for ARMA modeling.
+Applying a difference operation to the data can make it look more stationary and therefore more appropriate for ARMA modeling.
 
 - This can be viewed as a **transformation to stationarity**.
 
@@ -168,9 +169,9 @@ plt.show()
 z_n = \Delta y_n = y_n-y_{n-1}.
 \end{equation}
 
-- Then, an ARMA(p,q) model $Z_{2:N}$ for the differenced data $z_{2:N}$ is called an **integrated autoregressive moving average** model for $y_{1:N}$ and is written as ARIMA(p,1,q).
+**Definition:** an ARMA(p,q) model $Z_{2:N}$ for the differenced data $z_{2:N}$ is called an **integrated autoregressive moving average** model for $y_{1:N}$ and is written as ARIMA(p,1,q).
 
-- Formally, the ARIMA(p,d,q) model with intercept $\mu$ for $Y_{1:N}$ is
+Formally, the ARIMA(p,d,q) model with intercept $\mu$ for $Y_{1:N}$ is
 
 [S4] $\quad \phi(B)[ (1-B)^d Y_n-\mu ] = \theta(B) \, \epsilon_n$,
 
@@ -180,9 +181,7 @@ where $\{\epsilon_n\}$ is a white noise process; $\phi(x)$ and $\theta(x)$ are A
 
 ----
 
-- We see that an ARIMA(p,1,q) model is almost a special case of an ARMA(p+1,q) model with a **unit root** to the AR(p+1) polynomial.
-
-\
+An ARIMA(p,1,q) model is almost a special case of an ARMA(p+1,q) model with a **unit root** to the AR(p+1) polynomial.
 
 **Question.** Why "almost" not "exactly" in the previous statement?
 
@@ -191,8 +190,6 @@ where $\{\epsilon_n\}$ is a white noise process; $\phi(x)$ and $\theta(x)$ are A
 1. You may really think that modeling the differences is a natural approach for your data. The S&P 500 stock market index analysis in Chapter 3 is an example of this, as long as you remember to first apply a logarithmic transform to the data.
 
 2. Differencing often makes data look "more stationary" and perhaps it will then look stationary enough to justify applying the ARMA machinery.
-
-\
 
 - We should be cautious about this second reason. It can lead to poor model specifications and hence poor forecasts or other conclusions.
 
@@ -220,11 +217,9 @@ where $\{\epsilon_n\}$ is a white noise process, the intercept $\mu$ is the mean
 
 - The SARIMA$(0,1,1)\times(0,1,1)_{12}$ model has often been used for forecasting monthly time series in economics and business. It is sometimes called the **airline model** after a data analysis by Box and Jenkins (1970).
 
-# Trend estimation: regression with ARMA errors
+## Trend estimation: regression with ARMA errors
 
-## Modeling trend with ARMA noise
-
-- A general **signal plus noise** model is
+**Definition:** A general **signal plus noise** model is
 
 [S6] $\quad Y_n = \mu_n + \eta_n$,
 
@@ -236,17 +231,17 @@ where $\{\eta_n\}$ is a stationary, mean zero stochastic process, and $\mu_n$ is
 
 - Here, **signal** and **trend** are used interchangeably. In other words, we are assuming a deterministic signal.
 
-- At this point, it is natural for us to consider a signal plus ARMA(p,q) noise model, where $\{\eta_n\}$ is a stationary, causal, invertible ARMA(p,q) process with mean zero.
+- A **signal plus ARMA(p,q) noise model** occurs when $\{\eta_n\}$ is a stationary, causal, invertible, mean zero ARMA(p,q) process.
 
-- As well as the $p+q+1$ parameters in the ARMA(p,q) model, there will usually be unknown parameters in the mean function.
+----
 
-## Linear regression with ARMA errors
+- As well as the $p+q+1$ parameters in the ARMA(p,q) noise model, there will usually be unknown parameters in the mean function.
 
-- When the mean function (also known as the trend) has a linear specification,
+- When the mean (also called trend) has a linear specification,
 \begin{equation}
 \mu_n = \sum_{k=1}^K Z_{n,k}\beta_k,
 \end{equation}
-the signal plus ARMA noise model is known as **linear regression with ARMA errors**.
+the model is **linear regression with ARMA errors**.
 
 - Writing $Y$ for a column vector of $Y_{1:N}$, $\mu$ for a column vector of $\mu_{1:N}$, $\eta$ for a column vector of $\eta_{1:N}$, and $Z$ for the $N\times K$ matrix with $(n,k)$ entry $Z_{n,k}$, we have a general linear regression model with correlated ARMA errors,
 \begin{equation}
@@ -296,15 +291,22 @@ plt.show()
 
 ----
 
-```{python}
-#| echo: true
-fit0 = SARIMAX(huron_jan, order=(1, 0, 0)).fit()
-```
+\footnotesize
 
 ```{python}
-#| echo: false
-print(fit0.summary().tables[1])
+#| echo: true
+#| label: fit0
+from io import StringIO
+fit0 = SARIMAX(huron_jan, order=(1, 0, 0),
+    trend='c').fit()
+params_csv = fit0.summary().tables[1].as_csv()
+pd.read_csv(StringIO(params_csv))
 ```
+
+AIC: `{python} f"{fit0.aic:.2f}"`
+
+\normalsize
+
 
 ----
 
@@ -319,8 +321,11 @@ fit1 = SARIMAX(huron_jan, order=(1, 0, 0),
 
 ```{python}
 #| echo: false
-print(fit1.summary().tables[1])
+params_csv = fit1.summary().tables[1].as_csv()
+pd.read_csv(StringIO(params_csv))
 ```
+
+AIC: `{python} f"{fit1.aic:.2f}"`
 
 ## Setting up a formal hypothesis test
 
@@ -341,27 +346,26 @@ H^{\langle 1\rangle}: \beta\neq 0.
 ----
 
 **Question.** How do we test $H^{\langle 0\rangle}$ against $H^{\langle 1\rangle}$?
+onstruct two different tests using the Python output above.
+Which test do you think is more accurate, and why?
 
-- Construct two different tests using the Python output above.
-- Which test do you think is more accurate, and why?
+\
 
 \
 
 **Question.** How would you check whether your preferred test is indeed better? What other supplementary analysis could you do to strengthen your conclusions?
 
-# Testing for trend vs unit root
+## Testing for trend vs unit root: The ADF test
 
-## Augmented Dickey-Fuller test
-
-- A time series model is said to have a **unit root** if its first difference is stationary.
+**Definition:** A time series model has a **unit root** if its first difference is stationary.
 
 - For linear time series models, this corresponds to a $(1-L)$ factor in the AR specification, and hence an AR polynomial root of $1$.
 
 - A unit root corresponds to a "stochastic trend" (formally an oxymoron) described by a random walk.
 
-- The augmented Dickey-Fuller (ADF) test has this null hypothesis.
+The **augmented Dickey-Fuller (ADF)** test has this null hypothesis.
 
-- ADF test is sometimes erroneously called a test for "stationarity". However, many non-stationary models remain non-stationary after any amount of differencing. For example, models with non-polynomial trend.
+- The ADF test is sometimes called a test for "stationarity". However, non-stationary models may remain non-stationary after any amount of differencing. e.g., any model with non-polynomial trend.
 
 - Assessing evidence for a trend is better than applying an ADF test for a unit root if a model with trend is statistically (or scientifically) preferable to a model with a random walk.
 
@@ -406,6 +410,8 @@ plt.show()
 
 ### Result of `adfuller()`
 
+\footnotesize
+
 ```{python}
 #| echo: false
 def print_adf(series, name):
@@ -420,7 +426,9 @@ print_adf(y3, 'y3')
 print_adf(y4, 'y4')
 ```
 
-## When to use `adfuller()`
+\normalsize
+
+## When to use the ADF test
 
 - If you are interested in a null hypothesis of a random walk against an alternative of a stationary ARMA model, then this test is applicable.
 

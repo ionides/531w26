@@ -1,0 +1,444 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 6: Extending the ARMA model: Seasonality, integration and trend"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2026"
+format:
+  beamer:
+    slide-level: 2
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+
+---
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.stattools import adfuller
+import warnings
+warnings.filterwarnings('ignore')
+
+np.random.seed(2050320976)
+```
+
+## Seasonal autoregressive moving average (SARMA) models
+
+- A general SARMA$(p,q)\times(P,Q)_{12}$ model for monthly data is
+
+[S1] $\quad \phi(B)\Phi(B^{12}) (Y_n-\mu) = \theta(B)\Theta(B^{12}) \epsilon_n$,
+
+where $\{\epsilon_n\}$ is a white noise process and
+\begin{eqnarray*}
+\mu &=& \mathrm{E}[Y_n]\\
+\phi(x)&=&1-\phi_1 x-\dots -\phi_px^p,\\
+\theta(x)&=&1+\theta_1 x+\dots +\theta_qx^q,\\
+\Phi(x)&=&1-\Phi_1 x-\dots -\Phi_Px^P,\\
+\Theta(x)&=&1+\Theta_1 x+\dots +\Theta_Qx^Q.
+\end{eqnarray*}
+
+- SARMA is a special case of ARMA, where the AR and MA polynomials are factored into a **monthly** polynomial in $B$ and an **annual (or seasonal) polynomial** in $B^{12}$.
+
+- Everything we learned about ARMA models (including assessing causality, invertibility and reducibility) also applies to SARMA.
+
+## Choosing the period for a SARMA model
+
+- For the SARMA$(p,q)\times(P,Q)_{12}$ model, 12 is called the **period**.
+- One could write a SARMA model for a period other than 12.
+- A SARMA$(p,q)\times(P,Q)_{4}$ model could be appropriate for quarterly data.
+- In principle, a SARMA$(p,q)\times(P,Q)_{52}$ model could be appropriate for weekly data, though in practice ARMA and SARMA may not work so well for higher frequency data.
+- The seasonal period should be appropriate for the system being modeled. It is usually inappropriate to fit a SARMA$(p,q)\times(P,Q)_{9}$ model just because you notice a high sample autocorrelation at lag 9.
+
+----
+
+Consider the following two models:
+
+[S2] $\quad Y_n = 0.5 Y_{n-1} + 0.25 Y_{n-12} + \epsilon_n$,
+
+[S3] $\quad Y_n = 0.5 Y_{n-1} + 0.25 Y_{n-12} - 0.125 Y_{n-13} + \epsilon_n$,
+
+**Question.** Which of [S2] and/or [S3] is a SARMA model?
+
+
+----
+
+**Question.** Why do we assume a multiplicative structure in the SARMA model, [S1]? What theoretical and practical advantages (or disadvantages) arise from requiring that an ARMA model for seasonal behavior has polynomials that can be factored as a product of a monthly polynomial and an annual polynomial?
+
+## Fitting a SARMA model
+
+We fit a monthly version of the Lake Huron depth data.
+
+```{python}
+#| echo: true
+dat = pd.read_csv("huron_level.csv", comment='#')
+dat.columns = dat.columns.str.strip()
+print(dat.iloc[:3, :6])
+```
+
+```{python}
+#| echo: true
+#| eval: true
+# Reshape data to monthly time series
+huron_level = dat.iloc[:, 1:13].values.flatten()
+years = np.repeat(dat['Year'].values, 12)
+months = np.tile(np.arange(12), len(dat))
+time = years + months/12
+```
+
+----
+
+````{python}
+#| echo: false
+#| eval: true
+#| fig-width: 9
+#| fig-height: 3
+plt.figure(figsize=(9, 3))
+plt.plot(time, huron_level, '-')
+plt.xlabel('Year')
+plt.ylabel('Lake level (m)')
+plt.tight_layout()
+plt.show()
+```
+
+Based on our previous analysis, we try fitting AR(1) for the annual polynomial.
+We try ARMA(1,1) for the monthly part, giving
+\begin{equation}
+(1-\Phi_1 B^{12})(1-\phi_1 B) (Y_n-\mu) = (1+\theta_1 B)\epsilon_n.
+\end{equation}
+
+- As discussed earlier, we analyze data only up to 2014, shown by a red line on the plot.
+
+----
+
+```{python}
+#| echo: true
+huron_level_sub = huron_level[time < 2014.99]
+time_sub = time[time < 2014.99]
+
+# Fit SARMA(1,1)x(1,0)_12 model
+huron_sarma11x10 = SARIMAX(huron_level_sub,
+    order=(1, 0, 1),
+    seasonal_order=(1, 0, 0, 12)).fit()
+```
+
+```{python}
+#| echo: false
+print(huron_sarma11x10.summary().tables[1])
+```
+
+## Residual analysis
+
+- Residual analysis is similar to non-seasonal ARMA models.
+- We look for residual correlations at lags corresponding to multiples of the period (here, 12, 24, 36, ...) for misspecified annual dependence.
+
+```{python}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 2.5
+fig, ax = plt.subplots(figsize=(8, 2.5))
+plot_acf(huron_sarma11x10.resid, ax=ax, lags=40)
+plt.tight_layout()
+plt.show()
+```
+
+\
+
+**Question.** What do you conclude from this residual analysis? What would you do next?
+
+# Differencing and integration
+
+## ARMA models for differenced data
+
+- Applying a difference operation to the data can make it look more stationary and therefore more appropriate for ARMA modeling.
+
+- This can be viewed as a **transformation to stationarity**.
+
+- We can transform the data $y_{1:N}$ to $z_{2:N}$
+\begin{equation}
+z_n = \Delta y_n = y_n-y_{n-1}.
+\end{equation}
+
+- Then, an ARMA(p,q) model $Z_{2:N}$ for the differenced data $z_{2:N}$ is called an **integrated autoregressive moving average** model for $y_{1:N}$ and is written as ARIMA(p,1,q).
+
+- Formally, the ARIMA(p,d,q) model with intercept $\mu$ for $Y_{1:N}$ is
+
+[S4] $\quad \phi(B)[ (1-B)^d Y_n-\mu ] = \theta(B) \, \epsilon_n$,
+
+where $\{\epsilon_n\}$ is a white noise process; $\phi(x)$ and $\theta(x)$ are ARMA polynomials.
+
+- It is unusual to fit an ARIMA model with $d>1$.
+
+----
+
+- We see that an ARIMA(p,1,q) model is almost a special case of an ARMA(p+1,q) model with a **unit root** to the AR(p+1) polynomial.
+
+\
+
+**Question.** Why "almost" not "exactly" in the previous statement?
+
+## Two reasons to fit an ARIMA(p,d,q) model with $d>0$
+
+1. You may really think that modeling the differences is a natural approach for your data. The S&P 500 stock market index analysis in Chapter 3 is an example of this, as long as you remember to first apply a logarithmic transform to the data.
+
+2. Differencing often makes data look "more stationary" and perhaps it will then look stationary enough to justify applying the ARMA machinery.
+
+\
+
+- We should be cautious about this second reason. It can lead to poor model specifications and hence poor forecasts or other conclusions.
+
+- The second reason was more compelling in the 1970s and 1980s. Limited computing power resulted in limited alternatives, so it was practical to force as many data analyses as possible into the ARMA framework and use method of moments estimators.
+
+## Practical advice on using ARIMA models
+
+- ARIMA analysis is relatively simple to do. It has been a foundational component of time series analysis since the publication of the influential book "Time Series Analysis" \parencite{box70} which developed and popularized ARIMA modeling.
+
+- A practical approach is:
+
+1. Do a competent ARIMA analysis.
+
+2. Identify potential limitations in this analysis and remedy them using more advanced methods.
+
+3. Assess whether you have in fact learned anything from (2) that goes beyond (1).
+
+## The SARIMA$(p,d,q)\times(P,D,Q)$ model
+
+Combining integrated ARMA models with seasonality, we can write a general SARIMA$(p,d,q)\times(P,D,Q)_{12}$ model for nonstationary monthly data, given by
+
+[S5] $\quad \phi(B)\Phi(B^{12}) [ (1-B)^d(1-B^{12})^D Y_n-\mu ] = \theta(B)\Theta(B^{12}) \epsilon_n$,
+
+where $\{\epsilon_n\}$ is a white noise process, the intercept $\mu$ is the mean of the differenced process $\{(1-B)^d(1-B^{12})^D Y_n\}$, and we have ARMA polynomials $\phi(x)$, $\Phi(x)$, $\theta(x)$, $\Theta(x)$ as in model [S1].
+
+- The SARIMA$(0,1,1)\times(0,1,1)_{12}$ model has often been used for forecasting monthly time series in economics and business. It is sometimes called the **airline model** after a data analysis by Box and Jenkins (1970).
+
+# Trend estimation: regression with ARMA errors
+
+## Modeling trend with ARMA noise
+
+- A general **signal plus noise** model is
+
+[S6] $\quad Y_n = \mu_n + \eta_n$,
+
+where $\{\eta_n\}$ is a stationary, mean zero stochastic process, and $\mu_n$ is the mean function.
+
+- If, in addition, $\{\eta_n\}$ is uncorrelated, then we have a **signal plus white noise** model. The usual linear trend regression model fitted by least squares in Chapter 2 corresponds to a signal plus white noise model.
+
+- We can say **signal plus colored noise** if we wish to emphasize that we're not assuming white noise.
+
+- Here, **signal** and **trend** are used interchangeably. In other words, we are assuming a deterministic signal.
+
+- At this point, it is natural for us to consider a signal plus ARMA(p,q) noise model, where $\{\eta_n\}$ is a stationary, causal, invertible ARMA(p,q) process with mean zero.
+
+- As well as the $p+q+1$ parameters in the ARMA(p,q) model, there will usually be unknown parameters in the mean function.
+
+## Linear regression with ARMA errors
+
+- When the mean function (also known as the trend) has a linear specification,
+\begin{equation}
+\mu_n = \sum_{k=1}^K Z_{n,k}\beta_k,
+\end{equation}
+the signal plus ARMA noise model is known as **linear regression with ARMA errors**.
+
+- Writing $Y$ for a column vector of $Y_{1:N}$, $\mu$ for a column vector of $\mu_{1:N}$, $\eta$ for a column vector of $\eta_{1:N}$, and $Z$ for the $N\times K$ matrix with $(n,k)$ entry $Z_{n,k}$, we have a general linear regression model with correlated ARMA errors,
+\begin{equation}
+Y = Z\beta + \eta.
+\end{equation}
+
+- From this equation, $Y-Z\beta$ is ARMA so likelihood evaluation and numerical maximization can build on ARMA methods.
+
+## Inference for the linear regression model with ARMA errors
+
+- Maximum likelihood estimation of $\theta = (\phi_{1:p},\theta_{1:q},\sigma^2,\beta)$ is a nonlinear optimization problem.
+
+- Fortunately, Python's SARIMAX can do it for us using the `exog` argument.
+
+- As usual, we should look out for signs of numerical problems.
+
+- Data analysis for a linear regression with ARMA errors model, using the framework of likelihood-based inference, is procedurally similar to fitting an ARMA model.
+
+- This is a powerful technique, since the covariate matrix $Z$ can include other time series. We can evaluate associations between different time series.
+
+- With appropriate care (since **association is not causation**) we can draw inferences about mechanistic relationships between dynamic processes.
+
+## Evidence for systematic trend in Lake Huron level?
+
+We return to annual data, say the January level, to avoid seasonality.
+
+```{python}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 2.5
+huron_jan = dat[dat['Year'] < 2014.99]['Jan'].values
+year_jan = dat[dat['Year'] < 2014.99]['Year'].values
+
+plt.figure(figsize=(8, 2.5))
+plt.plot(year_jan, huron_jan, '-')
+plt.xlabel('Year')
+plt.ylabel('January lake level (m)')
+plt.tight_layout()
+plt.show()
+```
+
+- Visually, there seems some evidence for a decreasing trend, but there are also considerable fluctuations.
+
+- Let's test for a trend, using a regression model with Gaussian AR(1) errors. We have previously found that this is a reasonable model for these data.
+
+- First, for comparison, we fit a null model with no trend.
+
+----
+
+```{python}
+#| echo: true
+fit0 = SARIMAX(huron_jan, order=(1, 0, 0)).fit()
+```
+
+```{python}
+#| echo: false
+print(fit0.summary().tables[1])
+```
+
+----
+
+- We compare `fit0` with a linear trend model, coded as `fit1`.
+- The covariate is included via the `exog` argument.
+
+```{python}
+#| echo: true
+fit1 = SARIMAX(huron_jan, order=(1, 0, 0),
+               exog=year_jan).fit()
+```
+
+```{python}
+#| echo: false
+print(fit1.summary().tables[1])
+```
+
+## Setting up a formal hypothesis test
+
+- To talk formally about these results, we must set down a model and some hypotheses.
+- Writing the data as $y_{1:N}$, collected at years $t_{1:N}$, the model we have fitted is
+\begin{equation}
+(1-\phi_1 B)(Y_n - \mu - \beta t_n) = \epsilon_n,
+\end{equation}
+where $\{\epsilon_n\}$ is Gaussian white noise with variance $\sigma^2$. Our null model is
+\begin{equation}
+H^{\langle 0\rangle}: \beta=0,
+\end{equation}
+and our alternative hypothesis is
+\begin{equation}
+H^{\langle 1\rangle}: \beta\neq 0.
+\end{equation}
+
+----
+
+**Question.** How do we test $H^{\langle 0\rangle}$ against $H^{\langle 1\rangle}$?
+
+- Construct two different tests using the Python output above.
+- Which test do you think is more accurate, and why?
+
+\
+
+**Question.** How would you check whether your preferred test is indeed better? What other supplementary analysis could you do to strengthen your conclusions?
+
+# Testing for trend vs unit root
+
+## Augmented Dickey-Fuller test
+
+- A time series model is said to have a **unit root** if its first difference is stationary.
+
+- For linear time series models, this corresponds to a $(1-L)$ factor in the AR specification, and hence an AR polynomial root of $1$.
+
+- A unit root corresponds to a "stochastic trend" (formally an oxymoron) described by a random walk.
+
+- The augmented Dickey-Fuller (ADF) test has this null hypothesis.
+
+- ADF test is sometimes erroneously called a test for "stationarity". However, many non-stationary models remain non-stationary after any amount of differencing. For example, models with non-polynomial trend.
+
+- Assessing evidence for a trend is better than applying an ADF test for a unit root if a model with trend is statistically (or scientifically) preferable to a model with a random walk.
+
+----
+
+**Question.** Which of `y1`, `y2`, `y3`, `y4` do you think will be considered non-stationary by a unit root test?
+
+```{python}
+#| echo: true
+np.random.seed(42)
+n = np.arange(101)
+epsilon = np.random.normal(0, 1, len(n))
+y1 = 2*n/100 + epsilon
+y2 = np.exp(1.5*n/100) + epsilon
+y3 = np.sin(2*np.pi*n/200)
+y4 = n*(100-n)/2500
+```
+
+----
+
+```{python}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 6
+fig, axes = plt.subplots(2, 2, figsize=(8, 6))
+axes[0, 0].plot(n, y1)
+axes[0, 0].set_title('y1')
+axes[0, 1].plot(n, y2)
+axes[0, 1].set_title('y2')
+axes[1, 0].plot(n, y3)
+axes[1, 0].set_title('y3')
+axes[1, 1].plot(n, y4)
+axes[1, 1].set_title('y4')
+for ax in axes.flat:
+    ax.set_xlabel('n')
+    ax.set_ylabel('value')
+plt.tight_layout()
+plt.show()
+```
+
+----
+
+### Result of `adfuller()`
+
+```{python}
+#| echo: false
+def print_adf(series, name):
+    result = adfuller(series, autolag='AIC')
+    print(f"data: {name}")
+    print(f"Dickey-Fuller = {result[0]:.4f}, Lag order = {result[2]}, p-value = {result[1]:.4f}")
+    print(f"Alternative hypothesis: stationary\n")
+
+print_adf(y1, 'y1')
+print_adf(y2, 'y2')
+print_adf(y3, 'y3')
+print_adf(y4, 'y4')
+```
+
+## When to use `adfuller()`
+
+- If you are interested in a null hypothesis of a random walk against an alternative of a stationary ARMA model, then this test is applicable.
+
+- Generalizations of ADF claim to identify random walks on top of a nonlinear trend, but distinguishing these two options is hard and beyond our scope.
+
+- Most midterm projects benefit from avoiding the ADF test and focusing on a direct investigation of the evidence for trend or other non-stationary behavior.
+
+## Further reading
+
+- Section 3.9 of \textcite{shumway17} discusses SARIMA modeling.
+
+- Section 3.8 of \textcite{shumway17} introduces regression with ARMA errors.
+
+## Acknowledgments
+
+- Compiled on \today{} using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).
+
+# References
+

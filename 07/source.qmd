@@ -205,7 +205,7 @@ $e^{2\pi i\omega} = \cos(2\pi\omega)+i\,\sin(2\pi\omega)$?
 - Assuming that this computation for an infinite sum represents a limit of increasing dimension for finite matrices, we have found that the eigenvectors for any long, stationary time series model are approximately sinusoidal.
 
 - For the finite time series situation, we only expect $N$ eigenvectors for a time series of length $N$. We have one eigenvector for $\omega=0$, two eigenvectors corresponding to sine and cosine functions with frequency
-\begin{equation}\omega_{n} = n/N, \text{ for } 0<n<N/2,\end{equation}
+\begin{equation}\omega_{n} = n/N, \text{ for } 0< n < N/2,\end{equation}
 and, if $N$ is even, a final eigenvector with frequency
 \begin{equation}
 \omega_{(N/2)} = 1/2.
@@ -359,100 +359,93 @@ plt.tight_layout(); plt.show()
 
 To smooth, we use Welch's method which divides the data into overlapping segments
 
+\scriptsize
+
 ```{python}
 #| echo: true
-#| eval: true
+#| label: calc-smo-periodogram
 from scipy.signal import welch
-freqs_w, psd_w = welch(low, nperseg=len(low)//4,
-                       scaling='spectrum')
-plt.figure(figsize=(10, 3.5))
-plt.semilogy(freqs_w, psd_w)
-plt.xlabel('Frequency [cycles per observation]')
-plt.ylabel('Power spectral density')
-plt.tight_layout(); plt.show()
+from scipy.stats import chi2
+
+nperseg = 16 # neighborhood size for smoothing
+freqs, psd = welch(low, scaling='spectrum', nperseg=nperseg)
+
+# Calculate Degrees of Freedom (nu) using a standard approximation
+N = len(low)
+K = N // (nperseg // 2) - 1  
+nu = 2 * K                  
+
+# Calculate 95% Confidence Intervals
+alpha = 0.05
+lower_mult = nu / chi2.ppf(1 - alpha / 2, nu)
+upper_mult = nu / chi2.ppf(alpha / 2, nu)
+psd_low = psd * lower_mult
+psd_high = psd * upper_mult
 ```
 
+\normalsize
 
-- The confidence intervals are based on the chi-squared property. On the log scale, they have constant width at each frequency and are asymmetric.
-
-----
-
-**Question.** What is the default periodogram smoother in Python's scipy?
-
-\
-
-**Question.** How should we use it?
-
-\
-
-**Question.** Why is that default chosen?
-
-## More details on computing and smoothing the periodogram
-
-- In R, typing `?spectrum` leads to `?spec.pgram`.
-
-- By default, R removes a linear trend, fitted by least squares. This may often be a sensible thing to do. Why?
-
-- R then multiplies the data by a quantity called a **taper**, computed by `spec.taper`.
-
-- The taper smooths the ends of the time series and removes high-frequency artifacts arising from an abrupt start and end to the time series.
-
-- Formally, from the perspective of the Fourier transform, the time series takes the value zero outside the observed time points $1:N$. The sudden jump to and from zero at the start and end produces unwanted effects in the frequency domain.
-
-----
-
-The default taper in R smooths the first and last $p=0.1$ fraction of the time points, by modifying the detrended data $y_{1:N}$ to tapered version $z_{1:N}$ defined by
-\begin{equation} \nonumber
-z_n =
-  \left\{
-  \begin{array}{ll}
-    y_n (1-\cos(\pi n/Np))/2 & \text{ if } 1\le n< Np \\
-    y_n  & \text{ if } Np \le n \le N(1-p) \\
-    y_n (1-\cos(\pi [N+1-n]/Np))/2 & \text{ if } N(1-p)<n\le N
-  \end{array}\right.
-\end{equation}
-
-```{python}
-#| echo: true
-#| eval: false
-# Create R-style taper
-N = 100
-p = 0.1
-taper = np.ones(N)
-n_taper = int(N * p)
-for i in range(n_taper):
-    taper[i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
-    taper[N-1-i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
-plt.figure(figsize=(8, 2.5))
-plt.plot(taper)
-plt.title('Default taper in R, for time series of length 100')
-plt.axvline(x=10, linestyle='dotted', color='red')
-plt.axvline(x=90, linestyle='dotted', color='red')
-plt.tight_layout()
-plt.show()
-```
+The confidence intervals are based on the chi-squared property. On the log scale, they have constant width at each frequency and are asymmetric.
 
 ----
 
 ```{python}
 #| echo: false
-#| fig-width: 8
-#| fig-height: 2.5
-N = 100
-p = 0.1
-taper = np.ones(N)
-n_taper = int(N * p)
-for i in range(n_taper):
-    taper[i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
-    taper[N-1-i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
-plt.figure(figsize=(8, 2.5))
-plt.plot(taper)
-plt.title('Default taper in R, for time series of length 100')
-plt.axvline(x=10, linestyle='dotted', color='red')
-plt.axvline(x=90, linestyle='dotted', color='red')
+plt.figure(figsize=(9, 4))
+plt.semilogy(freqs, psd, label='Welch PSD (Smoothed)')
+plt.fill_between(freqs, psd_low, psd_high, color='gray', 
+    alpha=0.3, label='95% CI')
+
+plt.xlabel('Frequency [cycles per observation]')
+plt.ylabel('Power spectral density')
+plt.legend()
 plt.tight_layout()
 plt.show()
 ```
+
+**Question.** How should we choose the smoothing parameter?
+
+\
+
+**Question.** Why use the Welch method? What are the alternatives?
+
+
+## Tapers for smootherd periodogram
+
+The Welch method uses **tapered weights** for the smoothed periodogram estimate of the spectrum.
+
+\footnotesize
+
+```{python}
+#| echo: true
+from scipy.signal import get_window
+hann_window = get_window('hann', nperseg)
+```
+\normalsize
+
+```{python}
+#| echo: false
+#| eval: true
+plt.figure(figsize=(4, 2.25))
+plt.plot(hann_window)
+plt.title(f'Default Taper (Hann Window) of length {nperseg}')
+plt.ylabel('Amplitude')
+plt.xlabel('Samples')
+plt.grid(True)
+plt.show()
+```
+
+----
+
+## Comparing Python scipy/statsmodels to R
+
+- R tapers the start and end of the time series before calculating the periodogram.
+
+- Formally, from the perspective of the Fourier transform, the time series takes the value zero outside the observed time points $1:N$. The sudden jump to and from zero at the start and end produces unwanted effects in the frequency domain.
+
+- By default, `scipy` tapers only when smoothing the periodogram, in the frequency domain.
+
+- R also removes a linear trend, fitted by least squares, before calculating the periodogram.
 
 ## Spectral density estimation by fitting a model
 

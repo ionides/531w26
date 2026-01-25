@@ -1,0 +1,279 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 10: Forecasting"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2025"
+format:
+  beamer:
+    slide-level: 2
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+jupyter: python3
+
+---
+
+```{python}
+#| echo: false
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import warnings
+warnings.filterwarnings('ignore')
+
+np.random.seed(2050320976)
+```
+
+# Introduction
+
+## Model-based forecasts {.fragile}
+
+- Data, $y^*_{1:N}$, and a model $Y_{1:N+h}$ with joint density $f_{Y_{1:N+h}}(y_{1:N+h}|\theta)$ can be used to *forecast* future values $y_{N+1:N+h}$ up to a *horizon*, $h$.
+
+- A model-based *probabilistic forecast* of the not-yet-observed values $y_{N+1:N+h}$ is
+\begin{equation}
+f_{Y_{N+1:N+h}|Y_{1:N}} \big( y_{N+1:N+h} | y^*_{1:N} ; \hat\theta \big),
+\end{equation}
+where $\hat\theta$ is a point estimate such as an MLE.
+
+- A model-based *point forecast* of $y_{N+1:N+h}$ is
+\begin{equation}
+\mathbb{E}\big[Y_{N+1:N+h} \big| Y_{1:N}=y^*_{1:N};\hat\theta \big].
+\end{equation}
+
+- Point forecasts and probabilistic forecasts have many applications in business and elsewhere.
+
+## Evaluating forecasts
+
+- Point forecasts could be evaluated by squared error, absolute error, relative squared error, relative absolute error, etc.
+
+- Probabilistic forecasts are naturally evaluated by the forecast log-density,
+\begin{equation}
+\log f_{Y_{N+1:N+h}|Y_{1:N}} \big( y_{N+1:N+h} | y^*_{1:N} ; \hat\theta \big),
+\end{equation}
+evaluated at the data, $y^*_{N+1:N+h}$, once it is collected.
+
+- Due to time dependence, and limited amounts of data, it can be problematic to evaluate by cross-validation.
+
+- Note that log-likelihood can be written as a sum of one-step forecast log-densities:
+\begin{equation}
+\log f_{Y_{1:N}}(y^*_{1:N};\theta) = \sum_{n=1}^N  \log f_{Y_{n}|Y_{1:n-1}}(y^*_n| y^*_{1:n-1};\theta)
+\end{equation}
+
+# ARIMA forecasting
+
+## ARIMA forecasting {.fragile}
+
+The `.forecast()` method computes the conditional Gaussian distribution for forecasting an ARIMA model.
+
+```{python}
+#| echo: true
+#| eval: false
+dat = pd.read_csv("huron_level.csv", comment='#')
+huron_level = dat.iloc[:, 1:13].values.T.flatten()
+year = np.repeat(dat['Year'].values, 12)
+month = np.tile(np.arange(12), len(dat))
+time = year + month / 12
+
+# Use data through end of 2014
+huron_old = huron_level[:len(huron_level) -
+                        (2024 - 2014) * 12]
+time_old = time[:len(time) - (2024 - 2014) * 12]
+
+# Fit SARIMA model
+sarma = SARIMAX(huron_old, order=(1, 0, 1),
+                seasonal_order=(1, 0, 1, 12)).fit()
+
+# Forecast 120 months ahead (10 years)
+forecast = sarma.get_forecast(steps=120)
+f_val = forecast.predicted_mean
+f_se = forecast.se_mean
+f_time = time_old[-1] + (np.arange(1, 121)) / 12
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+plt.figure(figsize=(12, 5))
+plt.plot(time, huron_level, 'k-', label='Observed')
+plt.plot(f_time, f_val, 'r-', label='Forecast')
+plt.plot(f_time, f_val + 1.96 * f_se, 'b-', alpha=0.5)
+plt.plot(f_time, f_val - 1.96 * f_se, 'b-', alpha=0.5)
+plt.xlabel('Year')
+plt.ylabel('Lake level (m)')
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+## 95% prediction interval from December 2014 {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 12
+#| fig-height: 5
+dat = pd.read_csv("huron_level.csv", comment='#')
+# Remove spaces from column names
+dat.columns = dat.columns.str.strip()
+huron_level = dat.iloc[:, 1:13].values.T.flatten()
+year = np.repeat(dat['Year'].values, 12)
+month = np.tile(np.arange(12), len(dat))
+time = year + month / 12
+
+# Use data through end of 2014
+huron_old = huron_level[:len(huron_level) - (2024 - 2014) * 12]
+time_old = time[:len(time) - (2024 - 2014) * 12]
+
+# Fit SARIMA model
+sarma = SARIMAX(huron_old, order=(1, 0, 1),
+                seasonal_order=(1, 0, 1, 12)).fit(disp=False)
+
+# Forecast 120 months ahead (10 years)
+forecast = sarma.get_forecast(steps=120)
+f_val = forecast.predicted_mean
+f_se = forecast.se_mean
+f_time = time_old[-1] + (np.arange(1, 121)) / 12
+
+plt.figure(figsize=(12, 5))
+plt.plot(time, huron_level, 'k-', label='Observed')
+plt.plot(f_time, f_val, 'r-', label='Forecast')
+plt.plot(f_time, f_val + 1.96 * f_se, 'b-', alpha=0.5)
+plt.plot(f_time, f_val - 1.96 * f_se, 'b-', alpha=0.5)
+plt.xlabel('Year')
+plt.ylabel('Lake level (m)')
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+# Prophet
+
+## Facebook Prophet
+
+- ARIMA models are good for relatively short time series.
+- SARIMA is good for monthly and quarterly data, but less so for daily or hourly.
+- You may have already experienced this. Large-scale forecasting competitions confirm it \parencite{makridakis20}.
+- Prophet was designed for high-frequency (daily, hourly) business forecasting tasks at Facebook, and is widely used for similar tasks elsewhere.
+- Prophet does penalized regression estimating trend and seasonality components. It can also do Bayesian fitting.
+- Unlike ARIMA, Prophet cannot describe general covariance structures.
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+#| fig-width: 12
+#| fig-height: 4
+from prophet import Prophet
+
+# Prepare data for Prophet (requires 'ds' and 'y' columns)
+history = pd.DataFrame({
+    'ds': pd.date_range(start='1918-01-01',
+                        periods=len(huron_old), freq='MS'),
+    'y': huron_old
+})
+
+# Fit Prophet model
+fit = Prophet()
+fit.fit(history)
+
+# Create future dataframe for 10 years (120 months)
+future = fit.make_future_dataframe(periods=10*12, freq='MS')
+forecast = fit.predict(future)
+
+# Plot forecast
+fig = fit.plot(forecast)
+# Add actual future values in red
+plt.scatter(pd.date_range(start='2015-01-01',
+            periods=len(huron_level)-len(huron_old), freq='MS'),
+            huron_level[len(huron_old):], color='red', s=10)
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| eval: true
+#| fig-width: 12
+#| fig-height: 4
+try:
+    from prophet import Prophet
+
+    # Prepare data for Prophet (requires 'ds' and 'y' columns)
+    history = pd.DataFrame({
+        'ds': pd.date_range(start='1918-01-01',
+                            periods=len(huron_old), freq='MS'),
+        'y': huron_old
+    })
+
+    # Fit Prophet model
+    fit = Prophet()
+    fit.fit(history)
+
+    # Create future dataframe for 10 years (120 months)
+    future = fit.make_future_dataframe(periods=10*12, freq='MS')
+    forecast = fit.predict(future)
+
+    # Plot forecast
+    fig = fit.plot(forecast)
+    # Add actual future values in red
+    plt.scatter(pd.date_range(start='2015-01-01',
+                periods=len(huron_level)-len(huron_old), freq='MS'),
+                huron_level[len(huron_old):], color='red', s=10)
+    plt.tight_layout()
+    plt.show()
+except ImportError:
+    print("Prophet package not installed.")
+    print("Install with: pip install prophet")
+    print("Note: Prophet requires pystan, which may need additional setup")
+```
+
+# Forecasting vs modeling
+
+## Forecasting versus model fitting
+
+- A good model should imply a good model-based forecast.
+
+- Long-term forecasting is extrapolation. The model may be unreliable far from the timeframe used to build it.
+
+- Without evidence to support a model for long-term forecasts, uncertainty estimates should be high. Uncertainty estimates are also uncertain!
+
+- Deep learning methods need large amounts of data. They are not yet standard for forecasting. Prophet uses automatic differentiation techniques that enable deep learning.
+
+## Forecasting with trends and covariates
+
+- A model with trends and covariates must project those into the future in order to forecast.
+
+- Uncertainty about future trends may be captured by "stochastic trend" models. Prophet does this.
+
+- We've seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
+
+## Further reading
+
+- Section 3.5 of \textcite{shumway17} covers ARIMA forecasting.
+
+- \textcite{hyndman08} introduces the `forecast` R package.
+
+- \textcite{taylor18} presents the Facebook Prophet forecasting algorithm.
+
+## References and Acknowledgements
+
+::: {#refs}
+:::
+
+\vspace{3mm}
+
+- Compiled on \today using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).

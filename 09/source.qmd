@@ -1,0 +1,736 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 9: Case study: An association between unemployment and mortality?"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2025"
+format:
+  beamer:
+    slide-level: 2
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+jupyter: python3
+
+---
+
+```{python}
+#| echo: false
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import signal, stats
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.filters.hp_filter import hpfilter
+from statsmodels.graphics.tsaplots import plot_acf
+import warnings
+warnings.filterwarnings('ignore')
+
+np.random.seed(2050320976)
+```
+
+# Introduction to business cycles and mortality
+
+## Historical investigations linking business cycles to mortality
+
+- *Pro-cyclical* mortality occurs if death rates are statistically above trend when economic activity is above trend. An early report was \textcite{ogburn22}.
+
+- Procyclical mortality, if it exists, shows that a key measure of population health is worse in economic booms than in recessions.
+
+- Both the economy and life expectancy have grown over the last century. However, these phenomena have not always occurred simultaneously. For example, 1950--1980 saw rapid growth in life expectancy in India and China, combined with relatively slow economic growth. Improvement in life expectancy has slowed during their recent economic surges.
+
+- The link between economic growth and health improvement is controversial, since it has political implications. Economists and epidemiologists have argued both sides of this debate, using time series methods.
+
+## Implications of pro-cyclical mortality
+
+- If our goal is population health and happiness, how much should our policies focus on gross domestic product (GDP) growth?
+
+- Evidence supporting the view that economic growth is the critical engine for other improvements in living conditions would make a moral argument in favor of economic growth.
+
+- Evidence that there are other major factors involved in improving living conditions suggest that economic growth should be only one political consideration, among others.
+
+# Data
+
+## A time series of life expectancy in the USA {.fragile}
+
+```{python}
+#| echo: true
+e_data = pd.read_csv("life_expectancy_usa.csv", sep='\s+',
+                     comment='#', engine='python')
+print(e_data.head(4))
+```
+
+- [Data](life_expectancy_usa.csv) are from the [Human Mortality Database](https://www.mortality.org/).
+
+- `e0` is *life expectancy at birth (LEB)* for civilians.
+
+- `e0f` and `e0m` are LEB for females and males, but we focus on `e0`.
+
+- LEB is an actuarial calculation based on a fictitious individual having mortality rates at each age matching census age-specific mortality rates for the current year.
+
+- LEB is a standard way to combine all the age-specific mortality rates into a single number.
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+u_data = pd.read_csv("unadjusted_unemployment.csv", comment='#')
+print(u_data.head(4))
+```
+
+- We consider unadjusted unemployment from Bureau of Labor Statistics.
+
+- Unemployment is just one component of the state of the economy. One could consider other measurements.
+
+- Write $e_n$ for life expectancy in year $t_n=1947+n$.
+
+- Write $u_n$ for mean unemployment in year $t_n$.
+
+## A time plot of the raw data {.fragile}
+
+```{python}
+#| echo: true
+yr = np.intersect1d(e_data['Year'], u_data['Year'])
+e = e_data.loc[e_data['Year'].isin(yr), 'e0'].values
+u = u_data.loc[u_data['Year'].isin(yr),
+               u_data.columns[1:13]].mean(axis=1).values
+```
+
+```{python}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 6
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+ax1.plot(yr, e, '-')
+ax1.set_ylabel('e0')
+ax1.grid(True, alpha=0.3)
+ax2.plot(yr, u, '-')
+ax2.set_ylabel('u')
+ax2.set_xlabel('Year')
+ax2.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+- We are interested in changes over business cycle timescales, once trends have been removed.
+
+## Allowing for COVID-19
+
+- We wish to study the effect of economic fluctuations on population health.
+- COVID-19 led to a dramatic effect of health on the economy.
+- Therefore, we analyze data only up to 2019.
+
+```{python}
+#| echo: false
+time_window = (yr < 2019.5)
+e = e[time_window]
+u = u[time_window]
+yr = yr[time_window]
+```
+
+# Detrending the data
+
+## The Hodrick-Prescott filter {.fragile}
+
+- To extract the cyclical component, we use an econometric method: the *Hodrick-Prescott (HP) filter* \parencite{hodrick97}.
+
+- For a time series $y_{1:N}$, the HP filter is the time series $s_{1:N}$ defined as
+\begin{equation}
+s_{1:N} = \argmin_{s_{1:N}}
+  \left\{
+    \sum^{N}_{n=1}\big(y_n-s_{n}\big)^2 + \lambda\sum^{N-1}_{n=2}\big(s_{n+1}-2s_{n}+s_{n-1}\big)^2
+  \right\}.
+\end{equation}
+
+- The HP filter is a *smoothing spline*. Later, we see it can also be viewed as a state space model.
+
+- A standard econometric choice of $\lambda$ for removing nonlinear trend, for extracting the business cycle component, in annual data is $\lambda=100$.
+
+- A Python implementation of the Hodrick-Prescott filter is `hpfilter` from statsmodels.
+
+##  {.fragile}
+
+- We use the Hodrick-Prescott filter to define the HP-detrended life expectancy, $e^{HP}_{1:N}$, and unemployment, $u^{HP}_{1:N}$.
+
+```{python}
+#| echo: true
+e_hp_cycle, e_hp_trend = hpfilter(e, lamb=100)
+u_hp_cycle, u_hp_trend = hpfilter(u, lamb=100)
+```
+
+- Plotting two time series on a single graph is not always advisable, but here it is helpful.
+
+```{python}
+#| echo: true
+#| eval: false
+fig, ax1 = plt.subplots(figsize=(11, 4))
+ax1.plot(yr, u_hp_cycle, 'k-')
+ax1.set_xlabel('Year')
+ax1.set_ylabel('Detrended unemployment', color='k')
+ax1.tick_params(axis='y', labelcolor='k')
+ax2 = ax1.twinx()
+ax2.plot(yr, e_hp_cycle, 'r-')
+ax2.set_ylabel('Detrended e0', color='r')
+ax2.tick_params(axis='y', labelcolor='r')
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4
+fig, ax1 = plt.subplots(figsize=(11, 4))
+ax1.plot(yr, u_hp_cycle, 'k-')
+ax1.set_xlabel('Year')
+ax1.set_ylabel('Detrended unemployment', color='k')
+ax1.tick_params(axis='y', labelcolor='k')
+ax2 = ax1.twinx()
+ax2.plot(yr, e_hp_cycle, 'r-')
+ax2.set_ylabel('Detrended e0', color='r')
+ax2.tick_params(axis='y', labelcolor='r')
+plt.tight_layout()
+plt.show()
+```
+
+Detrended unemployment (black; left axis) and detrended life expectancy at birth (red; right axis).
+
+- Looking at this figure may suggest that detrended life expectancy and detrended unemployment cycle together.
+
+- We make a formal statistical test to check our eyes are not deceiving us.
+
+# Hypothesis testing: regression with ARMA errors
+
+## A regression with ARMA errors model {.fragile}
+
+- We can investigate the dependence of $e^{HP}_{1:N}$ on $u^{HP}_{1:N}$ using a regression with ARMA errors model,
+\begin{equation}
+E^{HP}_n = \alpha + \beta u^{HP}_n + \epsilon_n,
+\end{equation}
+where $\{\epsilon_n\}$ is a Gaussian ARMA process. We use an ARMA(1,0) model, as discussed in the supplementary analysis.
+
+```{python}
+#| echo: true
+# Reshape exog to 2D with column name for proper parameter naming
+import pandas as pd
+u_hp_df = pd.DataFrame(u_hp_cycle, columns=['u_hp'])
+a0 = SARIMAX(e_hp_cycle, exog=u_hp_df, order=(1, 0, 0)).fit()
+```
+
+```{python}
+#| echo: false
+# Now we can access parameters by name
+u_hp_coef = a0.params['u_hp']
+u_hp_se = a0.bse['u_hp']
+ar1_coef = a0.params['ar.L1']
+
+print(f"Coefficient of u_hp: {u_hp_coef:.6f}")
+print(f"Standard error:      {u_hp_se:.6f}")
+print(f"AR(1) coefficient:   {ar1_coef:.4f}")
+print(f"Residual variance:   {a0.scale:.6f}")
+print(f"Log likelihood:      {a0.llf:.2f}")
+```
+
+##  {.fragile}
+
+- The standard error (computed via observed Fisher information) gives a $z$-statistic of {python} f"{u_hp_coef:.4f}" / {python} f"{u_hp_se:.4f}" = {python} f"{u_hp_coef/u_hp_se:.2f}" for the coefficient of detrended unemployment.
+
+- We can also compute a p-value from a likelihood ratio test.
+
+```{python}
+#| echo: true
+a0_null = SARIMAX(e_hp_cycle, order=(1, 0, 0)).fit(disp=False)
+log_lik_ratio = a0.llf - a0_null.llf
+LRT_pval = 1 - stats.chi2.cdf(2 * log_lik_ratio, df=1)
+print(f"LRT p-value: {LRT_pval:.5f}")
+```
+
+- This gives a p-value of {python} f"{LRT_pval:.5f}".
+
+- We have clear statistical evidence for a positive association between detrended unemployment and detrended life expectancy.
+
+- For all observational studies, interpretation of association needs care.
+
+# Association and causation
+
+## Association and causation
+
+- We have been careful to talk about *association*, since observational data giving firm statistical evidence of an association between $X$ and $Y$ cannot readily distinguish between three possibilities:
+
+1. $X$ causes $Y$.
+
+2. $Y$ causes $X$.
+
+3. Both $X$ and $Y$ are caused by a third variable $Z$ that is unmeasured or has been omitted from the analysis. In this case, $Z$ is called a *confounding variable*.
+
+- Excluding the economic consequences of COVID-19, it is not considered plausible that mortality fluctuations drive economic fluctuations (the *reverse causation* possibility).
+
+- Unemployment is a *proxy variable* for economic fluctuations. Increased unemployment may not directly cause reduced mortality: all proxy variables for economic activity are confounded in this analysis.
+
+# Looking for dependence in bivariate time series
+
+## Potential lagged relationships
+
+- A potential confounding variable is lagged economic activity. Theoretically, reduction in mortality for a current economic down-turn could result from delayed health progress caused by the previous economic boom.
+
+- A lag relationship between two time series $x_{1:N}$ and $y_{1:N}$ can be identified from the *sample cross-correlation function (CCF)*
+\begin{equation}
+\hat\rho_{xy}(h) =
+  \frac{\sum_{n=1}^{N-h} (x_{n+h}-\bar x)(y_{n}-\bar y)}{\sqrt{\sum_{n=1}^{N} (x_{n}-\bar x)^2 \sum_{n=1}^N (y_{n}-\bar y)^2}}
+\end{equation}
+
+- $\hat\rho_{xy}(h)$ estimates $\rho_{XY}(h)=\mathrm{Cor}\big(X_{n+h},Y_n\big)$, the cross-correlation at lag $h$ for a *bivariate stationary time series model*, consisting of a pair of random variables $\big(X_n,Y_n\big)$ at each time $n$.
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+# Compute cross-correlation
+ccf_values = np.correlate(e_hp_cycle - e_hp_cycle.mean(),
+                          u_hp_cycle - u_hp_cycle.mean(),
+                          mode='full') / (len(e_hp_cycle) *
+                          e_hp_cycle.std() * u_hp_cycle.std())
+lags = np.arange(-(len(e_hp_cycle)-1), len(e_hp_cycle))
+
+plt.figure(figsize=(10, 4))
+plt.stem(lags, ccf_values, basefmt=' ')
+plt.axhline(y=0, color='k', linestyle='-', linewidth=0.5)
+plt.axhline(y=1.96/np.sqrt(len(e_hp_cycle)), color='b',
+            linestyle='--', linewidth=0.5)
+plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)), color='b',
+            linestyle='--', linewidth=0.5)
+plt.xlabel('Lag')
+plt.ylabel('CCF')
+plt.title('e_hp & u_hp')
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 4
+# Compute cross-correlation
+ccf_values = np.correlate(e_hp_cycle - e_hp_cycle.mean(),
+                          u_hp_cycle - u_hp_cycle.mean(),
+                          mode='full') / (len(e_hp_cycle) *
+                          e_hp_cycle.std() * u_hp_cycle.std())
+lags = np.arange(-(len(e_hp_cycle)-1), len(e_hp_cycle))
+
+plt.figure(figsize=(10, 4))
+plt.stem(lags, ccf_values, basefmt=' ')
+plt.axhline(y=0, color='k', linestyle='-', linewidth=0.5)
+plt.axhline(y=1.96/np.sqrt(len(e_hp_cycle)), color='b',
+            linestyle='--', linewidth=0.5)
+plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)), color='b',
+            linestyle='--', linewidth=0.5)
+plt.xlabel('Lag')
+plt.ylabel('CCF')
+plt.title('e_hp & u_hp')
+plt.tight_layout()
+plt.show()
+```
+
+- The strong positive cross-correlation at lag zero supports pro-cyclical mortality.
+
+- The oscillatory pattern is not significant pointwise but might be more evident in the frequency domain.
+
+## Cross-covariance and the cross-spectrum
+
+- The *cross-covariance function* of a stationary bivariate time series model, $\big(X_n,Y_n\big)$, is
+\begin{equation}
+\gamma_{XY}(h)=\mathrm{Cov}\big(X_{n+h},Y_n\big).
+\end{equation}
+
+- The *cross-spectrum* is the Fourier transform of the cross-covariance,
+\begin{equation}
+\lambda_{XY}(\omega) = \sum_{h=-\infty}^{\infty} e^{-2\pi i \omega h} \gamma_{XY}(h).
+\end{equation}
+
+- The cross-spectrum can be estimated by computing the cross-periodogram and smoothing it.
+
+## Coherency, coherence and phase {.fragile}
+
+- The *coherency* is the normalized cross-spectrum,
+\begin{equation}
+\rho_{XY}(\omega)= \frac{\lambda_{XY}(\omega)}{\sqrt{\lambda_{XX}(\omega)\, \lambda_{YY}(\omega)}}.
+\end{equation}
+
+- Coherency measures correlation between frequency components of two time series at each frequency $\omega$. It is complex-valued.
+
+- The magnitude of the coherency is called the *coherence*. It measures whether a large amplitude at frequency $\omega$ for $x_{1:N}$ is associated with a large amplitude at $\omega$ for $y_{1:N}$.
+
+- The angle of the coherency (in the complex plane) is called the *phase*. A phase of $0$ means that peaks at frequency $\omega$ tend to occur simultaneously for $x_{1:N}$ and $y_{1:N}$. A phase of $\pm\pi$ at frequency $\omega$ means that peaks for the frequency component of $x_{1:N}$ coincide with troughs for $y_{1:N}$.
+
+- The coherence and phase are estimated from the smoothed cross-periodogram and marginal periodograms.
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+# Compute cross-spectrum using Welch's method
+freqs, Pxx = signal.welch(e_hp_cycle, nperseg=len(e_hp_cycle)//4)
+freqs, Pyy = signal.welch(u_hp_cycle, nperseg=len(u_hp_cycle)//4)
+freqs, Pxy = signal.csd(e_hp_cycle, u_hp_cycle,
+                        nperseg=len(e_hp_cycle)//4)
+
+# Compute squared coherence
+coherence_sq = np.abs(Pxy)**2 / (Pxx * Pyy)
+
+plt.figure(figsize=(11, 3))
+plt.plot(freqs, coherence_sq, '-')
+plt.xlabel('Frequency')
+plt.ylabel('Squared Coherence')
+plt.ylim(0, 1)
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 3
+# Compute cross-spectrum using Welch's method
+freqs, Pxx = signal.welch(e_hp_cycle, nperseg=len(e_hp_cycle)//4)
+freqs, Pyy = signal.welch(u_hp_cycle, nperseg=len(u_hp_cycle)//4)
+freqs, Pxy = signal.csd(e_hp_cycle, u_hp_cycle,
+                        nperseg=len(e_hp_cycle)//4)
+
+# Compute squared coherence
+coherence_sq = np.abs(Pxy)**2 / (Pxx * Pyy)
+
+plt.figure(figsize=(11, 3))
+plt.plot(freqs, coherence_sq, '-')
+plt.xlabel('Frequency')
+plt.ylabel('Squared Coherence')
+plt.ylim(0, 1)
+plt.tight_layout()
+plt.show()
+```
+
+- Python calculates squared coherence, the squared absolute coherency. This is like reporting $r^2$ for regression, rather than $|r|$.
+
+**Question.** Interpret the squared coherence plot.
+
+\vspace{30mm}
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+# Compute phase
+phase = np.angle(Pxy)
+
+plt.figure(figsize=(11, 3))
+plt.plot(freqs, phase, '-')
+plt.axhline(y=0, color='red', linestyle='-')
+plt.xlabel('Frequency')
+plt.ylabel('Phase')
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 3
+# Compute phase
+phase = np.angle(Pxy)
+
+plt.figure(figsize=(11, 3))
+plt.plot(freqs, phase, '-')
+plt.axhline(y=0, color='red', linestyle='-')
+plt.xlabel('Frequency')
+plt.ylabel('Phase')
+plt.tight_layout()
+plt.show()
+```
+
+**Question.** Interpret the phase plot.
+
+\vspace{30mm}
+
+## Conclusions
+
+- There is strong evidence of pro-cyclical mortality at a national level in the USA from 1948 to 2019. For example, the Great Recession of 2009-2010 led to high unemployment, but these two years had above-trend values of life expectancy at birth.
+
+- We have argued that this evidence supports a claim that above-trend economic growth CAUSES above-trend mortality.
+
+- We CANNOT infer that unemployment reduces mortality for those who lose their jobs. Adverse individual-level effects of unemployment can be reconciled with our result \parencite{tapia14}.
+
+- More data might give statistical precision to investigate sub-populations more accurately than can be done with a national-level dataset. For example, *panel data analysis* combining time series for each state \parencite{ionides13-aoas}.
+
+# Supplementary analysis
+
+## Explaining the choice of an ARMA(1,0) error model {.fragile}
+
+- Model selection by AIC for regression with ARMA errors follows the same approach as for ARMA models.
+
+```{python}
+#| echo: true
+#| eval: false
+def aic_table(data, P, Q, xreg=None):
+    table = np.zeros((P+1, Q+1))
+    for p in range(P+1):
+        for q in range(Q+1):
+            try:
+                if xreg is not None:
+                    model = SARIMAX(data, exog=xreg,
+                                    order=(p, 0, q)).fit(disp=False)
+                else:
+                    model = SARIMAX(data, order=(p, 0, q)).fit(disp=False)
+                table[p, q] = model.aic
+            except:
+                table[p, q] = np.nan
+    return pd.DataFrame(table,
+                       index=[f'AR{i}' for i in range(P+1)],
+                       columns=[f'MA{i}' for i in range(Q+1)])
+
+e_aic_table = aic_table(e_hp_cycle, 4, 5, xreg=u_hp_df)
+print(e_aic_table.round(2))
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+def aic_table(data, P, Q, xreg=None):
+    table = np.zeros((P+1, Q+1))
+    for p in range(P+1):
+        for q in range(Q+1):
+            try:
+                if xreg is not None:
+                    model = SARIMAX(data, exog=xreg,
+                                    order=(p, 0, q)).fit(disp=False)
+                else:
+                    model = SARIMAX(data, order=(p, 0, q)).fit(disp=False)
+                table[p, q] = model.aic
+            except:
+                table[p, q] = np.nan
+    return pd.DataFrame(table,
+                       index=[f'AR{i}' for i in range(P+1)],
+                       columns=[f'MA{i}' for i in range(Q+1)])
+
+e_aic_table = aic_table(e_hp_cycle, 4, 5, xreg=u_hp_df)
+print(e_aic_table.round(2))
+```
+
+- ARMA(1,0) gives the best AIC among small models.
+
+- Some larger models have better AIC, but notice inconsistencies in the AIC table. For example, consider ARMA(3,1) errors:
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+a3 = SARIMAX(e_hp_cycle, exog=u_hp_df, order=(3, 0, 1)).fit()
+```
+
+```{python}
+#| echo: false
+print(f"Coefficient of u_hp: {a3.params['u_hp']:.6f}")
+print(f"AR(1) coefficient:   {a3.params['ar.L1']:.4f}")
+print(f"AR(2) coefficient:   {a3.params['ar.L2']:.4f}")
+print(f"AR(3) coefficient:   {a3.params['ar.L3']:.4f}")
+print(f"MA(1) coefficient:   {a3.params['ma.L1']:.4f}")
+print(f"Residual variance:   {a3.scale:.6f}")
+print(f"Log likelihood:      {a3.llf:.2f}")
+```
+
+##  {.fragile}
+
+- The estimated ARMA(3,1) is at the boundary of invertibility, with an MA1 coefficient on the unit circle.
+
+- This is reminiscent of our earlier analysis of the Lake Huron depth data.
+
+- Likely the ARMA(3,1) analysis is not very stable. A simulation study might find that the Fisher confidence intervals are not reliable.
+
+## Consistency through time {.fragile}
+
+- A useful relationship should be consistent through time. We check this by repeating the analysis on temporal subsets.
+
+```{python}
+#| echo: true
+t1 = slice(0, 36)
+a1 = SARIMAX(e_hp_cycle[t1], exog=u_hp_df.iloc[t1],
+             order=(1, 0, 0)).fit()
+```
+
+```{python}
+#| echo: false
+print(f"First half (1948-1983):")
+print(f"  Coefficient: {a1.params['u_hp']:.4f}")
+print(f"  Std error:   {a1.bse['u_hp']:.4f}")
+```
+
+```{python}
+#| echo: true
+t2 = slice(36, 72)
+a2 = SARIMAX(e_hp_cycle[t2], exog=u_hp_df.iloc[t2],
+             order=(1, 0, 0)).fit()
+```
+
+```{python}
+#| echo: false
+print(f"Second half (1984-2019):")
+print(f"  Coefficient: {a2.params['u_hp']:.4f}")
+print(f"  Std error:   {a2.bse['u_hp']:.4f}")
+```
+
+- The difference is small compared to the standard error. Overall there is consistency through this 72 year interval, though the pattern is weak in the 1990s.
+
+## Residual analysis {.fragile}
+
+- We inspect the residuals for the fitted model, and look at their sample autocorrelation.
+
+```{python}
+#| echo: true
+#| eval: false
+r = a0.resid
+plt.figure(figsize=(10, 4))
+plt.plot(r, '-')
+plt.ylabel('Residuals')
+plt.xlabel('Time')
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 10
+#| fig-height: 4
+r = a0.resid
+plt.figure(figsize=(10, 4))
+plt.plot(r, '-')
+plt.ylabel('Residuals')
+plt.xlabel('Time')
+plt.tight_layout()
+plt.show()
+```
+
+- There is some evidence for fluctuations decreasing in amplitude over time. This is an example of *heteroskedasticity*. It is not extreme here, but could be studied in a future analysis.
+
+##  {.fragile}
+
+```{python}
+#| echo: true
+#| eval: false
+fig, ax = plt.subplots(figsize=(9, 3))
+plot_acf(r, ax=ax, lags=18)
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 9
+#| fig-height: 3
+fig, ax = plt.subplots(figsize=(9, 3))
+plot_acf(r, ax=ax, lags=18)
+plt.tight_layout()
+plt.show()
+```
+
+- It is not a major model violation to have one out of 18 lags narrowly outside the dashed lines showing pointwise acceptance regions at the 5% level under a null hypothesis of Gaussian white noise.
+
+- The presence of some small amount of sample autocorrelation is consistent with the AIC table, which finds the possibility of gains by fitting larger models to the regression errors.
+
+## Analysis of temporal differences {.fragile}
+
+- One might model annual changes in life expectancy, rather than difference from a trend. In this case, we consider the variable
+\begin{equation}
+\Delta e_n = e_n - e_{n-1},
+\end{equation}
+computed as
+
+```{python}
+#| echo: true
+# Get full e_data for lagged values
+yr_full = e_data['Year'].values
+e_full = e_data['e0'].values
+delta_e = e - e_full[np.isin(yr_full, yr-1)]
+```
+
+##  {.fragile}
+
+```{python}
+#| echo: false
+#| fig-width: 11
+#| fig-height: 4
+fig, ax1 = plt.subplots(figsize=(11, 4))
+ax1.plot(yr, u_hp_cycle, 'k-')
+ax1.set_xlabel('Year')
+ax1.set_ylabel('Detrended unemployment', color='k')
+ax1.tick_params(axis='y', labelcolor='k')
+ax2 = ax1.twinx()
+ax2.plot(yr, delta_e, 'r-')
+ax2.set_ylabel('Differenced e0', color='r')
+ax2.tick_params(axis='y', labelcolor='r')
+plt.tight_layout()
+plt.show()
+```
+
+##  {.fragile}
+
+- The relationship between unemployment and differenced life expectancy is harder to see than when HP-detrended.
+
+- The relationship is also harder to find by statistical methods:
+
+```{python}
+#| echo: true
+a4 = SARIMAX(delta_e, exog=u_hp_df, order=(1, 0, 1)).fit()
+```
+
+```{python}
+#| echo: false
+z4_1 = a4.params['u_hp']
+z4_2 = a4.bse['u_hp']
+print(f"Coefficient of u_hp: {z4_1:.4f}")
+print(f"Standard error:      {z4_2:.4f}")
+print(f"z-statistic:         {z4_1/z4_2:.2f}")
+print(f"Residual variance:   {a4.scale:.6f}")
+print(f"Log likelihood:      {a4.llf:.2f}")
+```
+
+- Temporal differencing $z$-statistic of {python} f"{z4_1:.4f}" / {python} f"{z4_2:.4f}" = {python} f"{z4_1/z4_2:.2f}" which is weaker evidence than the $z$-statistic of {python} f"{u_hp_coef/u_hp_se:.2f}" for HP-detrended LEB.
+
+## Multiple testing considerations
+
+- A scientific principle for interpreting experimental results is as follows: *An experiment which finds evidence of an effect is usually a better foundation for future investigations than one which fails to find evidence.*
+
+- The experiment which found no evidence of an effect might have been a bad choice of experiment, or might have been carried out poorly.
+
+- The principle of preference for methods giving positive results must be balanced with consideration of *multiple testing*. If we make 20 hypothesis tests, we expect one to be significant at the 5% level just by chance. There is a danger in trying many approaches and settling on one that claims statistical significance.
+
+- The generalizability of any result is tentative until confirmed in other studies.
+
+## References and Acknowledgements
+
+::: {#refs}
+:::
+
+\vspace{3mm}
+
+- Compiled on \today using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).

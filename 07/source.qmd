@@ -1,0 +1,518 @@
+---
+title: "Modeling and Analysis of Time Series Data \\newline Chapter 7: Introduction to time series analysis in the frequency domain"
+author: "Edward Ionides"
+subtitle: "STATS 531, Winter 2025"
+format:
+  beamer:
+    slide-level: 2
+    cite-method: biblatex
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    cite-method: biblatex
+    output-file: notes.pdf
+
+bibliography: ../bib531.bib
+jupyter: python3
+
+---
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+from scipy.fft import fft
+import warnings
+warnings.filterwarnings('ignore')
+
+np.random.seed(2050320976)
+```
+
+## Frequency components of a time series
+
+1. A time series dataset (like any other sequence of numbers) can be written as a sum of sine and cosine functions with varying frequencies.
+2. This is called the **Fourier representation** or **Fourier transform** of the data.
+3. The coefficients corresponding to the sine and cosine at each frequency are called **frequency components** of the data.
+4. Looking at which frequencies have large and small components can help to identify appropriate models.
+5. Looking at the frequency components present in our models can help to assess whether they are doing a good job of describing our data.
+
+## What is the spectrum of a time series model?
+
+We begin by reviewing eigenvectors and eigenvalues of covariance matrices. This eigen decomposition also arises elsewhere in statistics, e.g., principal component analysis.
+
+- A univariate time series model is a vector-valued random variable $Y_{1:N}$ which we suppose has a covariance matrix $V$ which is an $N\times N$ matrix with entries $V_{mn}=\mathrm{Cov}(Y_m,Y_n)$.
+
+- $V$ is a non-negative definite symmetric matrix, and therefore has $N$ non-negative eigenvalues $\lambda_1,\dots,\lambda_N$ with corresponding eigenvectors $u_1,\dots,u_N$ such that
+\begin{equation} V u_n = \lambda_n u_n.\end{equation}
+
+- A basic property of these eigenvectors is that they are orthogonal, i.e.,
+\begin{equation} u_m^\mathsf{T} u_n = 0 \text{ if } m\neq n.\end{equation}
+
+-  **Normalized** eigenvectors are scaled such that $u_n^\mathsf{T} u_n = 1$.
+
+----
+
+- We can check that the components of $Y$ in the directions of different eigenvectors are uncorrelated.
+
+- Since $\mathrm{Cov}(AY,BY)=A\,\mathrm{Cov}(Y,Y)\,B^\mathsf{T}$, we have
+\begin{eqnarray*}
+\mathrm{Cov}(u_m^\mathsf{T} Y, u_n^\mathsf{T} Y) &=& u_m^\mathsf{T} \mathrm{Cov}(Y,Y) u_n\\
+&=& u_m^\mathsf{T} V u_n\\
+&=&\lambda_n u_m^\mathsf{T} u_n\\
+&=& \left\{
+  \begin{array}{cc}
+    \lambda_n & \text{if } m=n \\
+    0 & \text{if } m\neq n
+  \end{array}
+\right.
+\end{eqnarray*}
+For the last equality, we have supposed that the eigenvectors are normalized.
+
+- If we knew $V$, we could convert the model to a representation where the observable random variables are uncorrelated.
+
+- Transforming the data into its components in the directions of the eigenvectors of the model allows us to use an uncorrelated model. In the Gaussian case, we have independence.
+
+## Eigenvectors for the covariance matrix of an AR(1) model with $N=100$ and $\phi=0.8$
+
+\footnotesize
+```{python}
+#| echo: true
+#| eval: true
+N = 100; phi = 0.8; sigma = 1
+V = np.zeros((N, N))
+for m in range(N):
+    for n in range(N):
+        V[m, n] = sigma**2 * phi**abs(m-n) / (1-phi**2)
+V_eigenvalues, V_eigenvectors = np.linalg.eig(V)
+```
+\normalsize
+
+First 5 eigenvectors:
+```{python}
+#| echo: false
+#| eval: true
+# Plot first 5 eigenvectors
+plt.figure(figsize=(5.5, 2.25))
+for i in range(5):
+    plt.plot(V_eigenvectors[:, i])
+plt.tight_layout()
+plt.show()
+```
+
+----
+
+Next 4 eigenvectors:
+```{python}
+#| echo: false
+#| eval: true
+# Plot next 4 eigenvectors
+plt.figure(figsize=(5.5, 2.25))
+for i in range(5, 9):
+    plt.plot(V_eigenvectors[:, i])
+plt.tight_layout()
+plt.show()
+```
+
+----
+
+- We see that the eigenvectors, plotted as functions of time, look like sine wave oscillations.
+
+- The eigenvalues are
+
+```{python}
+#| echo: false
+print(np.round(V_eigenvalues[:9], 2))
+```
+
+- We see that the eigenvalues are decreasing. For this model, the components of $Y_{1:N}$ with highest variance correspond to long-period oscillations.
+
+- Are the sinusoidal eigenvectors a special feature of this particular time series model, or something more general?
+
+## The eigenvectors for a long stationary time series model
+
+- Suppose $\{Y_n,-\infty<n<\infty\}$ has a stationary autocovariance function $\gamma_h$. Write $\Gamma$ for the infinite array with entries
+\begin{equation} \Gamma_{m,n} = \gamma_{m-n} \quad \text{for all integers } m \text{ and } n.\end{equation}
+- To focus on concepts over technical details, we assume infinite sums converge and order of summation can be exchanged, so infinite arrays behave like finite matrices.
+- An eigenvector for $\Gamma$ is a sequence $u=\{u_n, -\infty<n<\infty\}$ with corresponding eigenvalue $\lambda$ such that
+\begin{equation}\Gamma u = \lambda u,\end{equation}
+or, writing out the matrix multiplication explicitly,
+\begin{equation}\sum_{n=-\infty}^\infty \Gamma_{m,n} u_n = \lambda u_m\quad \text{for all } m.\end{equation}
+
+- We look for a sinusoidal solution, $u_n = e^{2\pi i\omega n}$.
+
+----
+
+\vspace{-3mm}
+
+\begin{eqnarray*}
+\sum_{n=-\infty}^\infty \Gamma_{m,n} u_n
+&=&
+\sum_{n=-\infty}^\infty \gamma_{m-n} u_n
+\\
+&=&
+\sum_{h=-\infty}^\infty \gamma_{h}  u_{m-h} \quad \text{setting } h=m-n
+\\
+&=&
+\sum_{h=-\infty}^\infty \gamma_{h}  e^{2\pi i\omega(m-h)}
+\\
+&=&
+e^{2\pi i\omega m} \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}
+\\
+&=&
+u_m \lambda(\omega) \quad \text{ for } \lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}
+\end{eqnarray*}
+
+**Question.** Why does this calculation show that
+$u_n(\omega) = e^{2\pi i\omega n}$
+is an eigenvector for $\Gamma$ for any choice of $\omega$?
+
+
+----
+
+- The eigenvalue at frequency $\omega$ is
+\begin{equation}
+\label{eq:ft1}
+\lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h} \,  e^{-2\pi i\omega h}
+\end{equation}
+- Viewed as a function of $\omega$, this is called the **spectral density function**.
+
+- $\lambda(\omega)$ is the **Fourier transform** of $\gamma_h$.
+
+- An integral version of this equation is used in applied math and engineering:
+\begin{equation}
+\label{eq:ft2}
+\lambda(\omega) = \int_{-\infty}^{\infty} \gamma(x) \, e^{-2\pi i\omega x}\, dx.
+\end{equation}
+- We obtain the sum from the integral when $\gamma(h)$ has a point mass $\gamma_h$ when $h$ is an integer, and $\gamma(x)=0$ for non-integer $x$.
+
+----
+
+- It was convenient to do this calculation with complex exponentials. However, writing
+\begin{equation} e^{2\pi i\omega n} = \cos(2\pi\omega n) + i \sin(2\pi\omega n),\end{equation}
+and noting that $\gamma_h$ is real, we see that the real and imaginary parts of $\lambda(\omega)= \sum_{h=-\infty}^\infty \gamma_{h}  e^{-2\pi i\omega h}$ give us two real eigenvectors, $\cos(2\pi\omega n)$ and $\sin(2\pi\omega n)$.
+
+\
+
+**Question.** Review: how would you demonstrate the correctness of the identity
+$e^{2\pi i\omega} = \cos(2\pi\omega)+i\,\sin(2\pi\omega)$?
+
+----
+
+- Assuming that this computation for an infinite sum represents a limit of increasing dimension for finite matrices, we have found that the eigenvectors for any long, stationary time series model are approximately sinusoidal.
+
+- For the finite time series situation, we only expect $N$ eigenvectors for a time series of length $N$. We have one eigenvector for $\omega=0$, two eigenvectors corresponding to sine and cosine functions with frequency
+\begin{equation}\omega_{n} = n/N, \text{ for } 0<n<N/2,\end{equation}
+and, if $N$ is even, a final eigenvector with frequency
+\begin{equation}
+\omega_{(N/2)} = 1/2.
+\end{equation}
+
+- These sine and cosine vectors are the **Fourier basis**.
+
+- The time series $y_{1:N}$ is the **time domain** representation of the data. Transforming to the Fourier basis gives the **frequency domain** representation.
+
+
+## Frequency components and the Fourier transform
+
+- The **frequency components** of $Y_{1:N}$ are the components in the directions of these eigenvectors, given by
+\begin{eqnarray*}
+C_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N Y_k\cos(2\pi \omega_n k) \text{ for } 0\le n\le N/2,
+\\
+S_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N Y_k\sin(2\pi \omega_n k) \text{ for } 1\le n\le N/2.
+\end{eqnarray*}
+
+- Similarly, the **frequency components** of data $y^*_{1:N}$ are
+\begin{eqnarray*}
+c_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N y^*_k\cos(2\pi \omega_n k) \text{ for } 0\le n\le N/2,
+\\
+s_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N y^*_k\sin(2\pi \omega_n k) \text{ for } 1\le n\le N/2.
+\end{eqnarray*}
+
+----
+
+- The frequency components of the data can be written as real and imaginary parts of the **discrete Fourier transform**,
+\begin{eqnarray*}
+d_n &=& \frac{1}{\sqrt{N}} \sum_{k=1}^N y^*_k e^{-2\pi i k n/N}
+\\
+&=& c_n - i s_n
+\end{eqnarray*}
+
+- The normalizing constant of $1/\sqrt{N}$ is convenient for a central limit theorem.
+
+- Various choices about signs and factors of $2\pi$, $\sqrt{2\pi}$ and $\sqrt{N}$ can be made in the definition of the Fourier transform. For example, NumPy's `fft` does not include this constant.
+
+- `fft` is an implementation of the fast Fourier transform algorithm, which enables computation of all the frequency components with order $N\log(N)$ computation. Directly computing the sums requires order $N^2$ additions and multiplications. When $N=10^5$ or $N=10^6$ this difference becomes important!
+
+----
+
+- The first frequency component, $C_0$, is a special case, since it has mean $\mu=\mathrm{E}[Y_n]$ whereas the other components have mean zero.
+
+- In practice, we subtract a mean before computing the frequency components, which is equivalent to removing the frequency component for frequency zero.
+
+- The frequency components $(C_{0:N/2},S_{1:N/2})$ are asymptotically uncorrelated. They are constructed as a sum of a large number of terms, with the usual $1/\sqrt{N}$ scaling for a central limit theorem. So, it may not be surprising that a central limit theorem applies, giving asymptotic justification for the following normal approximation.
+
+- Moving to the frequency domain (i.e., transforming the data to its frequency components) has **decorrelated** the data. Statistical techniques based on assumptions of independence are appropriate when applied to frequency components.
+
+## Normal approximation for the frequency components
+
+$(C_{1:N/2},S_{1:N/2})$ are approximately independent, mean zero, Normal random variables with
+\begin{equation} \mathrm{Var}(C_n) = \mathrm{Var}(S_n) \approx 1/2 \lambda(\omega_n).\end{equation}
+
+$C_0/ \sqrt{N}$ is approximately Normal, mean $\mu$, independent of $(C_{1:N/2},S_{1:N/2})$, with
+\begin{equation}\mathrm{Var}(C_0/ \sqrt{N}) \approx \lambda(0)/ N.\end{equation}
+
+It follows from the normal approximation that, for $1\le n\le N/2$,
+\begin{equation}
+\label{eq:cs:chi-squared}
+C_n^2 + S_n^2 \approx \lambda(\omega_n) \frac{\chi^2_2}{2},
+\end{equation}
+where $\chi^2_2$ is a chi-squared random variable on two degrees of freedom.
+
+Taking logs, we have
+\begin{equation}
+\label{eq:cs:log-chi-squared}
+\log(C_n^2 + S_n^2 ) \approx \log \lambda(\omega_n) + \log(\chi^2_2/2).
+\end{equation}
+
+## The periodogram to estimate the spectral density
+
+- The chi-squared property motivates the **periodogram**,
+\begin{equation} I_n = c_n^2 + s_n^2 = |d_n|^2\end{equation}
+as an estimator of the spectral density.
+
+- From the log property, $\log I_n$ is an estimator of the log spectral density with a convenient statistical property: asymptotically independent, identically distributed errors at each Fourier frequency.
+
+- Therefore, a signal-plus-white-noise model is appropriate for estimating the log spectral density using the log periodogram.
+
+- The periodogram is an **inconsistent estimator** of the spectrum. We can smooth the periodogram to borrow strength between nearby frequencies.
+
+## Interpreting the spectral density as a power spectrum
+
+- The power of a wave is proportional to the square of its amplitude.
+
+- The spectral density gives the mean square amplitude of the components at each frequency, and therefore gives the expected power.
+
+- The spectral density function can therefore be called the **power spectrum**.
+
+----
+
+**Question.** Consider the AR(1) model, $\phi(B)Y_n = \epsilon_n$ with $\phi(B)=1-\phi_1B$ and $\epsilon_n \sim \mathrm{WN}(\sigma^2)$, i.e., white noise with variance $\sigma^2$. Show that the spectrum of $Y$ is
+\begin{equation}
+\lambda(\omega)=\frac{\sigma^2}{|\phi( e^{2\pi i \omega})|^2}
+= \frac{\sigma^2}{1+\phi_1^2 - 2\phi_1\cos(2\pi\omega)}.
+\end{equation}
+
+## ARMA models have a rational spectrum
+
+- The calculation for the AR(1) model generalizes. We give the result without proof.
+- Let $Y_n$ be an ARMA(p,q) model, $\phi(B)Y_n = \theta(B)\epsilon_n$ with $\epsilon_n\sim \mathrm{WN}(\sigma^2)$. The spectrum of $Y$ is
+\begin{equation}
+\lambda(\omega) = \sigma^2 \left| \frac{\theta( e^{2\pi i \omega} )}{\phi( e^{2\pi i \omega} )} \right|^2.
+\end{equation}
+- The so-called **rational spectrum** of ARMA models is computationally convenient.
+- A stationary, causal ARMA model cannot have roots on the unit circle. If a root approaches the unit circle, the denominator becomes close to zero.
+- The special case of $\phi(x)=\theta(x)=1$ gives $\lambda(\omega)=\sigma^2$. **White noise has a constant spectrum**, matching the analogy that white light has uniform intensity across the visible light spectrum.
+
+## Michigan winters revisited: Frequency domain methods
+
+\footnotesize
+
+```{python}
+#| echo: true
+y = pd.read_csv("ann_arbor_weather.csv", sep='\t', comment='#')
+y.iloc[:3, :8]
+```
+
+\normalsize
+
+- We have to deal with the NA measurement for 1955. A simple approach is to replace the NA by the mean.
+
+- What other approaches can you think of for dealing with this missing observation?
+
+- What are the strengths and weaknesses of these approaches?
+
+```{python}
+#| echo: false
+low = y['Low'].values
+low = np.where(np.isnan(low), np.nanmean(low), low)
+```
+
+## Unsmoothed periodogram
+
+```{python}
+#| echo: true
+#| eval: true
+from scipy.signal import periodogram
+freqs, psd = periodogram(low, scaling='spectrum')
+plt.figure(figsize=(10, 3.5))
+plt.semilogy(freqs, psd)
+plt.xlabel('Frequency [cycles per observation]')
+plt.ylabel('Power spectral density')
+plt.tight_layout(); plt.show()
+```
+
+----
+
+To smooth, we use Welch's method which divides the data into overlapping segments
+
+```{python}
+#| echo: true
+#| eval: true
+from scipy.signal import welch
+freqs_w, psd_w = welch(low, nperseg=len(low)//4,
+                       scaling='spectrum')
+plt.figure(figsize=(10, 3.5))
+plt.semilogy(freqs_w, psd_w)
+plt.xlabel('Frequency [cycles per observation]')
+plt.ylabel('Power spectral density')
+plt.tight_layout(); plt.show()
+```
+
+
+- The confidence intervals are based on the chi-squared property. On the log scale, they have constant width at each frequency and are asymmetric.
+
+----
+
+**Question.** What is the default periodogram smoother in Python's scipy?
+
+\
+
+**Question.** How should we use it?
+
+\
+
+**Question.** Why is that default chosen?
+
+## More details on computing and smoothing the periodogram
+
+- In R, typing `?spectrum` leads to `?spec.pgram`.
+
+- By default, R removes a linear trend, fitted by least squares. This may often be a sensible thing to do. Why?
+
+- R then multiplies the data by a quantity called a **taper**, computed by `spec.taper`.
+
+- The taper smooths the ends of the time series and removes high-frequency artifacts arising from an abrupt start and end to the time series.
+
+- Formally, from the perspective of the Fourier transform, the time series takes the value zero outside the observed time points $1:N$. The sudden jump to and from zero at the start and end produces unwanted effects in the frequency domain.
+
+----
+
+The default taper in R smooths the first and last $p=0.1$ fraction of the time points, by modifying the detrended data $y_{1:N}$ to tapered version $z_{1:N}$ defined by
+\begin{equation} \nonumber
+z_n =
+  \left\{
+  \begin{array}{ll}
+    y_n (1-\cos(\pi n/Np))/2 & \text{ if } 1\le n< Np \\
+    y_n  & \text{ if } Np \le n \le N(1-p) \\
+    y_n (1-\cos(\pi [N+1-n]/Np))/2 & \text{ if } N(1-p)<n\le N
+  \end{array}\right.
+\end{equation}
+
+```{python}
+#| echo: true
+#| eval: false
+# Create R-style taper
+N = 100
+p = 0.1
+taper = np.ones(N)
+n_taper = int(N * p)
+for i in range(n_taper):
+    taper[i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
+    taper[N-1-i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
+plt.figure(figsize=(8, 2.5))
+plt.plot(taper)
+plt.title('Default taper in R, for time series of length 100')
+plt.axvline(x=10, linestyle='dotted', color='red')
+plt.axvline(x=90, linestyle='dotted', color='red')
+plt.tight_layout()
+plt.show()
+```
+
+----
+
+```{python}
+#| echo: false
+#| fig-width: 8
+#| fig-height: 2.5
+N = 100
+p = 0.1
+taper = np.ones(N)
+n_taper = int(N * p)
+for i in range(n_taper):
+    taper[i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
+    taper[N-1-i] = (1 - np.cos(np.pi * (i+1) / (N*p))) / 2
+plt.figure(figsize=(8, 2.5))
+plt.plot(taper)
+plt.title('Default taper in R, for time series of length 100')
+plt.axvline(x=10, linestyle='dotted', color='red')
+plt.axvline(x=90, linestyle='dotted', color='red')
+plt.tight_layout()
+plt.show()
+```
+
+## Spectral density estimation by fitting a model
+
+Another standard way to estimate the spectrum is to fit an AR(p) model with $p$ selected by AIC.
+
+\footnotesize
+
+```{python}
+#| echo: true
+#| eval: true
+from statsmodels.tsa.ar_model import AutoReg
+# Fit AR model with order selection by AIC
+ar_model = AutoReg(low, lags=range(1, 21),
+                   old_names=False).fit()
+print(f"Selected AR order: {len(ar_model.params)-1}")
+
+# Compute spectrum from AR model
+ar_order = len(ar_model.params) - 1
+ar_coefs = -ar_model.params[1:]  # Exclude intercept
+freqs_ar = np.linspace(0, 0.5, 1000)
+# Compute AR spectrum
+spectrum_ar = ar_model.scale / np.abs(
+    1 - np.sum([ar_coefs[i] * np.exp(-2j*np.pi*freqs_ar*(i+1))
+                for i in range(len(ar_coefs))], axis=0))**2
+```
+
+----
+
+```{python}
+#| echo: false
+#| eval: true
+plt.figure(figsize=(11, 3.5))
+plt.semilogy(freqs_ar, spectrum_ar)
+plt.xlabel('Frequency [cycles per observation]')
+plt.ylabel('Spectral density')
+plt.title('Spectrum estimated via AR model picked by AIC')
+plt.tight_layout()
+plt.show()
+```
+
+## Units of frequency and period
+
+- When we call $\omega$ the frequency in cycles per unit time, we really mean **cycles per unit observation**.
+
+- Suppose the time series consists of equally spaced observations, with $t_{n}-t_{n-1}=\Delta$ years. Then, the frequency is $\omega/\Delta$ **cycles per year**.
+
+- The **period** of an oscillation is the time for one cycle,
+\begin{equation} \text{period} = \frac{1}{\text{frequency}}.\end{equation}
+
+- When the observation intervals have a time unit (years, seconds, etc) we usually use that unit for the period, and its inverse for the frequency.
+
+## Further reading
+
+- Sections 4.1 to 4.3 of \textcite{shumway17} cover similar topics to this chapter.
+
+## Acknowledgments
+
+- Compiled on \today{} using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).
+
+# References
+

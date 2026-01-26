@@ -1,4 +1,4 @@
-Class 3 discussion problem
+Class 4 discussion problem
 
 Solve the question at https://ionides.github.io/531w26/quiz/class04.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
 

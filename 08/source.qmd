@@ -57,41 +57,30 @@ np.random.seed(2050320976)
 
 ----
 
-```{python}
-#| echo: true
-#| eval: false
-import subprocess
-result = subprocess.run(['head', 'unadjusted_unemployment.csv'],
-                       capture_output=True, text=True)
-print(result.stdout)
-```
-
-```{python}
-#| echo: false
-#| eval: true
-import subprocess
-result = subprocess.run(['head', 'unadjusted_unemployment.csv'],
-                       capture_output=True, text=True)
-print(result.stdout)
-```
-
-----
+\footnotesize
 
 ```{python}
 #| echo: true
-#| eval: false
-U1 = pd.read_csv("unadjusted_unemployment.csv", comment='#')
-print(U1.head(3))
+#| eval: true
+import subprocess
+result = subprocess.run(['head', 'unadjusted_unemployment.csv'],
+    capture_output=True, text=True)
+print(result.stdout)
 ```
+
 
 ```{python}
-#| echo: false
+#| echo: true
 #| eval: true
 U1 = pd.read_csv("unadjusted_unemployment.csv", comment='#')
-print(U1.head(3))
+U1.iloc[:3,:10]
 ```
 
+\normalsize
+
 ----
+
+\footnotesize
 
 ```{python}
 #| echo: true
@@ -105,9 +94,10 @@ plt.figure(figsize=(10, 5))
 plt.plot(date, u1, '-')
 plt.ylabel("Unemployment rate (unadjusted)")
 plt.xlabel("Year")
-plt.tight_layout()
-plt.show()
+plt.tight_layout(); plt.show()
 ```
+
+\normalsize
 
 ----
 
@@ -119,8 +109,9 @@ plt.show()
 
 ```{python}
 #| echo: true
-U2 = pd.read_csv("adjusted_unemployment.csv", comment='#')
-u2 = U2.iloc[:, 1:13].values.T.flatten()
+U2 = pd.read_csv("adjusted_unemployment.csv", 
+    comment='#')
+u2 = U2.iloc[:, 1:13].values.flatten()
 u2[933] = (u2[932]+u2[934])/2 # interpolate NaN
 ```
 
@@ -143,49 +134,25 @@ plt.show()
 
 - We can wonder how the BLS adjusts the data, and if this introduces any artifacts that a careful statistician should be aware of.
 
-# Seasonal adjustment in the frequency domain
+## Seasonal adjustment in the frequency domain
 
-##  {.fragile}
-
-- To help understand the seasonal adjustment, we look at what it does to the smoothed periodogram.
-
-- We need to compute smoothed periodograms for both time series and compare them.
+To help understand the seasonal adjustment, we look at what it does to the smoothed periodogram. We compute smoothed periodograms for both time series and compare them.
 
 ```{python}
 #| echo: true
-#| eval: false
-#| fig-width: 11
-#| fig-height: 5
-# Compute smoothed periodograms using Welch's method
-freqs1, psd1 = signal.welch(u1, fs=12, nperseg=len(u1)//8,
-                             scaling='spectrum')
-freqs2, psd2 = signal.welch(u2, fs=12, nperseg=len(u2)//8,
-                             scaling='spectrum')
-
-plt.figure(figsize=(11, 5))
-plt.semilogy(freqs1, psd1, 'k-', label='Unadjusted')
-plt.semilogy(freqs2, psd2, 'r-', label='Seasonally adjusted')
-plt.xlabel("Frequency (cycles per year)")
-plt.ylabel("Spectrum")
-plt.title("Unemployment: raw (black), seasonally adjusted (red)")
-plt.legend()
-plt.tight_layout()
-plt.show()
+#| eval: true
+freqs1, psd1 = signal.welch(u1, fs=12, 
+    nperseg=len(u1)//8, scaling='spectrum')
+freqs2, psd2 = signal.welch(u2, fs=12, 
+    nperseg=len(u2)//8, scaling='spectrum')
 ```
 
-----
-
 ```{python}
+#| fig-width: 10
+#| fig-height: 4
 #| echo: false
-#| fig-width: 11
-#| fig-height: 5
-# Compute smoothed periodograms using Welch's method
-freqs1, psd1 = signal.welch(u1, fs=12, nperseg=len(u1)//8,
-                             scaling='spectrum')
-freqs2, psd2 = signal.welch(u2, fs=12, nperseg=len(u2)//8,
-                             scaling='spectrum')
-
-plt.figure(figsize=(11, 5))
+#| eval: true
+plt.figure(figsize=(10, 4))
 plt.semilogy(freqs1, psd1, 'k-', label='Unadjusted')
 plt.semilogy(freqs2, psd2, 'r-', label='Seasonally adjusted')
 plt.xlabel("Frequency (cycles per year)")
@@ -198,21 +165,17 @@ plt.show()
 
 ## Comments on the smoothed periodogram
 
-- Note: For a report, we should add units to plots. Extra details (like `bandwidth` in the periodogram plot) should be explained or removed.
-
-\vspace{1mm}
-
 **Question.** Why does the unadjusted spectrum have peaks at 2,3,4,5,6 cycles per year as well as 1 cycle per year?
 
-\vspace{20mm}
+\
 
 **Question.** Comment on what you learn from comparing these smoothed periodograms.
 
-\vspace{30mm}
 
-## The frequency response function
 
-- The ratio of the periodograms of the smoothed and unsmoothed time series is the *frequency response* of the smoother.
+----
+
+**Definition:** The ratio of the periodograms of the smoothed and unsmoothed time series is the **frequency response function ** of the smoother.
 
 - The frequency response function tells us how much the smoother contracts (or inflates) the sine and cosine components at each frequency $\omega$.
 
@@ -220,70 +183,46 @@ plt.show()
 
 - Linear, time invariant transformations do not move power between frequencies, so they are characterized by their frequency response function.
 
-- Smoothers are linear and time invariant, at least approximately. If we scale or shift the data, we expect the smoothed estimate to have the same scale or shift. We expect a smooth approximation to the sum of two time series to be approximately the sum of the two smoothed series.
+If we scale or shift the data, the smoothed estimate should have the same scale or shift. A smooth approximation to the sum of two time series should be approximately the sum of the two smoothed series. So, smoothers are approximately **linear and time invariant**.
 
 ## Calculating a frequency response function
 
-- We investigate the frequency response of the smoother used by Bureau of Labor Statistics to deseasonalize the unemployment data.
+We investigate the frequency response of the smoother used by Bureau of Labor Statistics to deseasonalize unemployment data.
 
-```{python}
-#| echo: false
-# Compute unsmoothed periodograms
-freqs_u1, psd_u1 = signal.periodogram(u1, fs=12, scaling='spectrum')
-freqs_u2, psd_u2 = signal.periodogram(u2, fs=12, scaling='spectrum')
-```
-
-- We find the parts that we need to plot the frequency response.
+\footnotesize
 
 ```{python}
 #| echo: true
-#| eval: false
-# The frequency response is the ratio of the two spectra
+# Compute unsmoothed periodograms and their ratio
+freqs_u1, psd_u1 = signal.periodogram(u1,fs=12,scaling='spectrum')
+freqs_u2, psd_u2 = signal.periodogram(u2,fs=12,scaling='spectrum')
 freq_response = psd_u2 / psd_u1
 ```
+\normalsize
 
 ```{python}
 #| echo: false
 #| eval: true
-# The frequency response is the ratio of the two spectra
-freq_response = psd_u2 / psd_u1
+#| fig-width: 10
+#| fig-height: 4
+plt.figure(figsize=(10, 5))
+plt.semilogy(freqs_u1, freq_response, '-')
+plt.ylabel("Frequency ratio")
+plt.xlabel("Frequency (cycles per year)")
+plt.title("Frequency response (red lines at 0.8 and 1.2)")
+plt.axhline(y=0.8, color='red', linestyle='-')
+plt.axhline(y=1.2, color='red', linestyle='-')
+plt.tight_layout()
+plt.show()
 ```
+
 
 ----
-```{python}
-#| echo: true
-#| eval: false
-plt.figure(figsize=(10, 5))
-plt.semilogy(freqs_u1, freq_response, '-')
-plt.ylabel("Frequency ratio")
-plt.xlabel("Frequency (cycles per year)")
-plt.title("Frequency response (red lines at 0.8 and 1.2)")
-plt.axhline(y=0.8, color='red', linestyle='-')
-plt.axhline(y=1.2, color='red', linestyle='-')
-plt.tight_layout()
-plt.show()
-```
-
-```{python}
-#| echo: false
-#| fig-width: 10
-#| fig-height: 5
-plt.figure(figsize=(10, 5))
-plt.semilogy(freqs_u1, freq_response, '-')
-plt.ylabel("Frequency ratio")
-plt.xlabel("Frequency (cycles per year)")
-plt.title("Frequency response (red lines at 0.8 and 1.2)")
-plt.axhline(y=0.8, color='red', linestyle='-')
-plt.axhline(y=1.2, color='red', linestyle='-')
-plt.tight_layout()
-plt.show()
-```
 
 **Question.** What do you learn from this frequency response plot?
 
-\vspace{20mm}
+\
 
-# Loess smoothing
 
 ## Estimating trend by Loess smoothing 
 
@@ -299,73 +238,36 @@ plt.show()
 
 ## A Loess smooth of unemployment 
 
-```{python}
-#| echo: true
-#| eval: false
-#| fig-width: 10
-#| fig-height: 4
-# lowess returns [x, y] so we extract the smoothed values
-u1_lowess = lowess(u1, date, frac=0.5)
-plt.figure(figsize=(10, 4))
-plt.plot(date, u1, '-', color='red')
-plt.plot(u1_lowess[:, 0], u1_lowess[:, 1], '-', color='black')
-plt.xlabel("Year")
-plt.ylabel("Unemployment rate")
-plt.tight_layout()
-plt.show()
-```
-
-----
+\footnotesize
 
 ```{python}
 #| echo: false
 #| fig-width: 10
 #| fig-height: 4
-# lowess returns [x, y] so we extract the smoothed values
-u1_lowess = lowess(u1, date, frac=0.5)
+# lowess returns [x, y] so we extract y
+u1_lowess = lowess(u1, date, frac=0.3)
 plt.figure(figsize=(10, 4))
 plt.plot(date, u1, '-', color='red')
 plt.plot(u1_lowess[:, 0], u1_lowess[:, 1], '-', color='black')
-plt.xlabel("Year")
-plt.ylabel("Unemployment rate")
-plt.tight_layout()
-plt.show()
+plt.xlabel("Year"); plt.ylabel("Unemployment rate")
+plt.tight_layout(); plt.show()
 ```
+
+\normalsize
 
 ----
 
-Now, we compute the frequency response function for what we have done.
-
-```{python}
-#| echo: true
-#| eval: false
-# Compute periodograms for raw and smoothed data
-freqs_raw, psd_raw = signal.periodogram(u1, fs=12, scaling='spectrum')
-freqs_smooth, psd_smooth = signal.periodogram(u1_lowess[:, 1],
-                                               fs=12, scaling='spectrum')
-
-plt.figure(figsize=(10, 5))
-plt.semilogy(freqs_smooth, psd_smooth / psd_raw, '-')
-plt.xlim(0, 1.5)
-plt.ylabel("Frequency ratio")
-plt.xlabel("Frequency (cycles per year)")
-plt.title("Frequency response (red line at 1.0)")
-plt.axhline(y=1.0, color='red', linestyle='dashed')
-plt.tight_layout()
-plt.show()
-```
-
-----
+We compute the frequency response function for the Lowess smooth:
 
 ```{python}
 #| echo: false
 #| fig-width: 10
 #| fig-height: 5
 # Compute periodograms for raw and smoothed data
-freqs_raw, psd_raw = signal.periodogram(u1, fs=12, scaling='spectrum')
+freqs_raw, psd_raw = signal.periodogram(u1, fs=12, 
+    scaling='spectrum')
 freqs_smooth, psd_smooth = signal.periodogram(u1_lowess[:, 1],
-                                               fs=12, scaling='spectrum')
-
+    fs=12, scaling='spectrum')
 plt.figure(figsize=(10, 5))
 plt.semilogy(freqs_smooth, psd_smooth / psd_raw, '-')
 plt.xlim(0, 1.5)
@@ -379,7 +281,6 @@ plt.show()
 
 **Question.** Describe the frequency domain behavior of this filter.
 
-\vspace{50mm}
 
 ## Extracting business cycles: A band pass filter 
 
@@ -391,41 +292,18 @@ plt.show()
 
 ```{python}
 #| echo: true
-#| eval: false
-u_low = lowess(u1, date, frac=0.5)[:, 1]
-u_hi = u1 - lowess(u1, date, frac=0.1)[:, 1]
+#| eval: true
+u_low = lowess(u1, date, frac=0.3)[:, 1]
+u_hi = u1 - lowess(u1, date, frac=0.05)[:, 1]
 u_cycles = u1 - u_hi - u_low
-
-# Create a figure with subplots
-fig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
-axes[0].plot(date, u1, '-')
-axes[0].set_ylabel('u1')
-axes[1].plot(date, u_low, '-')
-axes[1].set_ylabel('u_low')
-axes[2].plot(date, u_hi, '-')
-axes[2].set_ylabel('u_hi')
-axes[3].plot(date, u_cycles, '-')
-axes[3].set_ylabel('u_cycles')
-axes[3].set_xlabel('Year')
-fig.suptitle('Decomposition of unemployment as trend + noise + cycles')
-plt.tight_layout()
-plt.show()
 ```
 
-\vspace{10mm}
-
-## Business cycles in detrended economic data 
+----
 
 ```{python}
 #| echo: false
-#| fig-width: 10
-#| fig-height: 7
-u_low = lowess(u1, date, frac=0.5)[:, 1]
-u_hi = u1 - lowess(u1, date, frac=0.1)[:, 1]
-u_cycles = u1 - u_hi - u_low
-
-# Create a figure with subplots
-fig, axes = plt.subplots(4, 1, figsize=(10, 7), sharex=True)
+#| eval: true
+fig, axes = plt.subplots(4, 1, figsize=(10, 8), sharex=True)
 axes[0].plot(date, u1, '-')
 axes[0].set_ylabel('u1')
 axes[1].plot(date, u_low, '-')
@@ -445,9 +323,9 @@ plt.show()
 ```{python}
 #| echo: false
 # Compute smoothed periodograms for the frequency response
-freqs_cyc, psd_cyc = signal.welch(u_cycles, fs=12, nperseg=len(u_cycles)//20,
+freqs_cyc, psd_cyc = signal.welch(u_cycles, fs=12, nperseg=256,
                                     scaling='spectrum')
-freqs_u1_welch, psd_u1_welch = signal.welch(u1, fs=12, nperseg=len(u1)//20,
+freqs_u1_welch, psd_u1_welch = signal.welch(u1, fs=12, nperseg=256,
                                               scaling='spectrum')
 freq_response_cycle = psd_cyc / psd_u1_welch
 
@@ -478,10 +356,7 @@ if np.any(hi):
         else:
             r_interp = freqs_cyc[hi_range[1]]
 
-        print(f"Frequency range (ratio > 0.5): [{l_interp:.3f}, {r_interp:.3f}]")
 ```
-
-##  {.fragile}
 
 ```{python}
 #| echo: false
@@ -502,7 +377,9 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Question.** Describe the frequencies (and corresponding periods) that this decomposition identifies as business cycles. Note: units of frequency are omitted to give you an exercise!
+`{python}f"Frequency range (ratio > 0.5): [{l_interp:.3f}, {r_interp:.3f}]"`
+
+**Question.** Describe the frequencies (and corresponding periods) that this decomposition identifies as business cycles. 
 
 \vspace{15mm}
 
@@ -514,7 +391,7 @@ Below is a smoothed periodogram for the raw unemployment data, plotted up to 0.7
 #| echo: false
 #| fig-width: 9
 #| fig-height: 4
-freqs_zoom, psd_zoom = signal.welch(u1, fs=12, nperseg=len(u1)//40,
+freqs_zoom, psd_zoom = signal.welch(u1, fs=12, nperseg=256,
                                      scaling='spectrum')
 plt.figure(figsize=(9, 4))
 plt.semilogy(freqs_zoom, psd_zoom, '-')

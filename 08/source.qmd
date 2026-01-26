@@ -1,7 +1,7 @@
 ---
 title: "Modeling and Analysis of Time Series Data \\newline Chapter 8: Smoothing in the time and frequency domains"
 author: "Edward Ionides"
-subtitle: "STATS 531, Winter 2025"
+subtitle: "STATS 531, Winter 2026"
 format:
   beamer:
     slide-level: 2
@@ -41,21 +41,21 @@ np.random.seed(2050320976)
 
 - Smoothers have convenient interpretation in the frequency domain. A smoother typically shrinks high frequency components and preserves low frequency components.
 
-## A motivating example {.fragile}
+## A motivating example
 
 - The economy fluctuates between periods of rapid expansion and periods of slower growth or contraction.
 
 - High unemployment is one of the most visible signs of a dysfunctional economy, in which labor is under-utilized, leading to hardships for many individuals and communities.
 
-- Economists, politicians, businesspeople and the general public therefore have an interest in understanding fluctuations in unemployment.
+- Economists, politicians, businesspeople and the general public have an interest in understanding fluctuations in unemployment.
 
-- Economists try to distinguish between fundamental structural changes in the economy and the shorter-term cyclical booms and busts that appear to be a natural part of capitalist business activity.
+- Economists try to distinguish between fundamental structural changes in the economy and shorter-term boom/bust cycles that appear to be a natural part of capitalist business activity.
 
 - Monthly US unemployment figures are published by the [Bureau of Labor Statistics (BLS)](https://data.bls.gov/timeseries/LNU04000000).
 
 - Measuring unemployment has subtleties, but these are not our immediate focus.
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: true
@@ -75,7 +75,7 @@ result = subprocess.run(['head', 'unadjusted_unemployment.csv'],
 print(result.stdout)
 ```
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: true
@@ -91,19 +91,16 @@ U1 = pd.read_csv("unadjusted_unemployment.csv", comment='#')
 print(U1.head(3))
 ```
 
-##  {.fragile}
-
-**Question.** A coding exercise: Explain how the tabulated data in `U1` are converted to a time series, below.
-
-\vspace{15mm}
+----
 
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 #| fig-width: 10
 #| fig-height: 5
-u1 = U1.iloc[:, 1:13].values.T.flatten()
+u1 = U1.iloc[:, 1:13].values.flatten()
 date = np.arange(1948, 1948 + len(u1)/12, 1/12)
+u1[933] = (u1[932]+u1[934])/2 # interpolate NaN
 plt.figure(figsize=(10, 5))
 plt.plot(date, u1, '-')
 plt.ylabel("Unemployment rate (unadjusted)")
@@ -112,23 +109,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
-
-```{python}
-#| echo: false
-#| fig-width: 10
-#| fig-height: 5
-u1 = U1.iloc[:, 1:13].values.T.flatten()
-date = np.arange(1948, 1948 + len(u1)/12, 1/12)
-plt.figure(figsize=(10, 5))
-plt.plot(date, u1, '-')
-plt.ylabel("Unemployment rate (unadjusted)")
-plt.xlabel("Year")
-plt.tight_layout()
-plt.show()
-```
-
-##  {.fragile}
+----
 
 - We see seasonal variation and economic cycles on top of a trend.
 
@@ -140,6 +121,7 @@ plt.show()
 #| echo: true
 U2 = pd.read_csv("adjusted_unemployment.csv", comment='#')
 u2 = U2.iloc[:, 1:13].values.T.flatten()
+u2[933] = (u2[932]+u2[934])/2 # interpolate NaN
 ```
 
 ##  {.fragile}
@@ -191,7 +173,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: false
@@ -240,7 +222,7 @@ plt.show()
 
 - Smoothers are linear and time invariant, at least approximately. If we scale or shift the data, we expect the smoothed estimate to have the same scale or shift. We expect a smooth approximation to the sum of two time series to be approximately the sum of the two smoothed series.
 
-## Calculating a frequency response function {.fragile}
+## Calculating a frequency response function
 
 - We investigate the frequency response of the smoother used by Bureau of Labor Statistics to deseasonalize the unemployment data.
 
@@ -267,8 +249,7 @@ freq_response = psd_u2 / psd_u1
 freq_response = psd_u2 / psd_u1
 ```
 
-##  {.fragile}
-
+----
 ```{python}
 #| echo: true
 #| eval: false
@@ -282,8 +263,6 @@ plt.axhline(y=1.2, color='red', linestyle='-')
 plt.tight_layout()
 plt.show()
 ```
-
-##  {.fragile}
 
 ```{python}
 #| echo: false
@@ -306,7 +285,7 @@ plt.show()
 
 # Loess smoothing
 
-## Estimating trend by Loess smoothing {.fragile}
+## Estimating trend by Loess smoothing 
 
 - Loess is a *Local linear regression* approach (perhaps an acronym for LOcal Estimation by Smoothing) also known as *Lowess* (perhaps LOcally WEighted Sum of Squares).
 
@@ -318,7 +297,7 @@ plt.show()
 
 - We can choose a value of the span that visually separates long term trend from business cycle.
 
-## A Loess smooth of unemployment {.fragile}
+## A Loess smooth of unemployment 
 
 ```{python}
 #| echo: true
@@ -336,7 +315,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: false
@@ -353,7 +332,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+----
 
 Now, we compute the frequency response function for what we have done.
 
@@ -376,7 +355,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: false
@@ -402,7 +381,7 @@ plt.show()
 
 \vspace{50mm}
 
-## Extracting business cycles: A band pass filter {.fragile}
+## Extracting business cycles: A band pass filter 
 
 - For the unemployment data, high frequency variation might be considered "noise" and low frequency variation might be considered trend.
 
@@ -435,7 +414,7 @@ plt.show()
 
 \vspace{10mm}
 
-## Business cycles in detrended economic data {.fragile}
+## Business cycles in detrended economic data 
 
 ```{python}
 #| echo: false
@@ -461,7 +440,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+----
 
 ```{python}
 #| echo: false
@@ -527,7 +506,7 @@ plt.show()
 
 \vspace{15mm}
 
-##  {.fragile}
+----
 
 Below is a smoothed periodogram for the raw unemployment data, plotted up to 0.7 cycles per year to focus on relevant frequencies.
 
@@ -551,7 +530,7 @@ plt.show()
 
 \vspace{30mm}
 
-## Common smoothers in Python {.fragile}
+## Common smoothers in Python
 
 - Above, we have used the *local regression smoother* `lowess` from statsmodels, but there are other similar options.
 
@@ -561,7 +540,7 @@ plt.show()
 
 - You can learn about alternative smoothers, and try them out if you like, but `lowess` is a good practical choice for many smoothing applications.
 
-## Bandwidth for a smoother {.fragile}
+## Bandwidth for a smoother 
 
 - All these smoothers have some concept of a *bandwidth*, which is a measure of the size of the neighborhood of time points in which data affect the smoothed value at a particular time point.
 

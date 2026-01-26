@@ -1,7 +1,7 @@
 ---
 title: "Modeling and Analysis of Time Series Data \\newline Chapter 7: Introduction to time series analysis in the frequency domain"
 author: "Edward Ionides"
-subtitle: "STATS 531, Winter 2025"
+subtitle: "STATS 531, Winter 2026"
 format:
   beamer:
     slide-level: 2

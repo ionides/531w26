@@ -1,7 +1,8 @@
 # Data extracted on: February 7, 2024
-# updated on: February 7, 2025
+# Updated on: February 7, 2025 and January 25, 2026
 # from http://data.bls.gov/timeseries/LNU04000000
 # Labor Force Statistics from the Current Population Survey
+# Data unavailable Oct 2025 due to the lapse in appropriations.
 # Not Seasonally Adjusted
 # Series title:        (Unadj) Unemployment Rate
 # Series Id:           LNU04000000
@@ -86,3 +87,4 @@ Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec
 2022,4.4,4.1,3.8,3.3,3.4,3.8,3.8,3.8,3.3,3.4,3.4,3.3
 2023,3.9,3.9,3.6,3.1,3.4,3.8,3.8,3.9,3.6,3.6,3.5,3.5
 2024,4.1,4.2,3.9,3.5,3.7,4.3,4.5,4.4,3.9,3.9,4.0,3.8
+2025,4.4,4.5,4.2,3.9,4.0,4.4,4.6,4.5,4.3,NA,4.3,4.1

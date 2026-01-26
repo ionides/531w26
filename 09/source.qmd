@@ -1,7 +1,7 @@
 ---
 title: "Modeling and Analysis of Time Series Data \\newline Chapter 9: Case study: An association between unemployment and mortality?"
 author: "Edward Ionides"
-subtitle: "STATS 531, Winter 2025"
+subtitle: "STATS 531, Winter 2026"
 format:
   beamer:
     slide-level: 2

@@ -19,6 +19,7 @@ jupyter: python3
 
 ---
 
+
 ```{python}
 #| echo: false
 import numpy as np
@@ -34,13 +35,13 @@ warnings.filterwarnings('ignore')
 np.random.seed(2050320976)
 ```
 
-# Introduction to business cycles and mortality
-
 ## Historical investigations linking business cycles to mortality
+
+\newcommand\argmin{\mathrm{argmin}}
 
 - *Pro-cyclical* mortality occurs if death rates are statistically above trend when economic activity is above trend. An early report was \textcite{ogburn22}.
 
-- Procyclical mortality, if it exists, shows that a key measure of population health is worse in economic booms than in recessions.
+- Procyclical mortality, if it exists, shows a key measure of population health is worse in economic booms than recessions.
 
 - Both the economy and life expectancy have grown over the last century. However, these phenomena have not always occurred simultaneously. For example, 1950--1980 saw rapid growth in life expectancy in India and China, combined with relatively slow economic growth. Improvement in life expectancy has slowed during their recent economic surges.
 
@@ -56,31 +57,38 @@ np.random.seed(2050320976)
 
 # Data
 
-## A time series of life expectancy in the USA {.fragile}
+## A time series of life expectancy in the USA 
 
 ```{python}
 #| echo: true
-e_data = pd.read_csv("life_expectancy_usa.csv", sep='\s+',
-                     comment='#', engine='python')
-print(e_data.head(4))
+e_data = pd.read_csv("life_expectancy_usa.csv", 
+    sep='\s+', comment='#')
+```
+```{python}
+#| echo: false
+print(e_data.head(3))
 ```
 
 - [Data](life_expectancy_usa.csv) are from the [Human Mortality Database](https://www.mortality.org/).
 
 - `e0` is *life expectancy at birth (LEB)* for civilians.
 
-- `e0f` and `e0m` are LEB for females and males, but we focus on `e0`.
+- `e0f` and `e0m` are LEB for females and males.  We focus on `e0`.
 
-- LEB is an actuarial calculation based on a fictitious individual having mortality rates at each age matching census age-specific mortality rates for the current year.
+LEB is an actuarial calculation based on a fictitious individual having mortality rates at each age matching census age-specific mortality rates for the current year.
+This is a standard way to combine all the age-specific mortality rates into a single number.
 
-- LEB is a standard way to combine all the age-specific mortality rates into a single number.
+##
 
-##  {.fragile}
-
+\footnotesize
 ```{python}
 #| echo: true
 u_data = pd.read_csv("unadjusted_unemployment.csv", comment='#')
-print(u_data.head(4))
+```
+\normalsize
+```{python}
+#| echo: false
+print(u_data.iloc[:3,:10])
 ```
 
 - We consider unadjusted unemployment from Bureau of Labor Statistics.
@@ -93,19 +101,20 @@ print(u_data.head(4))
 
 ## A time plot of the raw data {.fragile}
 
+\footnotesize
 ```{python}
 #| echo: true
 yr = np.intersect1d(e_data['Year'], u_data['Year'])
 e = e_data.loc[e_data['Year'].isin(yr), 'e0'].values
 u = u_data.loc[u_data['Year'].isin(yr),
-               u_data.columns[1:13]].mean(axis=1).values
+    u_data.columns[1:13]].mean(axis=1).values
 ```
-
+\normalsize
 ```{python}
 #| echo: false
 #| fig-width: 8
 #| fig-height: 6
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 5), sharex=True)
 ax1.plot(yr, e, '-')
 ax1.set_ylabel('e0')
 ax1.grid(True, alpha=0.3)
@@ -117,13 +126,13 @@ plt.tight_layout()
 plt.show()
 ```
 
-- We are interested in changes over business cycle timescales, once trends have been removed.
-
 ## Allowing for COVID-19
 
+- We are interested in changes over business cycle timescales, once trends have been removed.
 - We wish to study the effect of economic fluctuations on population health.
 - COVID-19 led to a dramatic effect of health on the economy.
 - Therefore, we analyze data only up to 2019.
+- The opiod crisis is another factor in recent mortality, worth study but not part of this investigation.
 
 ```{python}
 #| echo: false
@@ -133,15 +142,13 @@ u = u[time_window]
 yr = yr[time_window]
 ```
 
-# Detrending the data
-
-## The Hodrick-Prescott filter {.fragile}
+## Detrending the data: The Hodrick-Prescott filter
 
 - To extract the cyclical component, we use an econometric method: the *Hodrick-Prescott (HP) filter* \parencite{hodrick97}.
 
 - For a time series $y_{1:N}$, the HP filter is the time series $s_{1:N}$ defined as
-\begin{equation}
-s_{1:N} = \argmin_{s_{1:N}}
+\begin{equation} \nonumber
+s_{1:N} = \underset{s_{1:N}}{\argmin}
   \left\{
     \sum^{N}_{n=1}\big(y_n-s_{n}\big)^2 + \lambda\sum^{N-1}_{n=2}\big(s_{n+1}-2s_{n}+s_{n-1}\big)^2
   \right\}.
@@ -153,7 +160,7 @@ s_{1:N} = \argmin_{s_{1:N}}
 
 - A Python implementation of the Hodrick-Prescott filter is `hpfilter` from statsmodels.
 
-##  {.fragile}
+##
 
 - We use the Hodrick-Prescott filter to define the HP-detrended life expectancy, $e^{HP}_{1:N}$, and unemployment, $u^{HP}_{1:N}$.
 
@@ -181,7 +188,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: false
@@ -206,9 +213,7 @@ Detrended unemployment (black; left axis) and detrended life expectancy at birth
 
 - We make a formal statistical test to check our eyes are not deceiving us.
 
-# Hypothesis testing: regression with ARMA errors
-
-## A regression with ARMA errors model {.fragile}
+## Hypothesis testing: regression with ARMA errors
 
 - We can investigate the dependence of $e^{HP}_{1:N}$ on $u^{HP}_{1:N}$ using a regression with ARMA errors model,
 \begin{equation}
@@ -238,7 +243,7 @@ print(f"Residual variance:   {a0.scale:.6f}")
 print(f"Log likelihood:      {a0.llf:.2f}")
 ```
 
-##  {.fragile}
+## 
 
 - The standard error (computed via observed Fisher information) gives a $z$-statistic of {python} f"{u_hp_coef:.4f}" / {python} f"{u_hp_se:.4f}" = {python} f"{u_hp_coef/u_hp_se:.2f}" for the coefficient of detrended unemployment.
 
@@ -258,11 +263,9 @@ print(f"LRT p-value: {LRT_pval:.5f}")
 
 - For all observational studies, interpretation of association needs care.
 
-# Association and causation
-
 ## Association and causation
 
-- We have been careful to talk about *association*, since observational data giving firm statistical evidence of an association between $X$ and $Y$ cannot readily distinguish between three possibilities:
+We have been careful to talk about *association*, since observational data giving firm statistical evidence of an association between $X$ and $Y$ cannot readily distinguish between three possibilities:
 
 1. $X$ causes $Y$.
 
@@ -273,8 +276,6 @@ print(f"LRT p-value: {LRT_pval:.5f}")
 - Excluding the economic consequences of COVID-19, it is not considered plausible that mortality fluctuations drive economic fluctuations (the *reverse causation* possibility).
 
 - Unemployment is a *proxy variable* for economic fluctuations. Increased unemployment may not directly cause reduced mortality: all proxy variables for economic activity are confounded in this analysis.
-
-# Looking for dependence in bivariate time series
 
 ## Potential lagged relationships
 

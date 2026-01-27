@@ -55,7 +55,6 @@ np.random.seed(2050320976)
 
 - Evidence that there are other major factors involved in improving living conditions suggest that economic growth should be only one political consideration, among others.
 
-# Data
 
 ## A time series of life expectancy in the USA 
 
@@ -215,7 +214,7 @@ Detrended unemployment (black; left axis) and detrended life expectancy at birth
 
 ## Hypothesis testing: regression with ARMA errors
 
-- We can investigate the dependence of $e^{HP}_{1:N}$ on $u^{HP}_{1:N}$ using a regression with ARMA errors model,
+-We investigate the dependence of $e^{HP}_{1:N}$ on $u^{HP}_{1:N}$ using a regression with ARMA errors model,
 \begin{equation}
 E^{HP}_n = \alpha + \beta u^{HP}_n + \epsilon_n,
 \end{equation}
@@ -223,10 +222,10 @@ where $\{\epsilon_n\}$ is a Gaussian ARMA process. We use an ARMA(1,0) model, as
 
 ```{python}
 #| echo: true
-# Reshape exog to 2D with column name for proper parameter naming
 import pandas as pd
 u_hp_df = pd.DataFrame(u_hp_cycle, columns=['u_hp'])
-a0 = SARIMAX(e_hp_cycle, exog=u_hp_df, order=(1, 0, 0)).fit()
+a0 = SARIMAX(e_hp_cycle, order=(1, 0, 0),
+    exog=u_hp_df, trend='c').fit()
 ```
 
 ```{python}
@@ -236,30 +235,31 @@ u_hp_coef = a0.params['u_hp']
 u_hp_se = a0.bse['u_hp']
 ar1_coef = a0.params['ar.L1']
 
-print(f"Coefficient of u_hp: {u_hp_coef:.6f}")
-print(f"Standard error:      {u_hp_se:.6f}")
+print(f"Coefficient of u_hp: {u_hp_coef:.4f}",
+    f" (Std. error: {u_hp_se:.4f})")
 print(f"AR(1) coefficient:   {ar1_coef:.4f}")
-print(f"Residual variance:   {a0.scale:.6f}")
-print(f"Log likelihood:      {a0.llf:.2f}")
+print(f"Residual std dev:   {np.sqrt(a0.params['sigma2']):.4f}")
+print(f"Log-likelihood:      {a0.llf:.2f}")
 ```
 
 ## 
 
-- The standard error (computed via observed Fisher information) gives a $z$-statistic of {python} f"{u_hp_coef:.4f}" / {python} f"{u_hp_se:.4f}" = {python} f"{u_hp_coef/u_hp_se:.2f}" for the coefficient of detrended unemployment.
+- The standard error (computed via observed Fisher information) gives a $z$-statistic of `{python} f"{u_hp_coef:.4f}"` / `{python} f"{u_hp_se:.4f}"` = `{python} f"{u_hp_coef/u_hp_se:.2f}"` for the coefficient of detrended unemployment.
 
 - We can also compute a p-value from a likelihood ratio test.
 
 ```{python}
 #| echo: true
-a0_null = SARIMAX(e_hp_cycle, order=(1, 0, 0)).fit(disp=False)
+a0_null = SARIMAX(e_hp_cycle, order=(1, 0, 0),
+    trend='c').fit(disp=False)
 log_lik_ratio = a0.llf - a0_null.llf
 LRT_pval = 1 - stats.chi2.cdf(2 * log_lik_ratio, df=1)
 print(f"LRT p-value: {LRT_pval:.5f}")
 ```
 
-- This gives a p-value of {python} f"{LRT_pval:.5f}".
+- This gives a p-value of `{python} f"{LRT_pval:.5f}"`.
 
-- We have clear statistical evidence for a positive association between detrended unemployment and detrended life expectancy.
+- We have clear statistical evidence of a positive association for detrended unemployment and detrended life expectancy.
 
 - For all observational studies, interpretation of association needs care.
 
@@ -289,57 +289,32 @@ We have been careful to talk about *association*, since observational data givin
 
 - $\hat\rho_{xy}(h)$ estimates $\rho_{XY}(h)=\mathrm{Cor}\big(X_{n+h},Y_n\big)$, the cross-correlation at lag $h$ for a *bivariate stationary time series model*, consisting of a pair of random variables $\big(X_n,Y_n\big)$ at each time $n$.
 
-##  {.fragile}
+## 
 
 ```{python}
 #| echo: true
-#| eval: false
-# Compute cross-correlation
-ccf_values = np.correlate(e_hp_cycle - e_hp_cycle.mean(),
-                          u_hp_cycle - u_hp_cycle.mean(),
-                          mode='full') / (len(e_hp_cycle) *
-                          e_hp_cycle.std() * u_hp_cycle.std())
-lags = np.arange(-(len(e_hp_cycle)-1), len(e_hp_cycle))
-
-plt.figure(figsize=(10, 4))
-plt.stem(lags, ccf_values, basefmt=' ')
-plt.axhline(y=0, color='k', linestyle='-', linewidth=0.5)
-plt.axhline(y=1.96/np.sqrt(len(e_hp_cycle)), color='b',
-            linestyle='--', linewidth=0.5)
-plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)), color='b',
-            linestyle='--', linewidth=0.5)
-plt.xlabel('Lag')
-plt.ylabel('CCF')
-plt.title('e_hp & u_hp')
-plt.tight_layout()
-plt.show()
+ccf_values = np.correlate(
+    e_hp_cycle - e_hp_cycle.mean(),
+    u_hp_cycle - u_hp_cycle.mean(),
+    mode='full') / (len(e_hp_cycle) *
+    e_hp_cycle.std() * u_hp_cycle.std())
 ```
-
-##  {.fragile}
 
 ```{python}
 #| echo: false
-#| fig-width: 10
-#| fig-height: 4
-# Compute cross-correlation
-ccf_values = np.correlate(e_hp_cycle - e_hp_cycle.mean(),
-                          u_hp_cycle - u_hp_cycle.mean(),
-                          mode='full') / (len(e_hp_cycle) *
-                          e_hp_cycle.std() * u_hp_cycle.std())
-lags = np.arange(-(len(e_hp_cycle)-1), len(e_hp_cycle))
-
-plt.figure(figsize=(10, 4))
+#| fig-width: 9
+#| fig-height: 3.5
+lags = np.arange(-(len(e_hp_cycle)-1),len(e_hp_cycle))
+plt.figure(figsize=(9, 3.5))
 plt.stem(lags, ccf_values, basefmt=' ')
 plt.axhline(y=0, color='k', linestyle='-', linewidth=0.5)
-plt.axhline(y=1.96/np.sqrt(len(e_hp_cycle)), color='b',
-            linestyle='--', linewidth=0.5)
-plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)), color='b',
-            linestyle='--', linewidth=0.5)
-plt.xlabel('Lag')
-plt.ylabel('CCF')
+plt.axhline(y=1.96/np.sqrt(len(e_hp_cycle)), 
+    color='b', linestyle='--', linewidth=0.5)
+plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)), 
+    color='b', linestyle='--', linewidth=0.5)
+plt.xlabel('Lag'); plt.ylabel('CCF')
 plt.title('e_hp & u_hp')
-plt.tight_layout()
-plt.show()
+plt.tight_layout(); plt.show()
 ```
 
 - The strong positive cross-correlation at lag zero supports pro-cyclical mortality.
@@ -360,31 +335,30 @@ plt.show()
 
 - The cross-spectrum can be estimated by computing the cross-periodogram and smoothing it.
 
-## Coherency, coherence and phase {.fragile}
+## Coherency, coherence and phase 
 
-- The *coherency* is the normalized cross-spectrum,
+**Definition:** **coherency** is the normalized cross-spectrum,
 \begin{equation}
 \rho_{XY}(\omega)= \frac{\lambda_{XY}(\omega)}{\sqrt{\lambda_{XX}(\omega)\, \lambda_{YY}(\omega)}}.
 \end{equation}
+Coherency measures correlation between frequency components of two time series at each frequency $\omega$. It is complex-valued.
 
-- Coherency measures correlation between frequency components of two time series at each frequency $\omega$. It is complex-valued.
+The magnitude of the coherency is called the **coherence**. It measures whether a large amplitude at frequency $\omega$ for $x_{1:N}$ is associated with a large amplitude at $\omega$ for $y_{1:N}$.
 
-- The magnitude of the coherency is called the *coherence*. It measures whether a large amplitude at frequency $\omega$ for $x_{1:N}$ is associated with a large amplitude at $\omega$ for $y_{1:N}$.
-
-- The angle of the coherency (in the complex plane) is called the *phase*. A phase of $0$ means that peaks at frequency $\omega$ tend to occur simultaneously for $x_{1:N}$ and $y_{1:N}$. A phase of $\pm\pi$ at frequency $\omega$ means that peaks for the frequency component of $x_{1:N}$ coincide with troughs for $y_{1:N}$.
+The angle of the coherency (in the complex plane) is called the **phase**. A phase of $0$ means that peaks at frequency $\omega$ tend to occur simultaneously for $x_{1:N}$ and $y_{1:N}$. A phase of $\pm\pi$ at frequency $\omega$ means that peaks for the frequency component of $x_{1:N}$ coincide with troughs for $y_{1:N}$.
 
 - The coherence and phase are estimated from the smoothed cross-periodogram and marginal periodograms.
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: true
 #| eval: false
 # Compute cross-spectrum using Welch's method
-freqs, Pxx = signal.welch(e_hp_cycle, nperseg=len(e_hp_cycle)//4)
-freqs, Pyy = signal.welch(u_hp_cycle, nperseg=len(u_hp_cycle)//4)
+freqs, Pxx = signal.welch(e_hp_cycle, nperseg=32)
+freqs, Pyy = signal.welch(u_hp_cycle, nperseg=32)
 freqs, Pxy = signal.csd(e_hp_cycle, u_hp_cycle,
-                        nperseg=len(e_hp_cycle)//4)
+                        nperseg=32)
 
 # Compute squared coherence
 coherence_sq = np.abs(Pxy)**2 / (Pxx * Pyy)
@@ -398,7 +372,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+## 
 
 ```{python}
 #| echo: false
@@ -426,9 +400,8 @@ plt.show()
 
 **Question.** Interpret the squared coherence plot.
 
-\vspace{30mm}
 
-##  {.fragile}
+## 
 
 ```{python}
 #| echo: true
@@ -445,13 +418,12 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+## 
 
 ```{python}
 #| echo: false
 #| fig-width: 11
 #| fig-height: 3
-# Compute phase
 phase = np.angle(Pxy)
 
 plt.figure(figsize=(11, 3))
@@ -465,8 +437,6 @@ plt.show()
 
 **Question.** Interpret the phase plot.
 
-\vspace{30mm}
-
 ## Conclusions
 
 - There is strong evidence of pro-cyclical mortality at a national level in the USA from 1948 to 2019. For example, the Great Recession of 2009-2010 led to high unemployment, but these two years had above-trend values of life expectancy at birth.
@@ -477,58 +447,38 @@ plt.show()
 
 - More data might give statistical precision to investigate sub-populations more accurately than can be done with a national-level dataset. For example, *panel data analysis* combining time series for each state \parencite{ionides13-aoas}.
 
-# Supplementary analysis
+## Supplementary analysis
 
-## Explaining the choice of an ARMA(1,0) error model {.fragile}
+**Explaining the choice of an ARMA(1,0) error model.** Model selection by AIC for regression with ARMA errors follows the same approach as for ARMA models.
 
-- Model selection by AIC for regression with ARMA errors follows the same approach as for ARMA models.
-
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 def aic_table(data, P, Q, xreg=None):
     table = np.zeros((P+1, Q+1))
     for p in range(P+1):
         for q in range(Q+1):
-            try:
-                if xreg is not None:
-                    model = SARIMAX(data, exog=xreg,
-                                    order=(p, 0, q)).fit(disp=False)
-                else:
-                    model = SARIMAX(data, order=(p, 0, q)).fit(disp=False)
-                table[p, q] = model.aic
-            except:
-                table[p, q] = np.nan
+            if xreg is not None:
+                model = SARIMAX(data, trend='c', exog=xreg,
+                    order=(p, 0, q)).fit(disp=False)
+            else:
+                model = SARIMAX(data, trend='c',
+		    order=(p, 0, q)).fit(disp=False)
+            table[p, q] = model.aic
     return pd.DataFrame(table,
                        index=[f'AR{i}' for i in range(P+1)],
                        columns=[f'MA{i}' for i in range(Q+1)])
 
 e_aic_table = aic_table(e_hp_cycle, 4, 5, xreg=u_hp_df)
-print(e_aic_table.round(2))
 ```
 
-##  {.fragile}
+\normalsize
+
+## 
 
 ```{python}
 #| echo: false
-def aic_table(data, P, Q, xreg=None):
-    table = np.zeros((P+1, Q+1))
-    for p in range(P+1):
-        for q in range(Q+1):
-            try:
-                if xreg is not None:
-                    model = SARIMAX(data, exog=xreg,
-                                    order=(p, 0, q)).fit(disp=False)
-                else:
-                    model = SARIMAX(data, order=(p, 0, q)).fit(disp=False)
-                table[p, q] = model.aic
-            except:
-                table[p, q] = np.nan
-    return pd.DataFrame(table,
-                       index=[f'AR{i}' for i in range(P+1)],
-                       columns=[f'MA{i}' for i in range(Q+1)])
-
-e_aic_table = aic_table(e_hp_cycle, 4, 5, xreg=u_hp_df)
 print(e_aic_table.round(2))
 ```
 
@@ -536,11 +486,12 @@ print(e_aic_table.round(2))
 
 - Some larger models have better AIC, but notice inconsistencies in the AIC table. For example, consider ARMA(3,1) errors:
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: true
-a3 = SARIMAX(e_hp_cycle, exog=u_hp_df, order=(3, 0, 1)).fit()
+a3 = SARIMAX(e_hp_cycle, exog=u_hp_df, trend='c',
+    order=(3, 0, 1)).fit()
 ```
 
 ```{python}
@@ -550,11 +501,11 @@ print(f"AR(1) coefficient:   {a3.params['ar.L1']:.4f}")
 print(f"AR(2) coefficient:   {a3.params['ar.L2']:.4f}")
 print(f"AR(3) coefficient:   {a3.params['ar.L3']:.4f}")
 print(f"MA(1) coefficient:   {a3.params['ma.L1']:.4f}")
-print(f"Residual variance:   {a3.scale:.6f}")
-print(f"Log likelihood:      {a3.llf:.2f}")
+print(f"Residual std dev:   {np.sqrt(a3.params['sigma2']):.6f}")
+print(f"Log-likelihood:      {a3.llf:.2f}")
 ```
 
-##  {.fragile}
+##  
 
 - The estimated ARMA(3,1) is at the boundary of invertibility, with an MA1 coefficient on the unit circle.
 
@@ -562,7 +513,7 @@ print(f"Log likelihood:      {a3.llf:.2f}")
 
 - Likely the ARMA(3,1) analysis is not very stable. A simulation study might find that the Fisher confidence intervals are not reliable.
 
-## Consistency through time {.fragile}
+## Consistency through time 
 
 - A useful relationship should be consistent through time. We check this by repeating the analysis on temporal subsets.
 
@@ -596,7 +547,7 @@ print(f"  Std error:   {a2.bse['u_hp']:.4f}")
 
 - The difference is small compared to the standard error. Overall there is consistency through this 72 year interval, though the pattern is weak in the 1990s.
 
-## Residual analysis {.fragile}
+## Residual analysis
 
 - We inspect the residuals for the fitted model, and look at their sample autocorrelation.
 
@@ -612,7 +563,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: false
@@ -629,7 +580,7 @@ plt.show()
 
 - There is some evidence for fluctuations decreasing in amplitude over time. This is an example of *heteroskedasticity*. It is not extreme here, but could be studied in a future analysis.
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: true
@@ -640,7 +591,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+##
 
 ```{python}
 #| echo: false
@@ -656,7 +607,7 @@ plt.show()
 
 - The presence of some small amount of sample autocorrelation is consistent with the AIC table, which finds the possibility of gains by fitting larger models to the regression errors.
 
-## Analysis of temporal differences {.fragile}
+## Analysis of temporal differences 
 
 - One might model annual changes in life expectancy, rather than difference from a trend. In this case, we consider the variable
 \begin{equation}
@@ -672,7 +623,7 @@ e_full = e_data['e0'].values
 delta_e = e - e_full[np.isin(yr_full, yr-1)]
 ```
 
-##  {.fragile}
+## 
 
 ```{python}
 #| echo: false
@@ -691,7 +642,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
+##
 
 - The relationship between unemployment and differenced life expectancy is harder to see than when HP-detrended.
 
@@ -709,11 +660,11 @@ z4_2 = a4.bse['u_hp']
 print(f"Coefficient of u_hp: {z4_1:.4f}")
 print(f"Standard error:      {z4_2:.4f}")
 print(f"z-statistic:         {z4_1/z4_2:.2f}")
-print(f"Residual variance:   {a4.scale:.6f}")
-print(f"Log likelihood:      {a4.llf:.2f}")
+print(f"Residual std dev:   {np.sqrt(a4.params['sigma2']):.6f}")
+print(f"Log-likelihood:      {a4.llf:.2f}")
 ```
 
-- Temporal differencing $z$-statistic of {python} f"{z4_1:.4f}" / {python} f"{z4_2:.4f}" = {python} f"{z4_1/z4_2:.2f}" which is weaker evidence than the $z$-statistic of {python} f"{u_hp_coef/u_hp_se:.2f}" for HP-detrended LEB.
+- Temporal differencing $z$-statistic of `{python} f"{z4_1:.4f}"` / `{python} f"{z4_2:.4f}"` = `{python} f"{z4_1/z4_2:.2f}"` which is weaker evidence than the $z$-statistic of `{python} f"{u_hp_coef/u_hp_se:.2f}"` for HP-detrended LEB.
 
 ## Multiple testing considerations
 
@@ -725,13 +676,15 @@ print(f"Log likelihood:      {a4.llf:.2f}")
 
 - The generalizability of any result is tentative until confirmed in other studies.
 
-## References and Acknowledgements
+## Acknowledgments
+
+- Compiled on \today using Python.
+- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w26/acknowledge.html).
+
+## References
 
 ::: {#refs}
 :::
 
-\vspace{3mm}
 
-- Compiled on \today using Python.
-- Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
-- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).

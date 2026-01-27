@@ -32,40 +32,39 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 4. [Linear time series models and the algebra of ARMA models](04)
 
+5. [Parameter estimation and model identification for ARMA models](05)
+
 <!--
+6. [Extending the ARMA model: Seasonality, integration and trend](06)
 
-5. [Parameter estimation and model identification for ARMA models](05/index.html)
+7. [Introduction to time series analysis in the frequency domain](07)
 
-6. [Extending the ARMA model: Seasonality, integration and trend](06/index.html)
+8. [Smoothing in the time and frequency domains](08)
 
-7. [Introduction to time series analysis in the frequency domain](07/index.html)
+9. [Case study: An association between unemployment and mortality?](09)
 
-8. [Smoothing in the time and frequency domains](08/index.html)
+10. [Forecasting](10)
 
-9. [Case study: An association between unemployment and mortality?](09/index.html)
+11. [Introduction to partially observed Markov process models](11)
 
-10. [Forecasting](10/index.html)
+12. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](12)
 
-11. [Introduction to partially observed Markov process models](11/index.html)
+13. [Simulation of stochastic dynamic models](13)
 
-12. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](12/index.html)
+14. [Likelihood for POMP models: Theory and practice](14)
 
-13. [Simulation of stochastic dynamic models](13/index.html)
+15. [Likelihood maximization for POMP models](15)
 
-14. [Likelihood for POMP models: Theory and practice](14/index.html)
+16. [A case study of polio including covariates, seasonality & over-dispersion](16)
 
-15. [Likelihood maximization for POMP models](15/index.html)
+17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17). With [notes on how to run the code on the Great Lakes Linux cluster](17).
 
-16. [A case study of polio including covariates, seasonality & over-dispersion](16/index.html)
-
-17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17/index.html). With [notes on how to run the code on the Great Lakes Linux cluster](17/README.html).
-
-18. [A case study of measles: Dynamics revealed in long time series](18/index.html)
+18. [A case study of measles: Dynamics revealed in long time series](18)
 
 -->
 
 <!--
-19. [A case study of ebola: Model criticism and forecasting](19/index.html)
+19. [A case study of ebola: Model criticism and forecasting](19)
 
 -->
 

@@ -35,8 +35,8 @@ np.random.seed(2050320976)
 
 ## Background on likelihood-based inference
 
-- For any data $y_{1:N}$ and any probabilistic model $f_{Y_{1:N}}(y_{1:N};\theta)$ we define the likelihood function to be
-$$ L(\theta) = f_{Y_{1:N}}(y_{1:N};\theta).$$
+- For any data $y^*_{1:N}$ and any probabilistic model $f_{Y_{1:N}}(y_{1:N};\theta)$ we define the likelihood function to be
+$$ L(\theta) = f_{Y_{1:N}}(y^*_{1:N};\theta).$$
 
 - It is often convenient to work with the logarithm to base $e$ of the likelihood, which we write as
 $$\ell(\theta) = \log L(\theta).$$
@@ -53,7 +53,7 @@ $$\ell(\theta) = \log L(\theta).$$
 
 - For now, it is enough that software exists to evaluate and maximize the likelihood function for a Gaussian ARMA model. Our immediate task is to think about how to use that capability.
 
-----
+##
 
 - Before evaluation of the ARMA likelihood became routine, it was popular to use a method of moments estimator called **Yule-Walker** estimation \parencite[][Section 3.5]{shumway17}. This is nowadays mostly of historical interest.
 
@@ -69,15 +69,16 @@ $$\ell(\theta) = \log L(\theta).$$
 $$ \hat\theta(y_{1:N}) = \arg\max_\theta f_{Y_{1:N}}(y_{1:N};\theta),$$
 where $\arg\max_\theta g(\theta)$ means a value of argument $\theta$ at which the maximum of the function $g$ is attained, so $g(\arg\max_\theta g(\theta)) = \max_\theta g(\theta)$.
 
-- If there are many values of $\theta$ giving the same maximum value of the likelihood, then an MLE still exists but is not unique.
 
 - The maximum likelihood estimate (also known as the MLE) is
-\begin{eqnarray*} \hat\theta &=& \hat\theta(y_{1:N})\\
+\begin{eqnarray*} \hat\theta &=& \hat\theta(y^*_{1:N})\\
 &=& \arg\max_\theta L(\theta)\\
 &=& \arg\max_\theta \ell(\theta).
 \end{eqnarray*}
 
-----
+- If there are many values of $\theta$ giving the same maximum value of the likelihood, then an MLE still exists but is not unique.
+
+##
 
 **Question.** Why are $\arg\max_\theta L(\theta)$ and $\arg\max_\theta \ell(\theta)$ the same?
 
@@ -232,7 +233,7 @@ where $\chi^2_d$ is a chi-squared random variable on $d$ degrees of freedom and 
 
 - When the data are iid, $N\to\infty$, and the hypotheses satisfy suitable regularity conditions, this approximation can be derived mathematically and is known as **Wilks's theorem**.
 
-- The chi-squared approximation to the likelihood ratio statistic may be useful, and can be assessed empirically by a simulation study, even in situations that do not formally satisfy any known theorem.
+- The chi-squared approximation to the likelihood ratio statistic may be useful, and can be assessed empirically by a simulation study in situations not covered by a known theorem.
 
 ## Using a likelihood ratio test to construct profile likelihood confidence intervals
 
@@ -400,7 +401,6 @@ def aic_table(data, P, Q):
                 table[p, q] = results.aic
             except:
                 table[p, q] = np.nan
-
     df = pd.DataFrame(table,
         index=[f'AR{p}' for p in range(P+1)],
         columns=[f'MA{q}' for q in range(Q+1)])

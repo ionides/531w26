@@ -1,0 +1,30 @@
+Class 6 discussion problem
+
+Solve the question at  https://ionides.github.io/531w26/quiz/class06.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+1. Multiple choice question title:
+Checking an AIC table: https://ionides.github.io/531w25/quiz/class06.pdf
+
+Question text:  The question is posted at https://ionides.github.io/531w25/quiz/class06.pdf
+
+
+Answers: 
+
+(A).  0, so the table is mathematically plausible.
+(B).  1
+(C).  2
+(D).  3
+(E).  4 or more
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer to the multiple choice question. You are expected to write between one and three sentences.
+
+The credit is for Q2 not Q1. For this assignment, the grade is for participation and feedback not correctness. 
+
+
+
+
+
+

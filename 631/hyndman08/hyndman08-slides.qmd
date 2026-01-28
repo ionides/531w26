@@ -14,7 +14,7 @@ format:
 
 * Motivation for auto.arima: thousands of time series to analyze
 
-* Practical usage: inexperiences time series users just apply it blindly, and call it the "best" model because it is selected by this algorithm.
+* Practical usage: inexperienced time series users just apply it blindly, and call it the "best" model because it is selected by this algorithm.
 
 * Python port of `auto.arima`: [pmdarima](https://pypi.org/project/pmdarima/)
 

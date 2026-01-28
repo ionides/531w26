@@ -1,21 +1,17 @@
-default: html-docs
+default: pdf-docs
 
+pdf-docs: *.pdf
 
-html-docs: *.html
-
-%.html: %.Rmd
-	Rscript --vanilla -e "rmarkdown::render(\"$*.Rmd\",output_format=\"html_document\")"
-
-%.html: %.md
-	Rscript --vanilla -e "rmarkdown::render(\"$*.md\")"
-
-%.R: %.Rmd
-	Rscript --vanilla -e "library(knitr); purl(\"$*.Rmd\",output=\"$*.R\")"
+%.pdf: %.qmd
+	quarto render "$*.qmd" --to beamer
 
 clean:
-	$(RM) *.o *.so *.log *.aux *.out *.nav *.snm *.toc *.bak
+	$(RM) *.log *.blg *.ilg *.aux *.lof *.lot *.toc *.idx
+	$(RM) *.ttt *.fff *.out *.nav *.snm 
+	$(RM) *.o *.so
+	$(RM) *.brf
 	$(RM) Rplots.ps Rplots.pdf
 
 fresh: clean
-	$(RM) -r cache figure
-
+	$(RM) *.ps *.bbl *.ind *.dvi 
+	$(RM) -r cache/* figure/*

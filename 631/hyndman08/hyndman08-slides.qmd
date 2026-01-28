@@ -1,20 +1,22 @@
 ---
-title: "Hyndman & Khandakar, 2008"
-date: "Jan 28, 2026"
-output:
-  ioslides_presentation:
-    smaller: no
-    widescreen: true
-    transition: "faster" 
+title: "hyndman08"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
 ---
 
-## Overview
+## Hyndman & Khandakar, 2008: Overview
 
 * Cited over 5000 times on Google Scholar
 
 * Motivation for auto.arima: thousands of time series to analyze
 
 * Practical usage: inexperiences time series users just apply it blindly, and call it the "best" model because it is selected by this algorithm.
+
+* Python port of `auto.arima`: [pmdarima](https://pypi.org/project/pmdarima/)
 
 ## Exponential smoothing (Sec. 2)
 
@@ -45,12 +47,13 @@ output:
 
 * Claim that the likelihood is not defined for nonzero differencing parameters, d and D.
 
-* `arima` attempts to solve this using so-called diffuse priors (Durbin & Koopman, 2001).
+* R `arima` attempts to solve this using so-called diffuse priors (Durbin & Koopman, 2001).
 
 * HK prefer unit root tests.
 
 * HK note that differencing may produce poor forecasts, but there's no option for a nonlinear trend with ARMA errors .
 
+* hypothesis testing for differences is contrary to the justification of AIC for order. Could one use AIC for differences?
 
 ##  Stepwise selection (Sec. 3.2)
 

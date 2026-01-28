@@ -4,9 +4,10 @@ Solve the question at  https://ionides.github.io/531w26/quiz/class06.pdf. Give a
 
 
 1. Multiple choice question title:
-Checking an AIC table: https://ionides.github.io/531w25/quiz/class06.pdf
+Checking an AIC table: https://ionides.github.io/531w26/quiz/class06.pdf
 
-Question text:  The question is posted at https://ionides.github.io/531w25/quiz/class06.pdf
+Question stem:
+The question is posted at https://ionides.github.io/531w26/quiz/class06.pdf
 
 
 Answers: 

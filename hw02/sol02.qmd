@@ -1,0 +1,182 @@
+---
+title: "Solution to [Homework 2](q.pdf)"
+subtitle: "STATS/DATASCI 531"
+output:
+  html_document:
+    toc: yes
+bibliography: sol02.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+embed-resources: true
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+--------
+
+```{python setup}
+# | echo: false
+# | include: false
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima_process import arma_acf
+```
+
+
+**<big>Question 2.1</big>**.
+
+**A**. Since $\{\epsilon_{n}\}$ is white noise with variance $\sigma^{2}$,
+then 
+$$\begin{eqnarray}
+\gamma_{h}&=& \cov (X_{n},\ X_{n+h})\\
+&=& \cov (X_{n},\phi X_{n+h-1}+\epsilon_{n+h})\\
+&=&\phi\mathrm{\cov}(X_{n},\ X_{n+h-1})+ \cov (X_{n},\ \epsilon_{n+h})\\
+&=&\phi\gamma_{h-1}, 
+\end{eqnarray}$$
+noting that causality implies $\cov(X_{n},\ \epsilon_{n+h})=0$.
+We can get $\gamma_{0}$ by a similar calculation,
+$$\begin{eqnarray}
+\gamma_{0}&=& \cov (X_{n},\ X_{n})\\
+\gamma_{0}&=& \cov (\phi X_{n-1}+\epsilon_{n},\ \phi X_{n-1}+\epsilon_{n})\\
+\gamma_{0}&=&\phi^{2} \cov (X_{n-1},\ X_{n-1})+ \cov (\epsilon_{n},\ \epsilon_{n})\\
+\gamma_{0}&=&\phi^{2}\gamma_{0}+\sigma^{2}\\
+(1\ -\phi^{2})\gamma_{0}&=&\sigma^{2}\\
+\gamma_{0}&=&\frac{\sigma^{2}}{1-\phi^{2}}.
+\end{eqnarray}$$
+The solution to this difference equation could be seen by inspection. However, the question asks us to proceed with a general method, looking for solutions of the form $A\lambda^{h}$, that works also for harder problems.
+
+Let $\gamma_{h}=A\lambda^{h}$. Then we have
+$$\begin{align*}
+A\lambda^h &= \gamma_h\\
+A\lambda^h &= \phi \gamma_{h-1}\\
+A\lambda^h &= \phi A \lambda^{h-1}\\
+\lambda &= \phi.
+\end{align*}$$
+
+Applying $\gamma_{0}$ as an initial condition, we have
+$$\begin{eqnarray}
+A\ \lambda^{0}&=&\gamma_{0}\\
+&=&\frac{\sigma^{2}}{1-\phi^{2}}.
+\end{eqnarray}$$
+Therefore,
+
+\begin{align*}
+\gamma_{h}=\frac{\sigma^{2}}{1-\phi^{2}}\phi^{h}.
+\end{align*}
+
+**B**. We are asked to use a Taylor series expansion (e.g., [ [@openstax-calc2]](https://openstax.org/books/calculus-volume-2/pages/6-3-taylor-and-maclaurin-series)),
+$$
+g(x)=g(0)+g^\prime(0)x + \frac{1}{2}g^{(2)}(0)x^{2}+\frac{1}{3!}g^{(3)}(0)x^{3}+...
+$$
+Since
+$$\begin{eqnarray}
+g^{(n)}(0)&=&\frac{d^{n}}{dt^{n}}\frac{1}{1-\phi x}\\
+&=&n!\phi^{n}x^{n},
+\end{eqnarray}$$
+we have
+$$
+g(x)\ =\sum_{n=0}^{\infty}\phi^{n}x^{n}.
+$$
+This is a well-known formula for a geometric series, but the Taylor series approach applies also in other situations.
+We then use this Taylor series expansion to provide an expansion of $(1-\phi B)^{-1}$ which gives the following MA $(\infty)$ representation of the AR(1) model.
+$$\begin{eqnarray}
+X_{n}&=&\phi X_{n-1}+\epsilon_{n}\\
+&=&\phi BX_{n}+\epsilon_{n}\\
+(1-\phi B)X_{n}&=&\epsilon_{n}\\
+X_{n}&=&(1-\phi B)^{-1}\epsilon_{n}\\
+&=&\epsilon_{n}+\phi B\epsilon_{n}+\phi^{2} B^2\epsilon_{n}+...\\
+&=&\epsilon_{n}+\phi\epsilon_{n-1}+\phi^{2}\epsilon_{n-2}+...\\
+&=&\sum_{j=0}^{\infty}\phi^{j}\epsilon_{n-j}.
+\end{eqnarray}$$
+Then, apply the general formula for the autocovariance function of
+the MA $(\infty)$ process (e.g., [@notes531], Chapter 4, equation 4) with the constraint $-1<\phi<1$,
+$$\begin{eqnarray}
+\gamma_{h}&=&\sum_{j=0}^{\infty}\psi_{j}\psi_{j+h}\sigma^{2}\\
+&=&\sum_{j=0}^{\infty}\phi^{2j+h}\sigma^{2}\\
+&=&\phi^{h}\sigma^{2}\sum_{j=0}^{\infty}\phi^{2j}\\
+&=&\frac{\sigma^{2}}{1-\phi^{2}}\phi^{h},
+\end{eqnarray}$$
+which is the same as the answer in A.
+
+C. Normalizing the autocovariance derived above to give an autocorrelation function, for $h\ge 0$ we have
+$$\begin{eqnarray}
+\rho_{h}&=&\frac{\gamma_{h}}{\gamma_{0}}\\
+&=&\frac{\frac{\phi^{h}\sigma^{2}}{1-\phi^{2}}}{\frac{\sigma^{2}}{1-\phi^{2}}}\\
+&=&\phi^{h}
+\end{eqnarray}$$
+
+which is the same as Python function `arma_acf`, as checked by the following code.
+
+```{python check-equality}
+np.random.seed(12345)
+phi = 0.8
+lags = np.arange(100)
+
+acf_manual = phi ** lags
+
+# Note: statsmodels expects the AR polynomial [1, -phi_1, -phi_2...]
+ar_poly = np.array([1, -phi])
+ma_poly = np.array([1])
+acf_stats = arma_acf(ar_poly, ma_poly, lags=100)
+
+is_equal = np.all(np.abs(acf_manual - acf_stats) < 1e-6)
+print(f"Are the calculations equal? {is_equal}")
+```
+
+```{python plot-comparison}
+plt.figure(figsize=(10, 6))
+plt.plot(lags, acf_manual, color='red', label='ACF (Manual)', linewidth=1.5)
+plt.plot(
+  lags, 
+  acf_stats, 
+  color='blue', 
+  linestyle='--', 
+  label='ACF (Statsmodels)', 
+  linewidth=1.5
+)
+
+plt.xlabel('lag')
+plt.ylabel('Autocorrelation')
+plt.title('Comparison of Manual vs. statsmodels ACF')
+plt.legend(loc='upper right')
+plt.grid(alpha=0.3)
+plt.show()
+```
+
+
+
+-------------------
+
+**<big>Question 2.2</big>**.
+The solution of stochastic difference equation of the random walk
+model is
+$$
+X_{n}=\sum_{k=1}^{n}\epsilon_{k}.
+$$
+Therefore,
+$$\begin{eqnarray}
+\gamma_{mn}&=&\mathrm{Cov}(X_{m},X_{n})\\
+&=&\cov\left(\sum_{i=1}^{m}\epsilon_{i},\sum_{j=1}^{n}\epsilon_{j}\right)\\
+&=& \sum_{i=1}^{m}\sum_{j=1}^{n}\cov\left(\epsilon_{i},\epsilon_{j}\right)\\
+&=&\sum_{i=1}^{\min(m,n)}\var(\epsilon_{i})\\
+&=&\min(m,n)\, \sigma^{2}.
+\end{eqnarray}$$
+
+
+----------------------
+
+**<big>Sources</big>**.
+
+The calculations in Homework 2 use only fairly standard techniques, and it is expected that many well prepared student may choose to solve them independently. 
+\Even an independently written solution can usually be improved by some appropriate references, but full points were possible for a statement that no sources were used.
+
+Points could be taken off if the sources were not referenced at specific points in the solution. 
+The reasoning for this becomes clear if you think of it from the point of view of the grader. 
+The grader should not have to do detective work to find the relationship between the report and the referenced sources - it should be clearly presented for a report earning full points for scholarship.
+
+This solution is based on the [Winter 2021 solution](https://ionides.github.io/531w21/hw02/hw02.html).
+
+<!-- **<big>References</big>**. -->
+

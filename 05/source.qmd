@@ -45,7 +45,7 @@ $$\ell(\theta) = \log L(\theta).$$
 
 - Time series analysis involves various situations where we can, with sufficient care, compute the likelihood function and take advantage of the general framework of likelihood-based inference.
 
-----
+##
 
 - Computation of the likelihood function for ARMA models is not entirely straightforward.
 
@@ -119,7 +119,7 @@ $$
 $$
 where $\theta$ is the true parameter value. This asserts that the MLE is asymptotically unbiased, with variance asymptotically attaining the Cramer-Rao lower bound.
 
-----
+##
 
 - Since the MLE attains the Cramer-Rao lower bound, under regularity conditions, it is **asymptotically efficient**.
 
@@ -174,7 +174,7 @@ $$ \{\theta_d : \ell(\hat\theta) - \ell_d(\theta_d)< 1.92\}.$$
 
 - The confidence interval estimator could be constructed using either the Fisher information method or the profile likelihood approach.
 
-----
+##
 
 - We can design a simulation study to address the following goals:
 
@@ -217,7 +217,7 @@ defined via two nested parameter subspaces, $\Theta^{\langle 0\rangle}\subset \T
 \ell^{\langle 1\rangle} &=& \sup_{\theta\in \Theta^{\langle 1\rangle}} \ell(\theta).
 \end{eqnarray*}
 
-----
+##
 
 - A useful approximation is that, under the hypothesis $H^{\langle 0\rangle}$,
 $$
@@ -316,7 +316,7 @@ dat.columns = dat.columns.str.strip()
 print(dat.iloc[:2, :6])
 ```
 
-----
+##
 
 For now, we avoid monthly seasonal variation by considering an annual series of January depths. We will investigate seasonal variation later in the course, but sometimes it is best avoided.
 
@@ -333,7 +333,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
+##
 
 ```{python}
 #| echo: false
@@ -349,7 +349,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
+##
 
 - Until the recent surge in water level, there was concern about a long-run decline in lake level due to dredging or water diversion or climate change.
 - We put ourselves back in 2014 and temporarily ignore subsequent data.
@@ -384,7 +384,7 @@ where
 \epsilon_n&\sim&\text{iid } N[0,\sigma^2].
 \end{eqnarray*}
 
-----
+##
 
 We need to decide where to start in terms of values of $p$ and $q$, for which it is helpful to tabulate AIC values.
 
@@ -410,7 +410,7 @@ huron_aic_table = aic_table(huron_level, 4, 5)
 print(huron_aic_table.round(2))
 ```
 
-----
+##
 
 ```{python}
 #| echo: false
@@ -446,7 +446,7 @@ We proceed to inspect the ARMA(2,1) model with lowest AIC.
 
 \setlength{\leftskip}{-5em}
 
-----
+##
 
 \tiny
 ```{python}
@@ -481,11 +481,11 @@ print(f"MA root: {ma_poly.roots()}")
 
 The fitted model is close to the threshold of non-invertibility.
 
-----
+##
 
-- Do we have a non-invertibility problem? We investigate this using profile and bootstrap standard error to check the Fisher Information approach.
+- The Fisher information standard errors suggest a highly significant estimate of $\phi_2$. We investigate this using profile and bootstrap standard errors.
 
-- First, we compute the profile likelihood confidence interval. To do this, we maximize the ARMA likelihood while fixing the MA1 coefficient at a range of values.
+- First, we compute the profile likelihood confidence interval. To do this, we maximize the ARMA likelihood while fixing the AR2 coefficient at a range of values.
 
 \footnotesize
 ```{python}
@@ -493,13 +493,13 @@ The fitted model is close to the threshold of non-invertibility.
 #| label: profile_calculation
 import shelve
 K = 500
-ma1_vals = np.linspace(0.2, 1.1, K)
+ar2_vals = np.linspace(0.2, 1.1, K)
 with shelve.open('cache/profile') as cache:
     if "profile_loglik" not in cache:
         profile_loglik = np.zeros(K)
         for k in range(K):
-            model = ARIMA(huron_level, order=(2,0,1))
-            with model.fix_params({'ma.L1': ma1_vals[k]}):
+            model = ARIMA(huron_level, order=(2,0,1),enforce_stationarity=False)
+            with model.fix_params({'ar.L2': ar2_vals[k]}):
                 results = model.fit()
                 profile_loglik[k] = results.llf
         cache["profile_loglik"] = profile_loglik
@@ -509,23 +509,23 @@ with shelve.open('cache/profile') as cache:
 ```
 \normalsize
 
-----
+##
 
 ```{python}
 #| echo: false
 plt.figure(figsize=(9, 4))
-plt.plot(ma1_vals, profile_loglik)
-plt.xlabel('ma1')
-plt.ylabel('Log likelihood')
+plt.plot(ar2_vals, profile_loglik)
+plt.xlabel('ar2')
+plt.ylabel('Profile log-likelihood')
 plt.tight_layout()
 plt.show()
 ```
 
-**Question.** Interpret the profile likelihood plot for $\theta_1$.
+**Question.** Interpret the profile likelihood plot for $\phi_2$.
 
 \
 
-----
+##
 
 **Question.** What do you conclude about the Fisher information confidence interval?
 
@@ -560,21 +560,21 @@ with shelve.open('cache/simulate') as cache:
                 nsample=len(huron_level),
                 scale=sigma) + intercept
             model_j = ARIMA(Y_j, order=(2,0,1)).fit()
-            theta_list.append(model_j.params[3])  
+            theta_list.append(model_j.params[2])  
         cache["theta_list"] = theta_list
     else:
         theta_list = cache["theta_list"]
 ```
 \normalsize
 
-----
+##
 
 ```{python}
 #| echo: false
-theta_ma1 = np.array(theta_list)
+theta_ar2 = np.array(theta_list)
 plt.figure(figsize=(10, 4))
-plt.hist(theta_ma1, bins=30, density=True)
-plt.xlabel('ma1')
+plt.hist(theta_ar2, bins=30, density=True)
+plt.xlabel('ar2')
 plt.ylabel('Density')
 plt.tight_layout()
 plt.show()
@@ -584,7 +584,7 @@ plt.show()
 
 - Note that statsmodels ARIMA transforms the model to invertibility. Thus, the estimated value of $\theta_1$ can only fall in the interval $[-1,1]$.
 
-----
+##
 
 ## Using parallel computing for simulation studies
 
@@ -602,7 +602,7 @@ results = Parallel(n_jobs=-1)(delayed(my_function)(j)
     for j in range(J))
 ```
 
-----
+##
 
 ```{python}
 #| echo: true
@@ -620,37 +620,37 @@ def fit_arma21(j):
         nsample=len(huron_level),
         scale=sigma) + intercept
     model_j = ARIMA(Y_j, order=(2,0,1)).fit()
-    return model_j.params[3]  # MA1 coefficient
+    return model_j.params[2]  # AR2 coefficient
 
 huron_sim = Parallel(n_jobs=-1)(delayed(fit_arma21)(j) 
     for j in range(J))
 ```
 
-----
+##
 
 - Now, we can look at the resulting estimates of the MA1 component:
 
 ```{python}
 #| echo: false
 #| eval: true
-ma1_sim = [x for x in huron_sim if x is not None]
+ar2_sim = [x for x in huron_sim if x is not None]
 plt.figure(figsize=(10, 4))
-plt.hist(ma1_sim, bins=50)
-plt.xlabel('ma1')
+plt.hist(ar2_sim, bins=50)
+plt.xlabel('ar2')
 plt.ylabel('Frequency')
 plt.tight_layout()
 plt.show()
 ```
 
-----
+##
 
-- When the true model is AR(1) and we fit ARMA(2,1), it seems that we often obtain a model with estimated MA1 coefficient on the boundary of invertibility.
+- When the true model is AR(1) and we fit ARMA(2,1), it seems that we often obtain a model with estimated AR2 coefficient similar to what we estimated from data.
 
-- Thus, we cannot reject an AR(1) hypothesis for the Huron data, even though the Fisher information based analysis appears to give strong evidence that the data should be modeled with a nonzero MA1 coefficient.
+- Thus, we cannot reject an AR(1) hypothesis for the Huron data, even though the Fisher information based analysis appears to give strong evidence that the data should be modeled with a nonzero AR2 coefficient.
 
 - It may be sensible to avoid fitted models too close to the boundary of invertibility. This is a reason not to blindly accept whatever model AIC might suggest.
 
-----
+##
 
 **Question.** What else could we look for to help diagnose, and understand, this kind of model fitting problem? Hint: pay some more attention to the roots of the fitted ARMA(2,1) model.
 
@@ -671,7 +671,7 @@ plt.show()
 
 - Evidence for imperfect maximization (assuming negligible likelihood evaluation error) can be found in the AIC table.
 
-----
+##
 
 ```{python}
 #| echo: false

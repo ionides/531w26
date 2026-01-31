@@ -31,9 +31,7 @@ warnings.filterwarnings('ignore')
 np.random.seed(2050320976)
 ```
 
-# Introduction
-
-## Model-based forecasts {.fragile}
+## Model-based forecasts  
 
 - Data, $y^*_{1:N}$, and a model $Y_{1:N+h}$ with joint density $f_{Y_{1:N+h}}(y_{1:N+h}|\theta)$ can be used to *forecast* future values $y_{N+1:N+h}$ up to a *horizon*, $h$.
 
@@ -49,6 +47,7 @@ where $\hat\theta$ is a point estimate such as an MLE.
 \end{equation}
 
 - Point forecasts and probabilistic forecasts have many applications in business and elsewhere.
+
 
 ## Evaluating forecasts
 
@@ -67,64 +66,17 @@ evaluated at the data, $y^*_{N+1:N+h}$, once it is collected.
 \log f_{Y_{1:N}}(y^*_{1:N};\theta) = \sum_{n=1}^N  \log f_{Y_{n}|Y_{1:n-1}}(y^*_n| y^*_{1:n-1};\theta)
 \end{equation}
 
-# ARIMA forecasting
 
-## ARIMA forecasting {.fragile}
+## ARIMA forecasting  
 
 The `.forecast()` method computes the conditional Gaussian distribution for forecasting an ARIMA model.
 
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 dat = pd.read_csv("huron_level.csv", comment='#')
-huron_level = dat.iloc[:, 1:13].values.T.flatten()
-year = np.repeat(dat['Year'].values, 12)
-month = np.tile(np.arange(12), len(dat))
-time = year + month / 12
-
-# Use data through end of 2014
-huron_old = huron_level[:len(huron_level) -
-                        (2024 - 2014) * 12]
-time_old = time[:len(time) - (2024 - 2014) * 12]
-
-# Fit SARIMA model
-sarma = SARIMAX(huron_old, order=(1, 0, 1),
-                seasonal_order=(1, 0, 1, 12)).fit()
-
-# Forecast 120 months ahead (10 years)
-forecast = sarma.get_forecast(steps=120)
-f_val = forecast.predicted_mean
-f_se = forecast.se_mean
-f_time = time_old[-1] + (np.arange(1, 121)) / 12
-```
-
-##  {.fragile}
-
-```{python}
-#| echo: true
-#| eval: false
-plt.figure(figsize=(12, 5))
-plt.plot(time, huron_level, 'k-', label='Observed')
-plt.plot(f_time, f_val, 'r-', label='Forecast')
-plt.plot(f_time, f_val + 1.96 * f_se, 'b-', alpha=0.5)
-plt.plot(f_time, f_val - 1.96 * f_se, 'b-', alpha=0.5)
-plt.xlabel('Year')
-plt.ylabel('Lake level (m)')
-plt.legend()
-plt.tight_layout()
-plt.show()
-```
-
-## 95% prediction interval from December 2014 {.fragile}
-
-```{python}
-#| echo: false
-#| fig-width: 12
-#| fig-height: 5
-dat = pd.read_csv("huron_level.csv", comment='#')
-# Remove spaces from column names
-dat.columns = dat.columns.str.strip()
-huron_level = dat.iloc[:, 1:13].values.T.flatten()
+huron_level = dat.iloc[:, 1:13].values.flatten()
 year = np.repeat(dat['Year'].values, 12)
 month = np.tile(np.arange(12), len(dat))
 time = year + month / 12
@@ -133,16 +85,27 @@ time = year + month / 12
 huron_old = huron_level[:len(huron_level) - (2024 - 2014) * 12]
 time_old = time[:len(time) - (2024 - 2014) * 12]
 
-# Fit SARIMA model
+# Fit SARIMA model and forecast 120 months ahead (10 years)
 sarma = SARIMAX(huron_old, order=(1, 0, 1),
-                seasonal_order=(1, 0, 1, 12)).fit(disp=False)
-
-# Forecast 120 months ahead (10 years)
-forecast = sarma.get_forecast(steps=120)
-f_val = forecast.predicted_mean
-f_se = forecast.se_mean
+    seasonal_order=(1, 0, 1, 12)).fit()
+#forecast = sarma.get_forecast(steps=120)
+#f_val = forecast.predicted_mean
+#f_se = forecast.se_mean
+#f_time = time_old[-1] + (np.arange(1, 121)) / 12
+forecast_df = sarma.get_forecast(steps=120)
+summary_df = forecast_df.summary_frame()
+f_val = summary_df['mean']
+f_se = summary_df['mean_se'] # Standard error of the forecast
 f_time = time_old[-1] + (np.arange(1, 121)) / 12
+```
+\normalsize
 
+
+##  95% prediction interval from December 2014  
+
+```{python}
+#| echo: false
+#| eval: true
 plt.figure(figsize=(12, 5))
 plt.plot(time, huron_level, 'k-', label='Observed')
 plt.plot(f_time, f_val, 'r-', label='Forecast')
@@ -155,7 +118,6 @@ plt.tight_layout()
 plt.show()
 ```
 
-# Prophet
 
 ## Facebook Prophet
 
@@ -166,13 +128,11 @@ plt.show()
 - Prophet does penalized regression estimating trend and seasonality components. It can also do Bayesian fitting.
 - Unlike ARIMA, Prophet cannot describe general covariance structures.
 
-##  {.fragile}
+##   
 
 ```{python}
 #| echo: true
-#| eval: false
-#| fig-width: 12
-#| fig-height: 4
+#| eval: true
 from prophet import Prophet
 
 # Prepare data for Prophet (requires 'ds' and 'y' columns)
@@ -189,7 +149,15 @@ fit.fit(history)
 # Create future dataframe for 10 years (120 months)
 future = fit.make_future_dataframe(periods=10*12, freq='MS')
 forecast = fit.predict(future)
+```
 
+##
+
+```{python}
+#| eval: true
+#| echo: true
+#| fig-width: 12
+#| fig-height: 4
 # Plot forecast
 fig = fit.plot(forecast)
 # Add actual future values in red
@@ -200,46 +168,6 @@ plt.tight_layout()
 plt.show()
 ```
 
-##  {.fragile}
-
-```{python}
-#| echo: false
-#| eval: true
-#| fig-width: 12
-#| fig-height: 4
-try:
-    from prophet import Prophet
-
-    # Prepare data for Prophet (requires 'ds' and 'y' columns)
-    history = pd.DataFrame({
-        'ds': pd.date_range(start='1918-01-01',
-                            periods=len(huron_old), freq='MS'),
-        'y': huron_old
-    })
-
-    # Fit Prophet model
-    fit = Prophet()
-    fit.fit(history)
-
-    # Create future dataframe for 10 years (120 months)
-    future = fit.make_future_dataframe(periods=10*12, freq='MS')
-    forecast = fit.predict(future)
-
-    # Plot forecast
-    fig = fit.plot(forecast)
-    # Add actual future values in red
-    plt.scatter(pd.date_range(start='2015-01-01',
-                periods=len(huron_level)-len(huron_old), freq='MS'),
-                huron_level[len(huron_old):], color='red', s=10)
-    plt.tight_layout()
-    plt.show()
-except ImportError:
-    print("Prophet package not installed.")
-    print("Install with: pip install prophet")
-    print("Note: Prophet requires pystan, which may need additional setup")
-```
-
-# Forecasting vs modeling
 
 ## Forecasting versus model fitting
 
@@ -251,6 +179,7 @@ except ImportError:
 
 - Deep learning methods need large amounts of data. They are not yet standard for forecasting. Prophet uses automatic differentiation techniques that enable deep learning.
 
+
 ## Forecasting with trends and covariates
 
 - A model with trends and covariates must project those into the future in order to forecast.
@@ -258,6 +187,7 @@ except ImportError:
 - Uncertainty about future trends may be captured by "stochastic trend" models. Prophet does this.
 
 - We've seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
+
 
 ## Further reading
 
@@ -267,13 +197,18 @@ except ImportError:
 
 - \textcite{taylor18} presents the Facebook Prophet forecasting algorithm.
 
-## References and Acknowledgements
 
-::: {#refs}
-:::
+## Acknowledgements
+
 
 \vspace{3mm}
 
 - Compiled on \today using Python.
 - Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
-- We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).
+- We acknowledge [previous versions of this course](https://ionides.github.io/531w26/acknowledge.html).
+
+
+## References
+
+::: {#refs}
+:::

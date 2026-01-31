@@ -3,4 +3,11 @@ python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install jupyter matplotlib pandas statsmodels
-pip install tabulate # for pandas.df.to_markdown
+
+# for pandas.df.to_markdown
+pip install tabulate
+
+# for Chapter 10, forecasting using Facebook Prophet
+pip install pystan prophet plotly
+
+

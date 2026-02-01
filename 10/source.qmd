@@ -184,21 +184,25 @@ plt.show()
 
 ## An artificial neural net approach
 
-**INITIAL DRAFT**
-
 * The most popular neural net architecture for time series is long short-term memory (LSTM).
+
+* LSTM is a type of recurrent neural network (RNN) in which new data is incorporated into a hidden state (i.e., memory) used to predict future data.
+
+* LSTM has a gating mechanism to allow information into and out of this state.
 
 * In some situations, especially if combined with SARIMA methods, this can give very competititive forecast results [REF]
 
-* **DESCRIBE LSTM**
+* Neural networks are good for addressing nonlinear, non-Gaussian, high-dimensional behavior when there is a large amount of training data. They are not a natural method for small or medium sized time series datasets.
+
 
 ## Implementing LSTM for the Huron level data
 
 Preprocessing for LSTM: Unlike SARIMAX which handles stationarity automatically, LSTM requires explicit preprocessing to handle the \(d=1\) (trend) and \(D=1,m=12\) (seasonal) components.
 
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -219,19 +223,21 @@ diff_data = diff_seasonal.diff(1).dropna()
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(diff_data.values.reshape(-1, 1))
 ```
+\normalsize
 
 ## PyTorch Dataset and DataLoader
 
 To capture the seasonal relationship (\(m=12\)), the LSTM input must look back at least 12-24 steps. We create a custom Dataset class for time series sequences.
 
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 class TimeSeriesDataset(Dataset):
     """Dataset class for creating sequences from time series data."""
 
     def __init__(self, data, lookback):
-        self.data = torch.FloatTensor(data)
+        self.data = torch.FloatTensor(data).squeeze()
         self.lookback = lookback
 
     def __len__(self):
@@ -240,7 +246,7 @@ class TimeSeriesDataset(Dataset):
     def __getitem__(self, idx):
         # Input: lookback window, Target: next value
         x = self.data[idx:idx + self.lookback]
-        y = self.data[idx + self.lookback]
+        y = self.data[idx + self.lookback:idx + self.lookback + 1]
         return x, y
 
 # Create dataset and dataloader
@@ -248,14 +254,16 @@ lookback = 12  # Use 12 months of history
 dataset = TimeSeriesDataset(scaled_data, lookback)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 ```
+\normalsize
 
-## LSTM Model Definition
+## LSTM Model and Training
 
-Define LSTM as a PyTorch `nn.Module` following best practices.
+Define LSTM as a PyTorch `nn.Module` and train with standard gradient descent.
 
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
+#| eval: true
 class LSTMModel(nn.Module):
     """LSTM model for time series forecasting."""
 
@@ -263,23 +271,13 @@ class LSTMModel(nn.Module):
         super(LSTMModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-
-        # LSTM layer
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-
-        # Fully connected layer
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
-        # x shape: (batch_size, sequence_length, input_size)
-        # Initialize hidden state and cell state
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-
-        # Forward propagate LSTM
         out, _ = self.lstm(x, (h0, c0))
-
-        # Take output from last time step
         out = self.fc(out[:, -1, :])
         return out
 
@@ -287,68 +285,86 @@ class LSTMModel(nn.Module):
 model = LSTMModel(input_size=1, hidden_size=50, num_layers=1)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-```
 
-## Training Loop
-
-Standard PyTorch training loop with proper gradient handling.
-
-```{python}
-#| echo: true
-#| eval: false
+# Training loop
 num_epochs = 50
 model.train()
-
 for epoch in range(num_epochs):
     epoch_loss = 0
     for batch_x, batch_y in dataloader:
-        # Add feature dimension if needed
-        batch_x = batch_x.unsqueeze(-1)  # Shape: (batch, lookback, 1)
-        batch_y = batch_y.unsqueeze(-1)  # Shape: (batch, 1)
-
-        # Forward pass
+        # batch_x: (batch, lookback) -> (batch, lookback, 1)
+        # batch_y: (batch, 1) -> keep as is for MSELoss
+        batch_x = batch_x.unsqueeze(-1)
         outputs = model(batch_x)
         loss = criterion(outputs, batch_y)
-
-        # Backward pass and optimization
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-
         epoch_loss += loss.item()
-
     if (epoch + 1) % 10 == 0:
         print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss/len(dataloader):.6f}')
 ```
+\normalsize
 
-## Recursive Forecasting
+## Forecasting and Inverse Transformations
 
-Generate 120-step forecast by recursively predicting one step ahead.
+Generate 120-step forecast and reverse all transformations to get back to original scale.
 
+\footnotesize
 ```{python}
 #| echo: true
-#| eval: false
-model.eval()  # Set model to evaluation mode
+#| eval: true
+model.eval()
 
 # Start with the last lookback window from training data
-current_window = torch.FloatTensor(scaled_data[-lookback:]).unsqueeze(0).unsqueeze(-1)
+# scaled_data has shape (N, 1), squeeze to (N,), take last lookback values
+current_window = torch.FloatTensor(scaled_data[-lookback:].squeeze())
+# Reshape to (1, lookback, 1) for model input
+current_window = current_window.unsqueeze(0).unsqueeze(-1)
 forecast_scaled = []
 
-with torch.no_grad():  # No gradient computation needed for inference
+# Recursive forecasting
+with torch.no_grad():
     for i in range(120):
-        # Predict next value
         pred = model(current_window)
-        forecast_scaled.append(pred.item())
-
-        # Update window: remove first element, append prediction
-        pred_reshaped = pred.unsqueeze(1)  # Shape: (1, 1, 1)
+        forecast_scaled.append(pred.squeeze().item())
+        # Reshape pred from (1, 1) to (1, 1, 1) for concatenation
+        pred_reshaped = pred.unsqueeze(1)
         current_window = torch.cat([current_window[:, 1:, :], pred_reshaped], dim=1)
 
-# Inverse transform to get back to differenced scale
-forecast_diff = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1))
+# 1. Inverse scaling
+forecast_diff = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1)).flatten()
 
-# TODO: Inverse difference transformations to get back to original scale
-# This requires storing the last values from the original series
+# 2. Inverse non-seasonal differencing (d=1)
+# Need the last value of diff_seasonal to start cumsum
+last_diff_seasonal = diff_seasonal.iloc[-1]
+forecast_seasonal_diff = np.cumsum(forecast_diff) + last_diff_seasonal
+
+# 3. Inverse seasonal differencing (D=1, m=12)
+# Need the last 12 values of the original series
+last_12_values = data.iloc[-12:].values
+forecast_original = np.zeros(120)
+for i in range(120):
+    if i < 12:
+        forecast_original[i] = forecast_seasonal_diff[i] + last_12_values[i]
+    else:
+        forecast_original[i] = forecast_seasonal_diff[i] + forecast_original[i - 12]
+
+lstm_time = time_old[-1] + (np.arange(1, 121)) / 12
+```
+\normalsize
+
+## LSTM Forecast Plot
+
+```{python}
+#| echo: false
+#| eval: true
+plt.figure(figsize=(12, 5))
+plt.plot(time, huron_level, 'k-', label='Observed')
+plt.plot(lstm_time, forecast_original, 'g-', label='LSTM Forecast')
+plt.xlabel('Year'); plt.ylabel('Lake level (m)')
+plt.legend()
+plt.tight_layout(); plt.show()
 ```
 
 ## Further reading

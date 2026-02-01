@@ -81,17 +81,11 @@ year = np.repeat(dat['Year'].values, 12)
 month = np.tile(np.arange(12), len(dat))
 time = year + month / 12
 
-# Use data through end of 2014
+# Use data through end of 2014 and forecast 120 months ahead (10 years)
 huron_old = huron_level[:len(huron_level) - (2024 - 2014) * 12]
 time_old = time[:len(time) - (2024 - 2014) * 12]
-
-# Fit SARIMA model and forecast 120 months ahead (10 years)
-sarma = SARIMAX(huron_old, order=(1, 0, 1),
-    seasonal_order=(1, 0, 1, 12)).fit()
-#forecast = sarma.get_forecast(steps=120)
-#f_val = forecast.predicted_mean
-#f_se = forecast.se_mean
-#f_time = time_old[-1] + (np.arange(1, 121)) / 12
+sarma = SARIMAX(huron_old, order=(0, 1, 1), 
+    seasonal_order=(0, 1, 1, 12)).fit()
 forecast_df = sarma.get_forecast(steps=120)
 summary_df = forecast_df.summary_frame()
 f_val = summary_df['mean']
@@ -100,9 +94,7 @@ f_time = time_old[-1] + (np.arange(1, 121)) / 12
 ```
 \normalsize
 
-
 ##  95% prediction interval from December 2014  
-
 ```{python}
 #| echo: false
 #| eval: true
@@ -111,13 +103,14 @@ plt.plot(time, huron_level, 'k-', label='Observed')
 plt.plot(f_time, f_val, 'r-', label='Forecast')
 plt.plot(f_time, f_val + 1.96 * f_se, 'b-', alpha=0.5)
 plt.plot(f_time, f_val - 1.96 * f_se, 'b-', alpha=0.5)
-plt.xlabel('Year')
-plt.ylabel('Lake level (m)')
+plt.xlabel('Year'); plt.ylabel('Lake level (m)')
 plt.legend()
-plt.tight_layout()
-plt.show()
+plt.tight_layout(); plt.show()
 ```
 
+* Here, we use SARIMA$((0,1,1)\times(0,1,1)_{12}))$. 
+
+* The fitted model is quite similar to SARIMA$((1,0,1)\times(1,0,1)_{12}))$.
 
 ## Facebook Prophet
 
@@ -188,6 +181,91 @@ plt.show()
 
 - We've seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
 
+
+## An artificial neural net approach
+
+**INITIAL DRAFT**
+
+* The most popular neural net architecture for time series is long short-term memory (LSTM).
+
+* In some situations, especially if combined with SARIMA methods, this can give very competititive forecast results [REF]
+
+* **DESCRIBE LSTM**
+
+## Implementing LSTM for the Huron level data
+
+Preprocessing (Equivalence of \(d=1,D=1,m=12\)) SARIMAX handles stationarity automatically. For LSTM, you must explicitly pre-process the data to handle the d=1 (trend) and D=1 (seasonal) components. 
+
+* This draft code uses tensorflow, but it should be rewritten using pytorch (or JAX) to follow current preferred practices.
+
+```{python}
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+
+data = pd.Series(huron_old)
+
+# reshape into the form wanted by sklearn
+# but maybe do that later
+# data = data.values.reshape(-1, 1) 
+
+# 1. Seasonal Differencing (m=12, D=1)
+# Y_t - Y_{t-12}
+diff_seasonal = data.diff(12).dropna()
+
+# 2. Non-seasonal Differencing (d=1)
+# (Y_t - Y_{t-12}) - (Y_{t-1} - Y_{t-13})
+diff_data = diff_seasonal.diff(1).dropna()
+
+# 3. Scale data
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaled_data = scaler.fit_transform(diff_data.values.reshape(-1, 1))
+```
+
+## Prepare Data for LSTM (Lookback Window) 
+
+To capture the seasonal relationship (\(m=12\)), the LSTM input must look back at least 12-24 steps. 
+
+```{python}
+# Create sequences (e.g., look at last 12-24 months to predict next)
+lookback = 12 
+generator = TimeseriesGenerator(scaled_data, scaled_data, length=lookback, batch_size=1)
+```
+
+## LSTM Model Implementation
+
+```{python}
+model = Sequential()
+# Input shape: (lookback_steps, features)
+model.add(LSTM(50, activation='relu', input_shape=(lookback, 1)))
+model.add(Dense(1)) # Predicting one step ahead
+model.compile(optimizer='adam', loss='mse')
+
+# Fit model
+model.fit(generator, epochs=50)
+```
+
+## Recursive Forecasting 
+To get 120 steps, we take the last window of known data, predict the next value, append it to the window, and repeat. 
+```{python}
+# Start with the last available window from the training data
+current_batch = scaled_data[-window_size:].reshape((1, window_size, 1))
+forecast_scaled = []
+
+for i in range(120):
+    # Predict 1 step ahead
+    current_pred = model.predict(current_batch)[0]
+    forecast_scaled.append(current_pred)
+    
+    # Update batch: remove first element, append prediction
+    current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)
+
+# Inverse transform to get back to differenced scale
+forecast_diff = scaler.inverse_transform(forecast_scaled)
+```
 
 ## Further reading
 

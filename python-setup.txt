@@ -11,7 +11,7 @@ pip install tabulate
 pip install pystan prophet plotly
 
 # for Chapter 10, LSTM
-pip install scikit-learn
+pip install scikit-learn torch
 
 # if using keras; but we will plan to use pytorch
 pip install tensorflow

@@ -31,7 +31,7 @@ warnings.filterwarnings('ignore')
 np.random.seed(2050320976)
 ```
 
-## Model-based forecasts  
+## Model-based forecasts
 
 - Data, $y^*_{1:N}$, and a model $Y_{1:N+h}$ with joint density $f_{Y_{1:N+h}}(y_{1:N+h}|\theta)$ can be used to *forecast* future values $y_{N+1:N+h}$ up to a *horizon*, $h$.
 
@@ -67,7 +67,7 @@ evaluated at the data, $y^*_{N+1:N+h}$, once it is collected.
 \end{equation}
 
 
-## ARIMA forecasting  
+## ARIMA forecasting
 
 The `.forecast()` method computes the conditional Gaussian distribution for forecasting an ARIMA model.
 
@@ -84,7 +84,7 @@ time = year + month / 12
 # Use data through end of 2014 and forecast 120 months ahead (10 years)
 huron_old = huron_level[:len(huron_level) - (2024 - 2014) * 12]
 time_old = time[:len(time) - (2024 - 2014) * 12]
-sarma = SARIMAX(huron_old, order=(0, 1, 1), 
+sarma = SARIMAX(huron_old, order=(0, 1, 1),
     seasonal_order=(0, 1, 1, 12)).fit()
 forecast_df = sarma.get_forecast(steps=120)
 summary_df = forecast_df.summary_frame()
@@ -94,7 +94,7 @@ f_time = time_old[-1] + (np.arange(1, 121)) / 12
 ```
 \normalsize
 
-##  95% prediction interval from December 2014  
+##  95% prediction interval from December 2014
 ```{python}
 #| echo: false
 #| eval: true
@@ -108,7 +108,7 @@ plt.legend()
 plt.tight_layout(); plt.show()
 ```
 
-* Here, we use SARIMA$((0,1,1)\times(0,1,1)_{12}))$. 
+* Here, we use SARIMA$((0,1,1)\times(0,1,1)_{12}))$.
 
 * The fitted model is quite similar to SARIMA$((1,0,1)\times(1,0,1)_{12}))$.
 
@@ -121,7 +121,7 @@ plt.tight_layout(); plt.show()
 - Prophet does penalized regression estimating trend and seasonality components. It can also do Bayesian fitting.
 - Unlike ARIMA, Prophet cannot describe general covariance structures.
 
-##   
+##
 
 ```{python}
 #| echo: true
@@ -194,77 +194,161 @@ plt.show()
 
 ## Implementing LSTM for the Huron level data
 
-Preprocessing (Equivalence of \(d=1,D=1,m=12\)) SARIMAX handles stationarity automatically. For LSTM, you must explicitly pre-process the data to handle the d=1 (trend) and D=1 (seasonal) components. 
-
-* This draft code uses tensorflow, but it should be rewritten using pytorch (or JAX) to follow current preferred practices.
+Preprocessing for LSTM: Unlike SARIMAX which handles stationarity automatically, LSTM requires explicit preprocessing to handle the \(d=1\) (trend) and \(D=1,m=12\) (seasonal) components.
 
 ```{python}
-import pandas as pd
-import numpy as np
+#| echo: true
+#| eval: false
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
-from tensorflow.keras.preprocessing.sequence import TimeseriesGenerator
+
+# Set random seed for reproducibility
+torch.manual_seed(531)
 
 data = pd.Series(huron_old)
 
-# reshape into the form wanted by sklearn
-# but maybe do that later
-# data = data.values.reshape(-1, 1) 
-
-# 1. Seasonal Differencing (m=12, D=1)
-# Y_t - Y_{t-12}
+# 1. Seasonal Differencing (m=12, D=1): Y_t - Y_{t-12}
 diff_seasonal = data.diff(12).dropna()
 
-# 2. Non-seasonal Differencing (d=1)
-# (Y_t - Y_{t-12}) - (Y_{t-1} - Y_{t-13})
+# 2. Non-seasonal Differencing (d=1): (Y_t - Y_{t-12}) - (Y_{t-1} - Y_{t-13})
 diff_data = diff_seasonal.diff(1).dropna()
 
-# 3. Scale data
+# 3. Scale data to [0, 1] range for neural network training
 scaler = MinMaxScaler(feature_range=(0, 1))
 scaled_data = scaler.fit_transform(diff_data.values.reshape(-1, 1))
 ```
 
-## Prepare Data for LSTM (Lookback Window) 
+## PyTorch Dataset and DataLoader
 
-To capture the seasonal relationship (\(m=12\)), the LSTM input must look back at least 12-24 steps. 
+To capture the seasonal relationship (\(m=12\)), the LSTM input must look back at least 12-24 steps. We create a custom Dataset class for time series sequences.
 
 ```{python}
-# Create sequences (e.g., look at last 12-24 months to predict next)
-lookback = 12 
-generator = TimeseriesGenerator(scaled_data, scaled_data, length=lookback, batch_size=1)
+#| echo: true
+#| eval: false
+class TimeSeriesDataset(Dataset):
+    """Dataset class for creating sequences from time series data."""
+
+    def __init__(self, data, lookback):
+        self.data = torch.FloatTensor(data)
+        self.lookback = lookback
+
+    def __len__(self):
+        return len(self.data) - self.lookback
+
+    def __getitem__(self, idx):
+        # Input: lookback window, Target: next value
+        x = self.data[idx:idx + self.lookback]
+        y = self.data[idx + self.lookback]
+        return x, y
+
+# Create dataset and dataloader
+lookback = 12  # Use 12 months of history
+dataset = TimeSeriesDataset(scaled_data, lookback)
+dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 ```
 
-## LSTM Model Implementation
+## LSTM Model Definition
+
+Define LSTM as a PyTorch `nn.Module` following best practices.
 
 ```{python}
-model = Sequential()
-# Input shape: (lookback_steps, features)
-model.add(LSTM(50, activation='relu', input_shape=(lookback, 1)))
-model.add(Dense(1)) # Predicting one step ahead
-model.compile(optimizer='adam', loss='mse')
+#| echo: true
+#| eval: false
+class LSTMModel(nn.Module):
+    """LSTM model for time series forecasting."""
 
-# Fit model
-model.fit(generator, epochs=50)
+    def __init__(self, input_size=1, hidden_size=50, num_layers=1, output_size=1):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        # LSTM layer
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+
+        # Fully connected layer
+        self.fc = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        # x shape: (batch_size, sequence_length, input_size)
+        # Initialize hidden state and cell state
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
+
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))
+
+        # Take output from last time step
+        out = self.fc(out[:, -1, :])
+        return out
+
+# Initialize model, loss function, and optimizer
+model = LSTMModel(input_size=1, hidden_size=50, num_layers=1)
+criterion = nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 ```
 
-## Recursive Forecasting 
-To get 120 steps, we take the last window of known data, predict the next value, append it to the window, and repeat. 
+## Training Loop
+
+Standard PyTorch training loop with proper gradient handling.
+
 ```{python}
-# Start with the last available window from the training data
-current_batch = scaled_data[-window_size:].reshape((1, window_size, 1))
+#| echo: true
+#| eval: false
+num_epochs = 50
+model.train()
+
+for epoch in range(num_epochs):
+    epoch_loss = 0
+    for batch_x, batch_y in dataloader:
+        # Add feature dimension if needed
+        batch_x = batch_x.unsqueeze(-1)  # Shape: (batch, lookback, 1)
+        batch_y = batch_y.unsqueeze(-1)  # Shape: (batch, 1)
+
+        # Forward pass
+        outputs = model(batch_x)
+        loss = criterion(outputs, batch_y)
+
+        # Backward pass and optimization
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        epoch_loss += loss.item()
+
+    if (epoch + 1) % 10 == 0:
+        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss/len(dataloader):.6f}')
+```
+
+## Recursive Forecasting
+
+Generate 120-step forecast by recursively predicting one step ahead.
+
+```{python}
+#| echo: true
+#| eval: false
+model.eval()  # Set model to evaluation mode
+
+# Start with the last lookback window from training data
+current_window = torch.FloatTensor(scaled_data[-lookback:]).unsqueeze(0).unsqueeze(-1)
 forecast_scaled = []
 
-for i in range(120):
-    # Predict 1 step ahead
-    current_pred = model.predict(current_batch)[0]
-    forecast_scaled.append(current_pred)
-    
-    # Update batch: remove first element, append prediction
-    current_batch = np.append(current_batch[:, 1:, :], [[current_pred]], axis=1)
+with torch.no_grad():  # No gradient computation needed for inference
+    for i in range(120):
+        # Predict next value
+        pred = model(current_window)
+        forecast_scaled.append(pred.item())
+
+        # Update window: remove first element, append prediction
+        pred_reshaped = pred.unsqueeze(1)  # Shape: (1, 1, 1)
+        current_window = torch.cat([current_window[:, 1:, :], pred_reshaped], dim=1)
 
 # Inverse transform to get back to differenced scale
-forecast_diff = scaler.inverse_transform(forecast_scaled)
+forecast_diff = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1))
+
+# TODO: Inverse difference transformations to get back to original scale
+# This requires storing the last values from the original series
 ```
 
 ## Further reading

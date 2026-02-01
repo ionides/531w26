@@ -10,4 +10,10 @@ pip install tabulate
 # for Chapter 10, forecasting using Facebook Prophet
 pip install pystan prophet plotly
 
+# for Chapter 10, LSTM
+pip install scikit-learn
+
+# if using keras; but we will plan to use pytorch
+pip install tensorflow
+
 

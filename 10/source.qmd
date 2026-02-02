@@ -81,7 +81,7 @@ year = np.repeat(dat['Year'].values, 12)
 month = np.tile(np.arange(12), len(dat))
 time = year + month / 12
 
-# Use data through end of 2014 and forecast 120 months ahead (10 years)
+# Use data through end of 2014 and forecast 10 years ahead
 huron_old = huron_level[:len(huron_level) - (2024 - 2014) * 12]
 time_old = time[:len(time) - (2024 - 2014) * 12]
 sarma = SARIMAX(huron_old, order=(0, 1, 1),
@@ -120,18 +120,20 @@ plt.tight_layout(); plt.show()
 - Prophet was designed for high-frequency (daily, hourly) business forecasting tasks at Facebook, and is widely used for similar tasks elsewhere.
 - Prophet does penalized regression estimating trend and seasonality components. It can also do Bayesian fitting.
 - Unlike ARIMA, Prophet cannot describe general covariance structures.
+- Prophet prediction intervals are based on forward simulations of a piecewise linear model with fitted rate of breakpoints \textcite{taylor18}.
+
 
 ##
 
+\footnotesize
 ```{python}
 #| echo: true
 #| eval: true
 from prophet import Prophet
-
-# Prepare data for Prophet (requires 'ds' and 'y' columns)
+# Data for Prophet requires 'ds' and 'y' columns
 history = pd.DataFrame({
-    'ds': pd.date_range(start='1918-01-01',
-                        periods=len(huron_old), freq='MS'),
+    'ds': pd.date_range(start='1860-01-01',
+        periods=len(huron_old), freq='MS'),
     'y': huron_old
 })
 
@@ -143,43 +145,26 @@ fit.fit(history)
 future = fit.make_future_dataframe(periods=10*12, freq='MS')
 forecast = fit.predict(future)
 ```
+\normalsize
+
 
 ##
 
+\footnotesize
 ```{python}
 #| eval: true
 #| echo: true
 #| fig-width: 12
 #| fig-height: 4
-# Plot forecast
 fig = fit.plot(forecast)
 # Add actual future values in red
-plt.scatter(pd.date_range(start='2015-01-01',
-            periods=len(huron_level)-len(huron_old), freq='MS'),
-            huron_level[len(huron_old):], color='red', s=10)
-plt.tight_layout()
-plt.show()
+plt.scatter(
+    pd.date_range(start='2015-01-01',
+    periods=len(huron_level)-len(huron_old), freq='MS'),
+    huron_level[len(huron_old):], color='red', s=10)
+plt.tight_layout(); plt.show()
 ```
-
-
-## Forecasting versus model fitting
-
-- A good model should imply a good model-based forecast.
-
-- Long-term forecasting is extrapolation. The model may be unreliable far from the timeframe used to build it.
-
-- Without evidence to support a model for long-term forecasts, uncertainty estimates should be high. Uncertainty estimates are also uncertain!
-
-- Deep learning methods need large amounts of data. They are not yet standard for forecasting. Prophet uses automatic differentiation techniques that enable deep learning.
-
-
-## Forecasting with trends and covariates
-
-- A model with trends and covariates must project those into the future in order to forecast.
-
-- Uncertainty about future trends may be captured by "stochastic trend" models. Prophet does this.
-
-- We've seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
+\normalsize
 
 
 ## An artificial neural net approach
@@ -190,14 +175,14 @@ plt.show()
 
 * LSTM has a gating mechanism to allow information into and out of this state.
 
-* In some situations, especially if combined with SARIMA methods, this can give very competititive forecast results [REF]
+* In some situations, especially if combined with SARIMA methods, this can give very competititive forecast results \textcite{makridakis20}.
 
 * Neural networks are good for addressing nonlinear, non-Gaussian, high-dimensional behavior when there is a large amount of training data. They are not a natural method for small or medium sized time series datasets.
 
 
 ## Implementing LSTM for the Huron level data
 
-Preprocessing for LSTM: Unlike SARIMAX which handles stationarity automatically, LSTM requires explicit preprocessing to handle the \(d=1\) (trend) and \(D=1,m=12\) (seasonal) components.
+**Preprocessing for LSTM:**  LSTM requires explicit preprocessing to handle the \(d=1\) (trend) and \(D=1,m=12\) (seasonal) components. Scaling is done to help training.
 
 \footnotesize
 ```{python}
@@ -208,34 +193,26 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
 
-# Set random seed for reproducibility
-torch.manual_seed(531)
-
+torch.manual_seed(531) # random seed for reproducibility
 data = pd.Series(huron_old)
-
-# 1. Seasonal Differencing (m=12, D=1): Y_t - Y_{t-12}
 diff_seasonal = data.diff(12).dropna()
-
-# 2. Non-seasonal Differencing (d=1): (Y_t - Y_{t-12}) - (Y_{t-1} - Y_{t-13})
 diff_data = diff_seasonal.diff(1).dropna()
-
-# 3. Scale data to [0, 1] range for neural network training
 scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(diff_data.values.reshape(-1, 1))
+scaled_data=scaler.fit_transform(diff_data.values.reshape(-1, 1))
 ```
 \normalsize
 
-## PyTorch Dataset and DataLoader
+## 
 
-To capture the seasonal relationship (\(m=12\)), the LSTM input must look back at least 12-24 steps. We create a custom Dataset class for time series sequences.
+**For compatibility with the Pytorch `DataLoader`**, we create a custom `Dataset` capturing the seasonal relationship $(m=12)$. 
+The LSTM input should look back at least 12-24 steps. 
 
 \footnotesize
 ```{python}
 #| echo: true
 #| eval: true
 class TimeSeriesDataset(Dataset):
-    """Dataset class for creating sequences from time series data."""
-
+ 
     def __init__(self, data, lookback):
         self.data = torch.FloatTensor(data).squeeze()
         self.lookback = lookback
@@ -249,29 +226,29 @@ class TimeSeriesDataset(Dataset):
         y = self.data[idx + self.lookback:idx + self.lookback + 1]
         return x, y
 
-# Create dataset and dataloader
 lookback = 12  # Use 12 months of history
 dataset = TimeSeriesDataset(scaled_data, lookback)
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
 ```
 \normalsize
 
-## LSTM Model and Training
+## 
 
-Define LSTM as a PyTorch `nn.Module` and train with standard gradient descent.
+**Set up the LSTM as a PyTorch `nn.Module`**
 
-\footnotesize
+\scriptsize
 ```{python}
 #| echo: true
 #| eval: true
 class LSTMModel(nn.Module):
-    """LSTM model for time series forecasting."""
 
-    def __init__(self, input_size=1, hidden_size=50, num_layers=1, output_size=1):
+    def __init__(self, input_size=1, hidden_size=50, num_layers=1, 
+            output_size=1):
         super(LSTMModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, 
+            batch_first=True)
         self.fc = nn.Linear(hidden_size, output_size)
 
     def forward(self, x):
@@ -285,15 +262,23 @@ class LSTMModel(nn.Module):
 model = LSTMModel(input_size=1, hidden_size=50, num_layers=1)
 criterion = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+```
+\normalsize
 
-# Training loop
+
+##
+
+**Train with standard gradient descent.**
+\footnotesize
+```{python}
+#| echo: true
+#| eval: true
 num_epochs = 50
 model.train()
 for epoch in range(num_epochs):
     epoch_loss = 0
     for batch_x, batch_y in dataloader:
         # batch_x: (batch, lookback) -> (batch, lookback, 1)
-        # batch_y: (batch, 1) -> keep as is for MSELoss
         batch_x = batch_x.unsqueeze(-1)
         outputs = model(batch_x)
         loss = criterion(outputs, batch_y)
@@ -302,14 +287,14 @@ for epoch in range(num_epochs):
         optimizer.step()
         epoch_loss += loss.item()
     if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss/len(dataloader):.6f}')
+        print(f'Epoch [{epoch+1}/{num_epochs}]', 
+            f'Loss: {epoch_loss/len(dataloader):.6f}')
 ```
 \normalsize
 
-## Forecasting and Inverse Transformations
+## 
 
-Generate 120-step forecast and reverse all transformations to get back to original scale.
-
+**Recursively generate a 10-year forecast.**
 \footnotesize
 ```{python}
 #| echo: true
@@ -317,38 +302,47 @@ Generate 120-step forecast and reverse all transformations to get back to origin
 model.eval()
 
 # Start with the last lookback window from training data
-# scaled_data has shape (N, 1), squeeze to (N,), take last lookback values
-current_window = torch.FloatTensor(scaled_data[-lookback:].squeeze())
+# scaled_data has shape (N, 1), squeeze to (N,)
+current_window = torch.FloatTensor(
+    scaled_data[-lookback:].squeeze())
 # Reshape to (1, lookback, 1) for model input
 current_window = current_window.unsqueeze(0).unsqueeze(-1)
 forecast_scaled = []
 
-# Recursive forecasting
 with torch.no_grad():
     for i in range(120):
         pred = model(current_window)
         forecast_scaled.append(pred.squeeze().item())
         # Reshape pred from (1, 1) to (1, 1, 1) for concatenation
         pred_reshaped = pred.unsqueeze(1)
-        current_window = torch.cat([current_window[:, 1:, :], pred_reshaped], dim=1)
+        current_window = torch.cat([current_window[:, 1:, :], 
+            pred_reshaped], dim=1)
+```
 
-# 1. Inverse scaling
-forecast_diff = scaler.inverse_transform(np.array(forecast_scaled).reshape(-1, 1)).flatten()
+##
 
-# 2. Inverse non-seasonal differencing (d=1)
-# Need the last value of diff_seasonal to start cumsum
+**Reverse all transformations to get back to original scale.**
+\footnotesize
+```{python}
+#| echo: true
+#| eval: true
+forecast_diff = scaler.inverse_transform(
+    np.array(forecast_scaled).reshape(-1, 1)).flatten()
 last_diff_seasonal = diff_seasonal.iloc[-1]
-forecast_seasonal_diff = np.cumsum(forecast_diff) + last_diff_seasonal
+forecast_seasonal_diff = (np.cumsum(forecast_diff) 
+    + last_diff_seasonal)
 
-# 3. Inverse seasonal differencing (D=1, m=12)
+# Invert the seasonal differencing (D=1, m=12)
 # Need the last 12 values of the original series
 last_12_values = data.iloc[-12:].values
 forecast_original = np.zeros(120)
 for i in range(120):
     if i < 12:
-        forecast_original[i] = forecast_seasonal_diff[i] + last_12_values[i]
+        forecast_original[i] = (forecast_seasonal_diff[i] + 
+            last_12_values[i])
     else:
-        forecast_original[i] = forecast_seasonal_diff[i] + forecast_original[i - 12]
+        forecast_original[i] = (forecast_seasonal_diff[i] + 
+            forecast_original[i - 12])
 
 lstm_time = time_old[-1] + (np.arange(1, 121)) / 12
 ```
@@ -367,6 +361,26 @@ plt.legend()
 plt.tight_layout(); plt.show()
 ```
 
+## Forecasting versus model fitting
+
+- A good model should imply a good model-based forecast.
+
+- Long-term forecasting is extrapolation. The model may be unreliable far from the timeframe used to build it.
+
+- Without evidence to support a model for long-term forecasts, uncertainty estimates should be high. Uncertainty estimates are also uncertain!
+
+- Deep learning methods need large amounts of data. They are not yet standard for forecasting. Prophet uses automatic differentiation techniques that enable deep learning.
+
+
+## Forecasting with trends and covariates
+
+- A model with trends and covariates must project those into the future in order to forecast.
+
+- Uncertainty about future trends may be captured by "stochastic trend" models. Prophet does this.
+
+- We have seen the difficulty assessing stationarity vs slowly varying trend. The same issue arises with forecasting. How do we know if a trend will continue, or if it will change in future?
+
+
 ## Further reading
 
 - Section 3.5 of \textcite{shumway17} covers ARIMA forecasting.
@@ -374,6 +388,8 @@ plt.tight_layout(); plt.show()
 - \textcite{hyndman08} introduces the `forecast` R package.
 
 - \textcite{taylor18} presents the Facebook Prophet forecasting algorithm.
+
+- Chapter 10 of \textcite{huang22} discusses artificial neural network methods and introduces LSTM. 
 
 
 ## Acknowledgements
@@ -384,9 +400,9 @@ plt.tight_layout(); plt.show()
 - Compiled on \today using Python.
 - Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
 - We acknowledge [previous versions of this course](https://ionides.github.io/531w26/acknowledge.html).
+- The LSTM section was drafted in collaboration with Gemini, edited in collaboration with Claude, and then revised after reading \textcite{lim21}.
 
 
-## References
+# References
 
-::: {#refs}
-:::
+

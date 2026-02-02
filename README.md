@@ -34,9 +34,9 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 5. [Parameter estimation and model identification for ARMA models](05)
 
-<!--
 6. [Extending the ARMA model: Seasonality, integration and trend](06)
 
+<!--
 7. [Introduction to time series analysis in the frequency domain](07)
 
 8. [Smoothing in the time and frequency domains](08)

@@ -59,7 +59,7 @@ if EXAM:
 }
 
 ```{python}
-#| results: asis
+#| output: asis
 #| echo: false
 #| eval: true
 if ALL:
@@ -67,7 +67,7 @@ if ALL:
 ```
 
 ```{python}
-#| results: asis
+#| output: asis
 #| echo: false
 #| eval: true
 if ALL:

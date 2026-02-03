@@ -47,6 +47,7 @@ def q_setup(n):
     # Create temporary files for each question directory
     for q_dir in q_dirs:
         q_file = os.path.join(q_dir, "q.qmd")
+        sol_file = os.path.join(q_dir, "sol.qmd")
         q_tmp = os.path.join(q_dir, "tmp.qmd")
 
         # Create temporary file with question label, content, and solution
@@ -55,7 +56,7 @@ def q_setup(n):
             results_option = 'asis' if QLABELS else 'hide'
             f.write(f"```{{python}}\n")
             f.write(f"#| echo: false\n")
-            f.write(f"#| results: {results_option}\n")
+            f.write(f"#| output: {results_option}\n")
             f.write(f"my_dir = '{q_dir}'\n")
             f.write(f"print(f'**{{my_dir}}.**')\n")
             f.write(f"```\n\n")
@@ -65,10 +66,10 @@ def q_setup(n):
                 f.write(qf.read())
 
             # Add solution block
-            f.write(f"\n```{{python}}\n")
-            f.write(f"#| child: {q_dir}/sol.qmd\n")
-            f.write(f"#| eval: {str(SOL).lower()}\n")
-            f.write(f"```\n\n")
+            if SOL:
+                with open(sol_file, 'r') as qf:
+                    f.write(qf.read())
+ 
 
     # Concatenate all question files
     q_files = [os.path.join(d, "tmp.qmd") for d in q_dirs]

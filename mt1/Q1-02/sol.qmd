@@ -1,0 +1,28 @@
+
+\color{blue}
+
+**Solution**. D.\
+This is a subtle question, so let's discuss each option. The plotted time series is a realization of a stationary model:
+
+```{r}
+#| eval: false
+#| echo: true
+N <- 1000
+sd1 <- rep(1,N)
+events <- runif(N) < 5/N
+sigma <- 20
+amplitude <- 10
+sd2 <- sd1 + filter(events,
+  dnorm(seq(from=-2.5*sigma,to=2.5*sigma,length=5*sigma),sd=sigma)*sigma*amplitude,
+  circular=T)
+Y <- rnorm(n=N,mean=0,sd=sd2)
+```
+
+Hopefully, this suggests that it should not be clearly non-stationarity, ruling out A.
+
+C and D contain a value judgement, "looks appropriate" which is hard to quantify but is (in this case) correct! "Randomly changing variance" is an informal description of a model with stochastic conditional variance. The sample variance estimates the variance conditional on the realization of the conditional variance. The actual variance is an expectation over posible values of the conditional variance. So, between C and D, only D can be correct.
+
+B and E acknowledge the variation in sample variance but do not provide useful ways to assess whether this variable sample variance comes about via a stationary stochastic conditional variance model or via a non-stationary model. In particular, if you follow the advice in B you would conclude that an appropriate model should be non-stationary, which would be incorrect in this case. In financial applications, it is common to fit stationary models to time series of financial returns that often resemble this model. For this particular case, E would not show significant autocorrelation in any time interval, but the same reasoning applies.
+
+\color{black}
+

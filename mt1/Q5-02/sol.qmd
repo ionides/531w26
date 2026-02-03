@@ -1,0 +1,8 @@
+
+\color{blue}
+
+**Solution**. D.\
+The units are in cycles per year; if we doubt this, we can tell because the largest peak at 1 corresponds to annual seasonality. At about (1/2) cycle per year, the power in the smooth fit (the red dashed line) rapidly falls several log units below the power in the raw monthly inflation data. (1/2) cycle per year corresponds to cycles of 2 year.
+
+\color{black}
+

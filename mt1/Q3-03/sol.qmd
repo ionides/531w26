@@ -1,0 +1,26 @@
+
+\color{blue}
+
+**Solution**. D.\
+All the answers are fairly reasonable here! Perhaps the most unreasonable thing would be to be sure there's only one reasonable answer.
+
+However, a more careful optimization using `arima2::arima` shows us that ARMA(2,1) actually has a higher AIC than ARMA(2,2) so all lines of evidence suggest ARMA(2,1) is a better choice. The differences are small, so the choice is unlikely to be highly consequential.
+
+```{r}
+#| label: arima2
+#| echo: false
+#dat <- read.table(file="../data/huron_level.csv",sep=",",header=TRUE)
+#huron_level <- dat$Jan
+set.seed(28)
+arma2.2.1 <- arima2::arima(huron_level,order=c(2,0,1),
+  max_iters=200,max_repeats=20)
+arma2.2.2 <- arima2::arima(huron_level,order=c(2,0,2),
+  max_iters=200,max_repeats=20)
+arma2.2.1
+arma2.2.2
+```
+
+Sometimes the multiple starts used by `arima2::arima` make a difference, sometimes the results from `stats::arima` are unchanged. In this case, it happens to make a difference.
+
+\color{black}
+

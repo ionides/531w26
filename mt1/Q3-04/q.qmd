@@ -1,0 +1,14 @@
+
+Suppose model $M_0$ is nested within a larger model $M_1$ which has one additional  parameter. Suppose that the AIC for $M_1$ is 0.5 units lower than the AIC for $M_0$. Which of the following is a correct expression for the p-value of a likelihood ratio test for $M_1$ against the null hypothesis $M_0$, supposing that a Wilks approximation is accurate? Here, $\chi^2_1$ is a chi-square random variable on 1 degree of freedom.
+
+A: $P\big(\chi^2_1 > 0.5\big)$
+
+B: $P\big(\chi^2_1 > 1 \big)$
+
+C: $P\big(\chi^2_1 > 1.5 \big)$
+
+D: $P\big(\chi^2_1 > 2 \big)$
+
+E: $P\big(\chi^2_1 > 2.5 \big)$
+
+F: $P\big(\chi^2_1 > 3 \big)$

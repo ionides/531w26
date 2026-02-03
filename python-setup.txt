@@ -13,7 +13,10 @@ pip install pystan prophet plotly
 # for Chapter 10, LSTM
 pip install scikit-learn torch
 
-# if using keras; but we will plan to use pytorch
-pip install tensorflow
+# if using keras; but we currently only use pytorch
+# pip install tensorflow
+
+# for calling R when needed
+pip install rpy2
 
 

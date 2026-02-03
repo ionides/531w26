@@ -1,22 +1,38 @@
 
-```{r}
+```{python}
 #| label: q1_02_timeplot
 #| echo: false
 #| fig-width: 6
 #| fig-height: 3.5
-#| out-width: 5in
-set.seed(33)
-N <- 1000
-sd1 <- rep(1,N)
-events <- runif(N) < 5/N
-sigma <- 20
-amplitude <- 10
-sd2 <- sd1 + filter(events,
-  dnorm(seq(from=-2.5*sigma,to=2.5*sigma,length=5*sigma),sd=sigma)*sigma*amplitude,
-  circular=T)
-Y <- rnorm(n=N,mean=0,sd=sd2)
-par(mai=c(0.5,0.6,0.1,0.1))
-plot(Y,xlab="", ylab="y",ty="l")
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+
+np.random.seed(33)
+N = 1000
+sd1 = np.ones(N)
+events = (np.random.uniform(size=N) < 5/N).astype(float)
+sigma = 20
+amplitude = 10
+
+# Create filter using normal density (equivalent to R's dnorm)
+filter_length = int(5 * sigma)
+filter_seq = np.linspace(-2.5*sigma, 2.5*sigma, filter_length)
+filter_weights = norm.pdf(filter_seq, scale=sigma) * sigma * amplitude
+
+# Apply circular convolution (equivalent to R's filter with circular=T)
+sd2 = sd1 + np.convolve(events, filter_weights, mode='same')
+
+# Generate time series with time-varying variance
+Y = np.random.normal(0, sd2)
+
+# Plot
+fig, ax = plt.subplots(figsize=(6, 3.5))
+ax.plot(Y, linewidth=0.5)
+ax.set_xlabel('')
+ax.set_ylabel('y')
+plt.tight_layout()
+plt.show()
 ```
 
 Consider the time series plotted above. Which of the below is the most accurate statement about stationarity?

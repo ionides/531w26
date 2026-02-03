@@ -4,18 +4,22 @@
 **Solution**. D.\
 This is a subtle question, so let's discuss each option. The plotted time series is a realization of a stationary model:
 
-```{r}
+```{python}
 #| eval: false
 #| echo: true
-N <- 1000
-sd1 <- rep(1,N)
-events <- runif(N) < 5/N
-sigma <- 20
-amplitude <- 10
-sd2 <- sd1 + filter(events,
-  dnorm(seq(from=-2.5*sigma,to=2.5*sigma,length=5*sigma),sd=sigma)*sigma*amplitude,
-  circular=T)
-Y <- rnorm(n=N,mean=0,sd=sd2)
+import numpy as np
+from scipy.stats import norm
+
+N = 1000
+sd1 = np.ones(N)
+events = (np.random.uniform(size=N) < 5/N).astype(float)
+sigma = 20
+amplitude = 10
+filter_length = int(5 * sigma)
+filter_seq = np.linspace(-2.5*sigma, 2.5*sigma, filter_length)
+filter_weights = norm.pdf(filter_seq, scale=sigma) * sigma * amplitude
+sd2 = sd1 + np.convolve(events, filter_weights, mode='same')
+Y = np.random.normal(0, sd2)
 ```
 
 Hopefully, this suggests that it should not be clearly non-stationarity, ruling out A.

@@ -1,48 +1,55 @@
 
-```{r}
-#| label: nyc_injuries_timeplot
+```{python}
+#| label: q1_03_nyc_injuries_timeplot
 #| echo: false
 #| fig-width: 5
 #| fig-height: 2.5
-#| out-width: 4in
 #| warning: false
-#| message: false
-# code adapted from
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
+
+# Read and process data
+# Code adapted from
 # https://ionides.github.io/531w24/midterm_project/project01/blinded.html
-library(tidyverse)
-Collision_data <- read.csv("data/nyc_motor_collision_injuries.csv",skip=4)
-Collision_data$date <- as.Date(Collision_data$date, format="%m/%d/%Y")
-Collision_data <- Collision_data %>% filter(date >= as.Date("2013-01-01")) %>% filter(date < as.Date("2024-01-01"))
+Collision_data = pd.read_csv("data/nyc_motor_collision_injuries.csv", skiprows=4)
+Collision_data['date'] = pd.to_datetime(Collision_data['date'], format="%m/%d/%Y")
+Collision_data = Collision_data[(Collision_data['date'] >= '2013-01-01') &
+                                  (Collision_data['date'] < '2024-01-01')]
 
-monthly_data <- Collision_data %>%
-  group_by(year = year(date), month = month(date)) %>%
-  summarise(person_injured = sum(person_injured)) %>%
-  ungroup() %>%
-  mutate(date = as.Date(paste(year, month, "01", sep = "-"))) %>%
-  select(date, person_injured)
+# Group by year and month
+monthly_data = (Collision_data
+    .assign(year=Collision_data['date'].dt.year,
+            month=Collision_data['date'].dt.month)
+    .groupby(['year', 'month'])['person_injured']
+    .sum()
+    .reset_index()
+)
+monthly_data['date'] = pd.to_datetime(monthly_data[['year', 'month']].assign(day=1))
+monthly_data = monthly_data[['date', 'person_injured']]
 
- ggplot(monthly_data, aes(x = date, y = person_injured/1000)) +
-  geom_line() +
-  labs(title = "", x = "Year", y = "injuries (thousands)") +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+# Plot
+fig, ax = plt.subplots(figsize=(5, 2.5))
+ax.plot(monthly_data['date'], monthly_data['person_injured']/1000, linewidth=1)
+ax.set_xlabel('Year')
+ax.set_ylabel('injuries (thousands)')
+ax.xaxis.set_major_locator(plt.matplotlib.dates.YearLocator())
+ax.xaxis.set_major_formatter(plt.matplotlib.dates.DateFormatter('%Y'))
+plt.tight_layout()
+plt.show()
 ```
 
-Above are monthly injuries from motor vehicle collisions in New York City. An augmented Dickey-Fuller test, `tseries::adf.test(injuries)`, gives a p-value of 0.01. Which is the best way to proceed:
+Above are monthly injuries from motor vehicle collisions in New York City. An augmented Dickey-Fuller test, `adfuller(injuries)`, gives a p-value of 0.01. Which is the best way to proceed:
 
-```{r}
-#| label: adf-for-nyc
+```{python}
+#| label: q1_03_adf_for_nyc
 #| echo: false
 #| warning: false
-#| message: false
-#| results: false
-my_adf_print <- function(x) cat(
-  "data:  ", x$data.name,
-  "\nDickey-Fuller = ", x$statistics,
-  ", Lag order = ", x$parameter,
-  ", p-value = ", x$p.value,
-  "\nAlternative hypothesis: ",x$alternative, "\n "
-)
-my_adf_print(tseries::adf.test(monthly_data$person_injured))
+#| output: false
+result = adfuller(monthly_data['person_injured'])
+print(f"data:  monthly_data['person_injured']")
+print(f"Dickey-Fuller = {result[0]:.4f}, Lag order = {result[2]}, p-value = {result[1]:.4f}")
+print(f"Alternative hypothesis: stationary")
 ```
 
 A: The time plot indicates a non-constant mean function describing a major dip due to the COVID-19 pandemic and an increasing trend at other times. The ADF test does not support or refute that model.

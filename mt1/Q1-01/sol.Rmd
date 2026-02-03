@@ -1,8 +1,0 @@
-
-\color{blue}
-
-**Solution**. B.\
-It does matter whether we take differences. For example, the differenced model is non-causal (has an MA root on the unit circle) so cannot be fitted by usual ARMA methods. D is not relevant since we are told that the data are well described by a model that rules out this possibility.
-
-\color{black}
-

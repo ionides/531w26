@@ -14,8 +14,8 @@ csl: ecology.csl
 #| echo: false
 #| cache: false
 ALL <- TRUE
-#SOL <- TRUE
-SOL <- FALSE
+SOL <- TRUE
+#SOL <- FALSE
 QLABELS <- TRUE
 EXAM <- FALSE
 #EXAM <- TRUE

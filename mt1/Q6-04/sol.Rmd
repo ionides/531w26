@@ -1,8 +1,0 @@
-
-\color{blue}
-
-**Solution**. C.\
-The points made in A, B, D are all correct but are not directly relevant to the question. In an ideal world, the absence of a list of sources would be logically equivalent to an explicit statement saying that no sources were used. However, in practice that is not the case. We need a system that is robust against the natural tendency to hide information that could lead us to get a lower grade (because the grader would be able to see that our own contribution was smaller than it might otherwise appear). Most of us realize that explicitly saying we did not consult a source, when in fact we did, is a lie and amounts to academic misconduct. Failure to mention the source sounds like a milder misdemeanor. Therefore, to help the grader distinguish these things, it is important to be explicit about the lack of sources when indeed you did not need to consult any. It is appropriate for the GSI to award points for turning in solutions that are well-written and easier for the grader to evaluate.
-
-\color{black}
-

@@ -8,10 +8,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
-from statsmodels.tsa.stattools import ccf
+from statsmodels.graphics.tsaplots import plot_ccf
 
 # Read and process CPI data
-cpi_wide = pd.read_csv("data/consumer_price_index.csv")
+cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
 cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
 inflation = np.diff(np.log(cpi_long))
 year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
@@ -23,17 +23,12 @@ lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
 inflation = lowess[:, 1]
 
 # Read and process unemployment data
-unemp_wide = pd.read_csv("data/adjusted_unemployment.csv")
+unemp_wide = pd.read_csv("data/adjusted_unemployment.csv", comment='#')
 unemployment = unemp_wide.iloc[:, 1:13].values.T.flatten()
-u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)[1:]
-unemployment = unemployment[u_year >= 1980]
-u_year = u_year[u_year >= 1980]
-
-# Compute cross-correlation
-# Python ccf has opposite sign convention from R
-lag_max = 80
-ccf_values = ccf(inflation, unemployment, nlags=lag_max)
-lags = np.arange(-lag_max, lag_max + 1)
+u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)
+mask = u_year >= 1980
+unemployment = unemployment[mask]
+u_year = u_year[mask]
 
 # Create two-panel plot
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.5))
@@ -46,17 +41,8 @@ ax1.set_ylabel('')
 ax1.text(2000, 13, 'A', fontsize=16)
 
 # Panel B: Cross-correlation function
-# R's ccf shows negative lags on left, positive on right
-# statsmodels ccf returns full correlation including both sides
-ax2.stem(lags, np.concatenate([ccf_values[::-1], ccf_values[1:]]),
-         linefmt='C0-', markerfmt='C0o', basefmt=' ', use_line_collection=True)
-ax2.axhline(y=0, color='k', linewidth=0.5)
-# Add confidence bands (approximate)
-n = len(inflation)
-conf_bound = 1.96 / np.sqrt(n)
-ax2.axhline(y=conf_bound, color='b', linestyle='--', linewidth=0.5)
-ax2.axhline(y=-conf_bound, color='b', linestyle='--', linewidth=0.5)
-ax2.set_xlabel('lag (months)')
+plot_ccf(inflation, unemployment, lags=80, ax=ax2, alpha=0.05)
+ax2.set_title('')
 ax2.set_ylabel('CCF')
 ax2.text(0, 0.32, 'B', fontsize=16)
 

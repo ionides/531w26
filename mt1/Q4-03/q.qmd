@@ -11,7 +11,7 @@ import statsmodels.api as sm
 from statsmodels.graphics.tsaplots import plot_acf
 
 # Read and process CPI data
-cpi_wide = pd.read_csv("data/consumer_price_index.csv")
+cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
 cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
 inflation = np.diff(np.log(cpi_long))
 year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
@@ -23,11 +23,12 @@ lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
 inflation = lowess[:, 1]
 
 # Read and process unemployment data
-unemp_wide = pd.read_csv("data/adjusted_unemployment.csv")
+unemp_wide = pd.read_csv("data/adjusted_unemployment.csv", comment='#')
 unemployment = unemp_wide.iloc[:, 1:13].values.T.flatten()
-u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)[1:]
-unemployment = unemployment[u_year >= 1980]
-u_year = u_year[u_year >= 1980]
+u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)
+mask = u_year >= 1980
+unemployment = unemployment[mask]
+u_year = u_year[mask]
 
 # OLS regression
 X = sm.add_constant(unemployment)

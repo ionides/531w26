@@ -15,9 +15,9 @@ import matplotlib.pyplot as plt
 from scipy import stats
 from statsmodels.tsa.arima.model import ARIMA
 
-mers_df = pd.read_csv("data/mers.csv")
+mers_df = pd.read_csv("data/mers.csv", comment='#')
 saudi = mers_df[mers_df['Region'] == 'Saudi Arabia']
-mers = saudi['New.Cases'].values
+mers = saudi['New Cases'].values
 year = saudi['Year'].values + (saudi['Week'].values - 1) / 52
 mask = year > 2013.5
 mers = mers[mask]

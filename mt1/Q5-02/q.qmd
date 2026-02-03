@@ -11,7 +11,7 @@ from scipy import signal
 import statsmodels.api as sm
 
 # Read CPI data
-cpi_wide = pd.read_csv("data/consumer_price_index.csv")
+cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
 # Convert wide to long format (months in columns 2-13)
 cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
 # Compute inflation: diff of log

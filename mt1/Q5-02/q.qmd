@@ -1,26 +1,56 @@
 
-```{r}
-#| label: read_cpi
+```{python}
+#| label: q5_02_read_cpi
 #| echo: false
 #| fig-width: 7
 #| fig-height: 2.5
-#| out-width: 5in
-cpi_wide <- read.table(file="data/consumer_price_index.csv",sep=",",header=TRUE)
-cpi_long <- as.vector(t(as.matrix(cpi_wide[,2:13])))
-inflation <- diff(log(cpi_long))
-year <- seq(from=1913,length=length(cpi_long),by=1/12)[-1]
-inflation <- inflation[year>=1980]*12*100 # percent, annualized
-year <- year[year>=1980]
-i_smo <- loess(inflation~year,span=0.1)$fitted
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import signal
+import statsmodels.api as sm
 
-par(mai=c(0.5,1,0.25,0.1))
-par(mfrow=c(1,2))
-plot(year,inflation,ty='l',ylab="")
-mtext("A",side=3,line=-1,at=1968,cex=2)
-lines(year,i_smo,col="red")
-spectrum(cbind(ts(inflation,start=1980,freq=12),ts(i_smo,start=1980,freq=12)),main="",ylab="")
-mtext("B",side=3,line=-1,at=-1.6,cex=2)
+# Read CPI data
+cpi_wide = pd.read_csv("data/consumer_price_index.csv")
+# Convert wide to long format (months in columns 2-13)
+cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
+# Compute inflation: diff of log
+inflation = np.diff(np.log(cpi_long))
+# Create year sequence
+year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
+# Filter for years >= 1980, annualize percent
+inflation = inflation[year >= 1980] * 12 * 100  # percent, annualized
+year = year[year >= 1980]
 
+# Apply loess smoothing
+lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
+i_smo = lowess[:, 1]
+
+# Compute spectra using Welch's method
+freq1, psd1 = signal.welch(inflation, fs=12, nperseg=min(256, len(inflation)//4),
+                            scaling='spectrum', detrend='linear')
+freq2, psd2 = signal.welch(i_smo, fs=12, nperseg=min(256, len(i_smo)//4),
+                            scaling='spectrum', detrend='linear')
+
+# Create two-panel plot
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.5))
+
+# Panel A: Time series
+ax1.plot(year, inflation, 'k-', linewidth=0.5)
+ax1.plot(year, i_smo, 'r-', linewidth=1)
+ax1.set_xlabel('')
+ax1.set_ylabel('')
+ax1.text(0.05, 0.95, 'A', transform=ax1.transAxes, fontsize=16, va='top')
+
+# Panel B: Spectrum
+ax2.plot(freq1, 10*np.log10(psd1), 'k-', linewidth=0.5, label='inflation')
+ax2.plot(freq2, 10*np.log10(psd2), 'r--', linewidth=1, label='smooth')
+ax2.set_xlabel('frequency (cycles/year)')
+ax2.set_ylabel('')
+ax2.text(0.05, 0.95, 'B', transform=ax2.transAxes, fontsize=16, va='top')
+
+plt.tight_layout()
+plt.show()
 ```
 
 The monthly US consumer price index (CPI) combines the price of a basket of products, such as eggs and bread and gasoline. (A) Annualized monthly percent inflation, i.e., the difference of log-CPI multiplied by $12\times 100$ (black line); a smooth estimate via local linear regression (red line). (B) The periodogram of inflation and its smooth estimate. Which best characterizes the behavior of the smoother?

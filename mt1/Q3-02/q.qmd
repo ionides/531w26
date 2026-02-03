@@ -1,17 +1,23 @@
 
 The Python function `statsmodels.tsa.arima.model.ARIMA.fit` and the R function `arima()` provide standard errors calculated by observed Fisher information. This question tests your understanding of what that means. Suppose a parametric model has a single parameter, $\theta$, and the log-likelihood function when fitting this model to dataset is as follows:
 
-```{r}
-#| label: fisher_info
+```{python}
+#| label: q3_02_fisher_info
 #| fig-width: 5
 #| fig-height: 3.5
 #| echo: false
-#| out-width: 3in
-#| crop: null
-theta <- seq(from=0,to=10,length=200)
-loglik <- -2000-(theta-5)^2
-par(mai=c(0.8,0.8,0.1,0.1))
-plot(theta,loglik,ty="l")
+import numpy as np
+import matplotlib.pyplot as plt
+
+theta = np.linspace(0, 10, 200)
+loglik = -2000 - (theta - 5)**2
+
+fig, ax = plt.subplots(figsize=(5, 3.5))
+ax.plot(theta, loglik)
+ax.set_xlabel('theta')
+ax.set_ylabel('loglik')
+plt.tight_layout()
+plt.show()
 ```
 
 What is the observed Fisher information ($I_{\mathrm obs}$) for $\theta$?

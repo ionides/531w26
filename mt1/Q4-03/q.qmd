@@ -1,42 +1,64 @@
 
-```{r}
-#| label: read_cpi_and_unemp
+```{python}
+#| label: q4_03_read_cpi_and_unemp
 #| echo: false
 #| fig-width: 7
 #| fig-height: 2.5
-#| out-width: 5in
-cpi_wide <- read.table(file="data/consumer_price_index.csv",sep=",",header=TRUE)
-cpi_long <- as.vector(t(as.matrix(cpi_wide[,2:13])))
-inflation <- diff(log(cpi_long))
-year <- seq(from=1913,length=length(cpi_long),by=1/12)[-1]
-inflation <- inflation[year>=1980]*12*100 # percent, annualized
-year <- year[year>=1980]
-i_smo <- loess(inflation~year,span=0.1)$fitted
-inflation <- i_smo
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from statsmodels.graphics.tsaplots import plot_acf
 
-unemp_wide <- read.table(file="data/adjusted_unemployment.csv",sep=",",header=TRUE)
-unemployment <- as.vector(t(as.matrix(unemp_wide[,2:13])))
-u_year <- seq(from=1948,length=length(unemployment),by=1/12)[-1]
-unemployment <- unemployment[u_year>=1980]
-u_year <- u_year[u_year>=1980]
-ols <- lm(inflation~unemployment)
+# Read and process CPI data
+cpi_wide = pd.read_csv("data/consumer_price_index.csv")
+cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
+inflation = np.diff(np.log(cpi_long))
+year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
+inflation = inflation[year >= 1980] * 12 * 100  # percent, annualized
+year = year[year >= 1980]
 
-par(mai=c(0.5,1,0.35,0.1))
-par(mfrow=c(1,2))
-matplot(x=year,y=cbind(inflation,unemployment),ty="l",ylab="")
-text("A",x=1988,y=13,cex=2)
-acf(resid(lm(inflation~unemployment)),lag.max=50)
-text("B",x=12,y=0.87,cex=2)
+# Apply loess smoothing
+lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
+inflation = lowess[:, 1]
 
+# Read and process unemployment data
+unemp_wide = pd.read_csv("data/adjusted_unemployment.csv")
+unemployment = unemp_wide.iloc[:, 1:13].values.T.flatten()
+u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)[1:]
+unemployment = unemployment[u_year >= 1980]
+u_year = u_year[u_year >= 1980]
+
+# OLS regression
+X = sm.add_constant(unemployment)
+ols = sm.OLS(inflation, X).fit()
+
+# Create two-panel plot
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.5))
+
+# Panel A: Time series
+ax1.plot(year, inflation, 'k-', linewidth=1)
+ax1.plot(u_year, unemployment, 'r-', linewidth=1)
+ax1.set_xlabel('')
+ax1.set_ylabel('')
+ax1.text(1988, 13, 'A', fontsize=16)
+
+# Panel B: ACF of residuals
+plot_acf(ols.resid, lags=50, ax=ax2, alpha=0.05)
+ax2.set_title('')
+ax2.text(12, 0.87, 'B', fontsize=16)
+
+plt.tight_layout()
+plt.show()
 ```
 
 \(A) Inflation (black) and unemployment (red) for the USA, 1980-2024. (B) Sample autocorrelation function of the residuals from a least square regression, 'lm(inflation~unemployment)', with estimated coefficients below. Which is the best interpretation of these graphs and fitted model?
 
-```{r}
-#| label: lm_inflation_unemployment
+```{python}
+#| label: q4_03_lm_inflation_unemployment
 #| echo: false
-#summary(lm(inflation~unemployment))
-lm(inflation~unemployment)$coef
+# Print coefficients
+print(ols.params)
 ```
 
 A: 0.05 is a reasonable estimate for the additional unemployment caused by one percentage point of additional inflation. We should not trust the uncertainty estimate (not shown), since our model does not allow for autocorrelation of the residuals.

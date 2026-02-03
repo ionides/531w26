@@ -1,27 +1,44 @@
 
-```{r}
-#| label: read_mers
+```{python}
+#| label: q4_02_read_mers
 #| echo: false
 #| fig-width: 7
 #| fig-height: 2.5
-#| out-width: 5in
-# code adapted from
-# https://ionides.github.io/531w24/final_project/project15
-mers_df <- read.table(file="data/mers.csv",sep=",",header=TRUE)
-saudi <- mers_df[mers_df$Region=='Saudi Arabia',]
-mers <- saudi$New.Cases
-year <- saudi$Year + (saudi$Week-1)/52
-mers <- mers[year>2013.5]
-year <- year[year>2013.5]
-arma22 <- arima(mers,order=c(2,0,2))
-par(mai=c(0.5,1,0.35,0.1))
-par(mfrow=c(1,2))
-plot(year,mers, type="l", col="black", ylab="MERS Reports", xlab="Year",)
-mtext("A",side=3,line=0,at=2012.1,cex=2)
-qqnorm(resid(arma22))
-qqline(resid(arma22))
-mtext("B",side=3,line=0,at=-4.2,cex=2)
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import stats
+from statsmodels.tsa.arima.model import ARIMA
 
+# Code adapted from
+# https://ionides.github.io/531w24/final_project/project15
+mers_df = pd.read_csv("data/mers.csv")
+saudi = mers_df[mers_df['Region'] == 'Saudi Arabia']
+mers = saudi['New.Cases'].values
+year = saudi['Year'].values + (saudi['Week'].values - 1) / 52
+mask = year > 2013.5
+mers = mers[mask]
+year = year[mask]
+
+# Fit ARMA(2,2)
+arma22 = ARIMA(mers, order=(2, 0, 2)).fit()
+
+# Create two-panel plot
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.5))
+
+# Panel A: Time series
+ax1.plot(year, mers, 'k-', linewidth=1)
+ax1.set_xlabel('Year')
+ax1.set_ylabel('MERS Reports')
+ax1.text(2012.1, 80, 'A', fontsize=16)
+
+# Panel B: Q-Q plot
+stats.probplot(arma22.resid, dist="norm", plot=ax2)
+ax2.set_title('')
+ax2.text(-4.2, 35, 'B', fontsize=16)
+
+plt.tight_layout()
+plt.show()
 ```
 
 \(A) Weekly cases of Middle East Respiratory Syndome (MERS) in Saudi Arabia. (B) a normal quantile plot of the residuals from fitting an ARMA(2,2) model to these data using `arima()`. What is the best interpretation of (B)?

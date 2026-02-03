@@ -3,15 +3,20 @@ We consider data $y_{1:415}$ where $y_n$ is the time, in miliseconds, between th
 Let $z_n = \log(y_n)$, with $\log$ being the natural logarithm.
 The sample autocorrelation function of $z_{1:415}$ is shown below.
 
-```{r}
-#| label: monkey_log_acf
+```{python}
+#| label: q4_01_monkey_log_acf
 #| echo: false
 #| fig-width: 6
 #| fig-height: 4
-N2a <- unlist(read.table(file="data/akira2a.asc"))
-x<-ts(diff(N2a)[diff(N2a)<10000])/10 # units: milliseconds
-z <- log(x)
-acf(z)
+import numpy as np
+from statsmodels.graphics.tsaplots import plot_acf
+
+N2a = np.loadtxt("data/akira2a.asc")
+x = np.diff(N2a)
+x = x[x < 10000] / 10  # units: milliseconds
+z = np.log(x)
+
+plot_acf(z, lags=20)
 ```
 
 We are interested about whether it is appropriate to model the time series as a stationary causal ARMA process. Which of the following is the best interpretation of the evidence from these plots:

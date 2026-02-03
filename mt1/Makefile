@@ -3,6 +3,8 @@ default: pdf-docs
 pdf-docs: mt1.pdf
 html-docs: mt1.html
 
+%.pdf: %.qmd
+	quarto render $*.qmd
 
 %.html: %.Rmd
 	Rscript --vanilla -e "rmarkdown::render(\"$*.Rmd\",output_format=\"html_document\")"

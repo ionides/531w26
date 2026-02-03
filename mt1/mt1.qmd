@@ -6,7 +6,6 @@ format:
     pdf-engine: xelatex
     toc: false
 jupyter: python3
-csl: ecology.csl
 ---
 
 

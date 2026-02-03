@@ -1,15 +1,22 @@
 
-```{r}
+```{python}
 #| label: q7_03_acf_plot
 #| echo: false
 #| fig-width: 8
 #| fig-height: 2.5
-#| out-width: 4in
-set.seed(33)
-N <- 200
-y <- rnorm(N)
-par(mai=c(0.4,0.6,0.1,0.1))
-acf(y,main ="",ylab="testing")
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+np.random.seed(33)
+N = 200
+y = np.random.normal(size=N)
+
+fig, ax = plt.subplots(figsize=(8, 2.5))
+plot_acf(y, lags=20, ax=ax, alpha=0.05, title='')
+ax.set_ylabel('testing')
+plt.tight_layout()
+plt.show()
 ```
 
 The plot above is the sample autocorrelation function (ACF) for a time series $y_{1:N}$. What is the best conclusion to draw from this evidence?

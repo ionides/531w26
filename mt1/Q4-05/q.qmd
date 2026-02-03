@@ -1,56 +1,78 @@
 
-```{r}
-#| label: huron_ljung_box
+```{python}
+#| label: q4_05_huron_ljung_box
 #| echo: false
-#| results: asis
-#| warnings: false
-#| messages: false
-dat <- read.table(file="data/huron_level.csv",sep=",",header=TRUE)
-huron_level <- dat$Jan
-year <- dat$Year
-# m <- arima(huron_level, order=c(2,0,2))
-# blt_test <- Box.test(resid(m), lag = 5, type = c("Box-Pierce", "Ljung-Box"),fitdf = 5)
-library(arima2,quietly=TRUE,warn.conflicts=FALSE)
+#| output: asis
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.stats.diagnostic import acorr_ljungbox
+import os
 
-aic_blt_table <- function (data, P, Q, D = 0, ic = c("aic", "aicc"), blt_lag =5, ...)
-{
-    ic <- match.arg(ic)
-    if (!is.numeric(P) | !is.numeric(Q) | !is.numeric(D)) {
-        stop("'P', 'Q' and 'D' must be numeric.")
-    }
-    P <- as.integer(P)
-    Q <- as.integer(Q)
-    D <- as.integer(D)
-    aic_table <- matrix(NA, (P + 1), (Q + 1))
-    blt_table <- matrix(NA, (P + 1), (Q + 1))
-    for (p in 0:P) {
-        for (q in 0:Q) {
-            mod <- arima(data, order = c(p, D, q), ...)
-            val <- mod$aic
-            if (ic == "aicc") {
-                k <- sum(mod$mask) + 1
-                val <- val + (2 * k^2 + 2 * k)/(mod$nobs - k - 1)
-            }
-            aic_table[p + 1, q + 1] <- round(val,2)
-	    blt_table[p + 1, q + 1] <- signif(
-	      Box.test(resid(mod), type="Ljung-Box",
-	      lag = blt_lag)$p.value, 3)
+dat = pd.read_csv("data/huron_level.csv", comment='#')
+huron_level = dat[' Jan'].values
+year = dat['Year'].values
 
-        }
-    }
-    dimnames(aic_table) <- dimnames(blt_table) <- list(paste("AR", 0:P, sep = ""), paste("AIC MA", 0:Q, sep = ""))
-    dimnames(blt_table) <- list(paste("AR", 0:P, sep = ""), paste("LBT MA",
-        0:Q, sep = ""))
-    list(aic=aic_table,blt=blt_table)
-}
+def aic_blt_table(data, P, Q, blt_lag=5):
+    """
+    Create AIC and Ljung-Box test tables for ARMA(p,q) models.
 
-if(file.exists("data/aic_blt_table.rds")) {
-  ab_table <- readRDS("data/aic_blt_table.rds")
-} else {
-  ab_table <- aic_blt_table(huron_level,P=4,Q=4)
-  saveRDS(ab_table,file="data/aic_blt_table.rds")
-}
-knitr::kable(cbind(ab_table$aic,ab_table$blt))
+    Parameters:
+    -----------
+    data : array-like
+        Time series data
+    P : int
+        Maximum AR order
+    Q : int
+        Maximum MA order
+    blt_lag : int
+        Lag for Ljung-Box test
+
+    Returns:
+    --------
+    dict with 'aic' and 'blt' DataFrames
+    """
+    aic_table = np.full((P+1, Q+1), np.nan)
+    blt_table = np.full((P+1, Q+1), np.nan)
+
+    for p in range(P+1):
+        for q in range(Q+1):
+            try:
+                mod = ARIMA(data, order=(p, 0, q)).fit(method_kwargs={'warn_convergence': False})
+                aic_table[p, q] = mod.aic
+
+                # Ljung-Box test on residuals
+                lb_test = acorr_ljungbox(mod.resid, lags=[blt_lag], return_df=False)
+                blt_table[p, q] = lb_test[1][0]  # p-value
+            except:
+                # If model fails to fit, leave as NaN
+                pass
+
+    # Create DataFrames with proper labels
+    row_labels = [f'AR{p}' for p in range(P+1)]
+    aic_cols = [f'AIC MA{q}' for q in range(Q+1)]
+    blt_cols = [f'LBT MA{q}' for q in range(Q+1)]
+
+    aic_df = pd.DataFrame(aic_table, index=row_labels, columns=aic_cols)
+    blt_df = pd.DataFrame(blt_table, index=row_labels, columns=blt_cols)
+
+    # Round for display
+    aic_df = aic_df.round(2)
+    blt_df = blt_df.applymap(lambda x: f'{x:.3g}' if pd.notna(x) else 'NaN')
+
+    return {'aic': aic_df, 'blt': blt_df}
+
+# Check if cached version exists, otherwise compute
+cache_file = "data/aic_blt_table.pkl"
+if os.path.exists(cache_file):
+    ab_table = pd.read_pickle(cache_file)
+else:
+    ab_table = aic_blt_table(huron_level, P=4, Q=4)
+    pd.to_pickle(ab_table, cache_file)
+
+# Combine tables side by side
+combined = pd.concat([ab_table['aic'], ab_table['blt']], axis=1)
+print(combined.to_markdown())
 ```
 
 The [Ljung-Box test (LBT)](https://wikipedia.org/wiki/Ljung-Box_test) provides an alternative approach to comparison of AIC values for selecting ARMA models. Whereas the standard sample autocorrelation function (ACF) residual plot tests each ACF component $\hat\rho_k$ under a null hypothesis of white noise, LBT tests $\sum_{k=1}^h \hat\rho_k^2$. Here, we present an AIC table and an LBT table (for $h=5$). This course have favored AIC, with visual inspection of ACF and checking whether residual patterns appear in the frequency domain. There may be reasons to prefer LBT. Which of the following are good reasons to use LBT?

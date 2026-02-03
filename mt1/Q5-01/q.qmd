@@ -5,24 +5,36 @@ A smoothed periodogram of $z_{1:415}$ is shown below.
 Units of frequency are the default value in R, i.e., cycles per unit observation.
 We see a peak at a frequency of approximately 0.07.
 
-```{r}
-#| label: monkey_log_periodogram
+```{python}
+#| label: q5_01_monkey_log_periodogram
 #| echo: false
 #| fig-width: 6
 #| fig-height: 4
-## THIS WORKS BUT IT'S MESSY. BETTER TO REGENERATE THE PLOT
-## image <- png::readPNG(paste0(my_dir,"/monkey-log-periodogram.png"))
-## plot(NA, xlim = c(0, 1), ylim = c(0, 1), type = "n", xaxt = "n",
-##   yaxt = "n", xlab = "", ylab = "")
-## rasterImage(image,0,0,1,1)
-##
-## to do this, we could have used
-## knitr::include_graphics(paste0(my_dir,"/monkey-log-periodogram.png"))
-N2a <- unlist(read.table(file="data/akira2a.asc"))
-x<-ts(diff(N2a)[diff(N2a)<10000])/10 # units: milliseconds
-z <- log(x)
-par(mai=c(1,1,0.1,0.1) )
-spectrum(z,spans=c(11,9,13),sub="",main="")
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+
+# Read neuron data
+N2a = np.loadtxt("data/akira2a.asc")
+# Process: take differences, filter values < 10000, convert to milliseconds
+x = np.diff(N2a)
+x = x[x < 10000] / 10  # units: milliseconds
+z = np.log(x)
+
+# Compute smoothed periodogram using Welch's method
+# R's spectrum() with spans=c(11,9,13) does smoothing
+# Welch's method provides similar smoothing via windowing
+freq, psd = signal.welch(z, fs=1.0, nperseg=min(256, len(z)//4),
+                          scaling='spectrum', detrend='linear')
+
+# Plot
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(freq, 10*np.log10(psd))  # Convert to dB scale
+ax.set_xlabel('frequency')
+ax.set_ylabel('spectrum (dB)')
+ax.set_xlim(0, 0.5)
+plt.tight_layout()
+plt.show()
 ```
 
 Which if the following is the best inference from this figure

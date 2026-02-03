@@ -1,0 +1,15 @@
+
+Let $Y_n = \phi Y_{n-1} + \epsilon_n$ for $n=1,2,\dots$ with $\epsilon_n \sim \mathrm{iid} N[0,\sigma^2]$ and $Y_0 = 0$.
+The covariance of $Y_n$ with $Y_{n+k}$ for $k\ge 0$ is
+
+A. $\sigma^2 \phi^k/(1-\phi^2)$
+
+B. $\sigma^2 \phi^{2k}/(1-\phi^2)$
+
+C. $\sigma^2 \phi^{k}/(1-\phi)$
+
+D. $\sigma^2 \phi^{2k}/(1-\phi)$
+
+E. None of the above.
+
+

@@ -1,0 +1,35 @@
+
+We consider data $y_{1:415}$ where $y_n$ is the time interval, in milliseconds, between the $n$th and $(n+1)$th firing event for a monkey neuron.
+Let $z_n = \log(y_n)$, with $\log$ being the natural logarithm.
+A smoothed periodogram of $z_{1:415}$ is shown below.
+Units of frequency are the default value in R, i.e., cycles per unit observation.
+We see a peak at a frequency of approximately 0.07.
+
+```{r}
+#| label: monkey_log_periodogram
+#| echo: false
+#| fig-width: 6
+#| fig-height: 4
+## THIS WORKS BUT IT'S MESSY. BETTER TO REGENERATE THE PLOT
+## image <- png::readPNG(paste0(my_dir,"/monkey-log-periodogram.png"))
+## plot(NA, xlim = c(0, 1), ylim = c(0, 1), type = "n", xaxt = "n",
+##   yaxt = "n", xlab = "", ylab = "")
+## rasterImage(image,0,0,1,1)
+##
+## to do this, we could have used
+## knitr::include_graphics(paste0(my_dir,"/monkey-log-periodogram.png"))
+N2a <- unlist(read.table(file="data/akira2a.asc"))
+x<-ts(diff(N2a)[diff(N2a)<10000])/10 # units: milliseconds
+z <- log(x)
+par(mai=c(1,1,0.1,0.1) )
+spectrum(z,spans=c(11,9,13),sub="",main="")
+```
+
+Which if the following is the best inference from this figure
+
+A. Transitions between rapid neuron firing (short intervals between firing) and slow neuron firing (long intervals between firing) occur every $1/0.07\approx 14$ firing events.
+
+B. The neuron has a characteristic duration between firing events of $1/0.07 \approx 14$  milliseconds.
+
+C. The neuron has a characteristic duration between firing events of $1/\exp(0.07) \approx 0.9$ milliseconds.
+

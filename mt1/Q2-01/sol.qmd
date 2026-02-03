@@ -1,0 +1,23 @@
+
+\color{blue}
+
+**Solution**. E.\
+This model is not started in its stationary distribution, leading to a covariance that is not shift invariant. The exact calculation is not needed, but it is as follows.
+$$\begin{array}{rcl}
+\cov(Y_n,Y_k) &=& \cov\left(
+  \sum_{i=1}^n \phi^{n-i}\epsilon_i,
+  \sum_{j=1}^{n+k} \phi^{n+k-j}\epsilon_j
+\right)
+\\
+&=& \sum_{i=1}^n \sum_{j=1}^{n+k} \phi^{2n+k-(i+j)} \cov(\epsilon_i,\epsilon_j)
+\\
+&=& \sigma^2 \phi^k \sum_{i=1}^n  \phi^{2(n-i)}
+\\
+&=& \sigma^2 \phi^k  \sum_{i=0}^{n-1}  \phi^{2i}
+\\
+&=& \sigma^2 \phi^k(1-\phi^{2n}) \big/ (1-\phi^2)
+\end{array}$$
+If you didn't see this, you may feel you were tricked. However, it is a common mistake in practical data analysis to pay insufficient attention to initial conditions, so it is worth bringing this to your attention.
+
+\color{black}
+

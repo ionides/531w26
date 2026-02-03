@@ -1,0 +1,10 @@
+
+\color{blue}
+
+**Solution**. B.\
+The usual interpretation of the sample ACF assumes that variance and covariance depend only on lag (i.e., the data are well modeled by a shift-invariant autocovariance) but the plot does not check this.
+
+There is clear evidence that the process is not well modeled by white noise. There is also clear evidence against a trend in the mean, which would show up as a slowly decaying sample ACF.
+
+\color{black}
+

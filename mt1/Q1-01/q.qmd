@@ -1,0 +1,15 @@
+
+Suppose that a dataset $y_{1:N}^*$ is well described by the statistical model
+$$Y_n = a + b n + \epsilon_n,$$
+where $\epsilon_n$ is a Gaussian ARMA process and $b \neq 0$. Which of the following is the best approach to time series modeling of $y_{1:N}^*$?
+
+A. The data are best modeled as non-stationary, so we should take differences. The differenced data are well described by a stationary ARMA model.
+
+B. The data are best modeled as non-stationary, and we should use a trend plus ARMA noise model.
+
+C. The data are best modeled as non-stationary. It does not matter if we difference or model as trend plus ARMA noise since these are both linear time series models which become equivalent when we estimate their parameters from the data.
+
+D. We should be cautious about doing any of A, B or C because the data may have nonstationary sample variance in which case it may require a transformation before it is appropriate to fit any ARMA model.
+
+
+

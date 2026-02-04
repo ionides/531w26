@@ -1,0 +1,24 @@
+---
+title: ""
+author: ""
+geometry: paperheight=5in,paperwidth=6.5in,margin=0.3in
+output: pdf_document
+fig_crop: false
+
+---
+
+\newcommand\exam[1]{#1} 
+\renewcommand\exam[1]{} 
+
+\newcommand\var{\mathrm{Var}}
+\newcommand\varSample{\mathrm{var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\covSample{\mathrm{cov}}
+\newcommand\cor{\mathrm{Cor}}
+\newcommand\corSample{\mathrm{cor}}
+\newcommand\TRUEorFALSE{TRUE or FALSE. } 
+
+```{r,child="tmp08.qmd"}
+```
+
+

@@ -1,0 +1,32 @@
+
+Class 8 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class08.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+1. Multiple choice question title:
+Interpreting an ADF test: https://ionides.github.io/531w26/quiz/class08.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class08.pdf
+
+
+Answers: 
+
+(A). The time plot indicates a non-constant mean function describing a major dip due to the COVID-19 pandemic and an increasing trend at other times. The ADF test does not support or refute that model.
+
+(B). The ADF test indicates that the series is stationary, supporting a decision to fit a SARMA model.
+
+(C). The ADF test indicates that the series is non-stationary; it should be diﬀerenced before fitting a SARMA.
+
+(D). The ADF test indicates that the series is non-stationary, supporting the use of a non-constant mean function to describe a major dip due to the COVID-19 pandemic and an increasing trend at other times.
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer to the multiple choice question. You are expected to write between one and three sentences.
+
+The credit is for Q2 not Q1. For this assignment, the grade is for participation and feedback not correctness. 
+
+
+

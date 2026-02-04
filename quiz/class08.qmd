@@ -1,9 +1,12 @@
 ---
 title: ""
 author: ""
-geometry: paperheight=5in,paperwidth=6.5in,margin=0.3in
-output: pdf_document
-fig_crop: false
+geometry: paperheight=5.5in,paperwidth=7.5in,margin=0.3in
+format:
+  pdf:
+    pdf-engine: xelatex
+    toc: false
+jupyter: python3
 
 ---
 
@@ -18,7 +21,8 @@ fig_crop: false
 \newcommand\corSample{\mathrm{cor}}
 \newcommand\TRUEorFALSE{TRUE or FALSE. } 
 
-```{r,child="tmp08.qmd"}
-```
+
+{{< include tmp08.qmd >}}
+
 
 

@@ -5,6 +5,7 @@
 | Lecture material          | Link                         |
 |:-----------------------|:------------------------:|
 | Slides  | [pdf](slides.pdf) |
+| Annotated slides | [pdf](slides-annotated.pdf) |
 | Notes   | [pdf](notes.pdf) |
 | Recording, Winter 2021: Chapter 6, Part 1  | [(27 mins)](https://youtu.be/YSriL0C2D-A) |
 | Recording, Winter 2021: Chapter 6, Part 2  | [(19 mins)](https://youtu.be/YtNGC60FJeU) |

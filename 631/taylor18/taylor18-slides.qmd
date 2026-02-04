@@ -1,0 +1,53 @@
+---
+title: "taylor18"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
+---
+
+## Impact
+
+Sean J. Taylor & Benjamin Letham (2018) Forecasting at Scale, _The American Statistician_, 72:1, 37-45, https://doi.org/10.1080/00031305.2017.1380080
+
+* This influential paper is cited over 3000 times, but that's an underestimate of the impact of Prophet.
+
+* Avoids usual models of time series dependence in favor of penalized regression, in something like a structured hierarchical autoregressive model.
+
+## Goal
+
+"_We have observed two main themes in the practice of creating business forecasts. First, completely automatic forecasting techniques can be hard to tune and are often too inflexible to incorporate useful assumptions or heuristics. Second, the analysts responsible for data science tasks throughout an organization typically have deep domain expertise about the specific products or services that they support, but often do not have training in time series forecasting. Analysts who can produce high-quality forecasts are thus quite rare because forecasting is a specialized skill requiring substantial experience._"
+
+## The model
+
+* Eq. (1) ignores temporal dependence (except as explained by trend & seasonality)
+
+* _"We are, in effect, framing the forecasting problem as a curve-fitting exercise, which is inherently different from time series models that explicitly account for the temporal dependence structure in the data. While we give up some important inferential advantages of using a generative model such as an ARIMA, this formulation provides a number of practical advantages."_
+
+* Focuses on daily data which is a weakness for ARMA
+
+## Fitting
+
+When prophet uses stan to do L-BFGS, is it just using autodiff for optimizing the joint density (equivalent to penalized regression)?
+
+## Model checking
+
+* Advocates for baseline forecasts.
+
+* Simulated historical forecasts: select a random collection of past points, but not all of them because there's no point
+
+## Software
+
+https://github.com/facebook/prophet
+
+`pip install prophet`
+
+`install.packaged(prophet)`
+
+https://cran.r-project.org/web/packages/prophet/vignettes/quick_start.html
+
+
+
+

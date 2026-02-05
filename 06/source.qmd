@@ -128,7 +128,7 @@ time_sub = time[time < 2014.99]
 
 # Fit SARMA(1,1)x(1,0)_12 model
 huron_sarma11x10 = SARIMAX(huron_level_sub,
-    order=(1, 0, 1),
+    order=(1, 0, 1), trend='c',
     seasonal_order=(1, 0, 0, 12)).fit()
 ```
 
@@ -140,17 +140,19 @@ print(huron_sarma11x10.summary().tables[1])
 
 \normalsize
 
-## Residual analysis
+## 
 
-- Residual analysis is similar to non-seasonal ARMA models.
+**Residual analysis** is similar to non-seasonal ARMA models.
+
 - We look for residual correlations at lags corresponding to multiples of the period (here, 12, 24, 36, ...) for misspecified annual dependence.
+- Analyze `huron_sarma11x10.resid[1:]` to ignore the first residual, which is large due to initialization.
 
 ```{python}
 #| echo: false
 #| fig-width: 8
 #| fig-height: 2.5
 fig, ax = plt.subplots(figsize=(8, 2.5))
-plot_acf(huron_sarma11x10.resid, ax=ax, lags=40)
+plot_acf(huron_sarma11x10.resid[1:], ax=ax, lags=30)
 plt.tight_layout()
 plt.show()
 ```

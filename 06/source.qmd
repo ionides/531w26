@@ -60,7 +60,7 @@ where $\{\epsilon_n\}$ is a white noise process and
 - In principle, a SARMA$(p,q)\times(P,Q)_{52}$ model could be appropriate for weekly data, though in practice ARMA and SARMA may not work so well for higher frequency data.
 - The seasonal period should be appropriate for the system being modeled. It is usually inappropriate to fit a SARMA$(p,q)\times(P,Q)_{9}$ model just because you notice a high sample autocorrelation at lag 9.
 
-----
+##
 
 Consider the following two models:
 
@@ -71,7 +71,7 @@ Consider the following two models:
 **Question.** Which of [S2] and/or [S3] is a SARMA model?
 
 
-----
+##
 
 **Question.** Why do we assume a multiplicative structure in the SARMA model, [S1]? What theoretical and practical advantages (or disadvantages) arise from requiring that an ARMA model for seasonal behavior has polynomials that can be factored as a product of a monthly polynomial and an annual polynomial?
 
@@ -96,7 +96,7 @@ months = np.tile(np.arange(12), len(dat))
 time = years + months/12
 ```
 
-----
+##
 
 ```{python}
 #| echo: false
@@ -119,7 +119,7 @@ We try ARMA(1,1) for the monthly part, giving
 
 - As discussed earlier, we analyze data only up to 2014, shown by a red line on the plot.
 
-----
+##
 
 ```{python}
 #| echo: true
@@ -179,7 +179,7 @@ where $\{\epsilon_n\}$ is a white noise process; $\phi(x)$ and $\theta(x)$ are A
 
 - It is unusual to fit an ARIMA model with $d>1$.
 
-----
+##
 
 An ARIMA(p,1,q) model is almost a special case of an ARMA(p+1,q) model with a **unit root** to the AR(p+1) polynomial.
 
@@ -233,7 +233,7 @@ where $\{\eta_n\}$ is a stationary, mean zero stochastic process, and $\mu_n$ is
 
 - A **signal plus ARMA(p,q) noise model** occurs when $\{\eta_n\}$ is a stationary, causal, invertible, mean zero ARMA(p,q) process.
 
-----
+##
 
 - As well as the $p+q+1$ parameters in the ARMA(p,q) noise model, there will usually be unknown parameters in the mean function.
 
@@ -289,7 +289,7 @@ plt.show()
 
 - First, for comparison, we fit a null model with no trend.
 
-----
+##
 
 \footnotesize
 
@@ -308,7 +308,7 @@ AIC: `{python} f"{fit0.aic:.2f}"`
 \normalsize
 
 
-----
+##
 
 - We compare `fit0` with a linear trend model, coded as `fit1`.
 - The covariate is included via the `exog` argument.
@@ -343,7 +343,7 @@ and our alternative hypothesis is
 H^{\langle 1\rangle}: \beta\neq 0.
 \end{equation}
 
-----
+##
 
 **Question.** How do we test $H^{\langle 0\rangle}$ against $H^{\langle 1\rangle}$?
 onstruct two different tests using the Python output above.
@@ -359,17 +359,15 @@ Which test do you think is more accurate, and why?
 
 **Definition:** A time series model has a **unit root** if its first difference is stationary.
 
-- For linear time series models, this corresponds to a $(1-L)$ factor in the AR specification, and hence an AR polynomial root of $1$.
+- For a linear time series model, this is a $(1-B)$ factor in the AR specification, and hence an AR polynomial root of $1$.
 
-- A unit root corresponds to a "stochastic trend" (formally an oxymoron) described by a random walk.
-
-The **augmented Dickey-Fuller (ADF)** test has this null hypothesis.
+- A unit root corresponds to a "stochastic trend" (formally an oxymoron) described by a random walk. This is the null hypothesis of the **augmented Dickey-Fuller (ADF)** test.
 
 - The ADF test is sometimes called a test for "stationarity". However, non-stationary models may remain non-stationary after any amount of differencing. e.g., any model with non-polynomial trend.
 
 - Assessing evidence for a trend is better than applying an ADF test for a unit root if a model with trend is statistically (or scientifically) preferable to a model with a random walk.
 
-----
+##
 
 **Question.** Which of `y1`, `y2`, `y3`, `y4` do you think will be considered non-stationary by a unit root test?
 
@@ -384,7 +382,7 @@ y3 = np.sin(2*np.pi*n/200)
 y4 = n*(100-n)/2500
 ```
 
-----
+##
 
 ```{python}
 #| echo: false
@@ -406,19 +404,19 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
-
-### Result of `adfuller()`
+## Result of `adfuller()`
 
 \footnotesize
 
 ```{python}
-#| echo: false
+#| echo: true
 def print_adf(series, name):
-    result = adfuller(series, autolag='AIC')
-    print(f"data: {name}")
-    print(f"Dickey-Fuller = {result[0]:.4f}, Lag order = {result[2]}, p-value = {result[1]:.4f}")
-    print(f"Alternative hypothesis: stationary\n")
+    result = adfuller(series, maxlag=4,
+        regression='ct', autolag=None)
+    print(f"{name}:",
+        f"ADF statistic = {result[0]:.4f},", 
+        f"Lag order = {result[2]},", 
+        f"p-value = {result[1]:.4f}.")
 
 print_adf(y1, 'y1')
 print_adf(y2, 'y2')
@@ -427,6 +425,10 @@ print_adf(y4, 'y4')
 ```
 
 \normalsize
+
+* Alternative hypothesis: stationary
+* Results can be sensitive to choice of test arguments
+
 
 ## When to use the ADF test
 

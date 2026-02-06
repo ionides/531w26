@@ -33,8 +33,8 @@ Facebook Prophet is not based on ARIMA modeling, and the difference between thes
 Deep learning has been influential throughout statistics, and time series analysis is no exception.
 This review discusses the deep learning for time series, situated before the widespread popularization of transformers.
 
-6. Week starting Feb 16: [__gruver23__](https://proceedings.neurips.cc/paper_files/paper/2023/file/3eb7ca52e8207697361b2c0fb3926511-Paper-Conference.pdf)\
-When is GenAI useful for time series analysis? 
+6. Week starting Feb 16: [__gu24__](https://arxiv.org/pdf/2312.00752)\
+Mamba is a recently proposed advance on transformers for time series modeling.
 
 7. Week starting Feb 23: [__bjornstad01__](https://doi.org/10.1126/science.1062226)\
 There are surprisingly many important ideas about time series analysis for nonlinear stochastic dynamic systems discussed in this compact paper.
@@ -57,8 +57,8 @@ Would there be an advantage to using particle filter methods to avoid the approx
 11. Week starting Mar 30: [__wheeler24__](https://doi.org/10.1371/journal.pcbi.1012032)\
 A paper dealing with various practical issues in data analysis via mechanistic models, including residual analysis and benchmarking to help identify model misspecification.
 
-12. Week starting Apr 6: [__subramanian21__](https://doi.org/10.1073/pnas.2019716118)\
-Many papers were written fitting mechanistic models to learn about COVID-19 transmission and to forecast its trajectory. This paper shows how it is critical to understand both the reporting process and the disease dynamics.
+12. Week starting Apr 6: [__linderman25__](https://joss.theoj.org/papers/10.21105/joss.07069)\
+Dynamax is a modern JAX framework for state space models. We should review the package as well as the JOSS paper.
 
 13. Week starting Apr 13: [__madden24__](https://doi.org/10.1371/journal.pcbi.1012616)\
 Integrating deep learning with mechanistic modeling for time series data, in the context of measles epidemiology.
@@ -77,8 +77,8 @@ Box, George E. P. (1976). Science and statistics. _Journal of the American Stati
 [__doucet09__](http://www.warwick.ac.uk/fac/sci/statistics/staff/academic-research/johansen/publications/dj11.pdf).
 Doucet, A., & Johansen, A. M. (2009). A tutorial on particle filtering and smoothing: Fifteen years later. _Handbook of Nonlinear Filtering_, 12(656-704), 3. 
 
-[__gruver23__](https://proceedings.neurips.cc/paper_files/paper/2023/file/3eb7ca52e8207697361b2c0fb3926511-Paper-Conference.pdf).
-Gruver, N., Finzi, M., Qiu, S., & Wilson, A. G. (2023). Large language models are zero-shot time series forecasters. _Advances in Neural Information Processing Systems_, 36.
+[__gu24__](https://arxiv.org/pdf/2312.00752).
+Gu, A., & Dao, T. (2024, May). Mamba: Linear-time sequence modeling with selective state spaces. In [_First Conference on Language Modeling_](https://openreview.net/pdf?id=tEYskw1VY2). 
 
 [__hyndman08__](https://doi.org/10.18637/jss.v027.i03).
 Hyndman, R. J. & Khandakar, Y. (2008) Automatic time series forecasting: The forecast package for R. _Journal of Statistical Software_, 26(3).  
@@ -88,6 +88,9 @@ Hyndman, R. J. & Khandakar, Y. (2008) Automatic time series forecasting: The for
 
 [__lim21__](https://doi.org/10.1098/rsta.2020.0209).
 Lim, B., & Zohren, S. (2021). Time-series forecasting with deep learning: a survey. _Philosophical Transactions of the Royal Society A_, 379(2194), 20200209. 
+
+[__linderman25__](https://joss.theoj.org/papers/10.21105/joss.07069)
+Linderman, S. W., Chang, P., Harper-Donnelly, G., Kara, A., Li, X., Duran-Martin, G., & Murphy, K. (2025). Dynamax: A Python package for probabilistic state space modeling with JAX. _Journal of Open Source Software_, 10(108), 7069. 
 
 [__madden24__](https://doi.org/10.1371/journal.pcbi.1012616).
 Madden, W.G., Jin, W., Lopman, B., Zufle, A., Dalziel, B., E. Metcalf, C.J., Grenfell, B.T. and Lau, M.S. (2024). Deep neural networks for endemic measles dynamics: Comparative analysis and integration with mechanistic models. _PLOS Computational Biology_, 20(11), e1012616.

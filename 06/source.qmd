@@ -293,8 +293,6 @@ plt.show()
 
 ##
 
-\footnotesize
-
 ```{python}
 #| echo: true
 #| label: fit0
@@ -307,8 +305,6 @@ pd.read_csv(StringIO(params_csv))
 
 AIC: `{python} f"{fit0.aic:.2f}"`
 
-\normalsize
-
 
 ##
 
@@ -317,8 +313,8 @@ AIC: `{python} f"{fit0.aic:.2f}"`
 
 ```{python}
 #| echo: true
-fit1 = SARIMAX(huron_jan, order=(1, 0, 0),
-               exog=year_jan).fit()
+fit1 = SARIMAX(huron_jan, order=(1, 0, 0), trend='c',
+    exog=year_jan-np.mean(year_jan)).fit()
 ```
 
 ```{python}
@@ -328,6 +324,9 @@ pd.read_csv(StringIO(params_csv))
 ```
 
 AIC: `{python} f"{fit1.aic:.2f}"`
+
+- The optimization fails to find the maximum unless the covariate is centered by subtracting the mean. Optimization for ARMA models can be fragile!
+
 
 ## Setting up a formal hypothesis test
 
@@ -406,7 +405,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-## Result of `adfuller()`
+## ADF test using `adfuller`
 
 \footnotesize
 
@@ -416,10 +415,13 @@ def print_adf(series, name):
     result = adfuller(series, maxlag=4,
         regression='ct', autolag=None)
     print(f"{name}:",
-        f"ADF statistic = {result[0]:.4f},", 
+        f"ADF statistic = {result[0]:.3E},", 
         f"Lag order = {result[2]},", 
         f"p-value = {result[1]:.4f}.")
+```
 
+```{python}
+#| echo: false
 print_adf(y1, 'y1')
 print_adf(y2, 'y2')
 print_adf(y3, 'y3')
@@ -429,7 +431,7 @@ print_adf(y4, 'y4')
 \normalsize
 
 * Alternative hypothesis: stationary
-* Results can be sensitive to choice of test arguments
+* Results can be sensitive to choice of test arguments. Here, arguments are set to match defaults of R `tseries::adf.test`
 
 
 ## When to use the ADF test
@@ -444,7 +446,11 @@ print_adf(y4, 'y4')
 
 - Section 3.9 of \textcite{shumway17} discusses SARIMA modeling.
 
-- Section 3.8 of \textcite{shumway17} introduces regression with ARMA errors.
+- Section 3.8 of \textcite{shumway17} introduces regression with ARMA errors, calling it ARMAX.
+
+- Section 5.3 of \textcite{huang22} presents regression with ARMA errors, calling it REGARMA.
+
+- Section 9.3 of \textcite{huang22} discusses unit root tests.
 
 ## Acknowledgments
 

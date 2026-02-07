@@ -2,6 +2,7 @@
 ```{python}
 #| label: q3_03_read_huron_data
 #| echo: false
+import warnings
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 
@@ -10,15 +11,17 @@ huron_level = dat[' Jan'].values  # Note: space before Jan in header
 year = dat['Year'].values
 
 # Fit ARMA(2,1) and ARMA(2,2) models
-arma2_1 = ARIMA(huron_level, order=(2, 0, 1)).fit()
-arma2_2 = ARIMA(huron_level, order=(2, 0, 2)).fit()
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore')
+    arma2_1 = ARIMA(huron_level, order=(2, 0, 1),trend='c').fit()
+    arma2_2 = ARIMA(huron_level, order=(2, 0, 2),trend='c').fit()
 
-print(arma2_1.summary())
+print(arma2_1.summary().tables[0])
 print("\n")
-print(arma2_2.summary())
+print(arma2_2.summary().tables[0])
 ```
 
-The R output above uses `stats::arima` to fit ARMA(2,1) and ARMA(2,2) models to the January level (in meters above sea level) of Lake Huron from 1860 to 2024. Residual diagnostics (not shown) show no major violation of model assumptions. We aim to choose one of these as a null hypothesis of no trend for later comparison with models including a trend.
+The Python output above uses  `ARIMA` from `statsmodels` to fit ARMA(2,1) and ARMA(2,2) models to the January level (in meters above sea level) of Lake Huron from 1860 to 2024. Residual diagnostics (not shown) show no major violation of model assumptions. We aim to choose one of these as a null hypothesis of no trend for later comparison with models including a trend.
 
 Which is the best conclusion from the available evidence:
 

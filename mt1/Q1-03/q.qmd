@@ -52,7 +52,7 @@ print(f"Dickey-Fuller = {result[0]:.4f}, Lag order = {result[2]}, p-value = {res
 print(f"Alternative hypothesis: stationary")
 ```
 
-Above are monthly injuries from motor vehicle collisions in New York City. An augmented Dickey-Fuller test, `adfuller(injuries)`, gives a p-value of `"{result[1]:4f}"`. Which is the best way to proceed:
+Above are monthly injuries from motor vehicle collisions in New York City. An augmented Dickey-Fuller test, `adfuller(injuries)`, gives a p-value of `{python} f"{result[1]:3f}"`. Which is the best way to proceed:
 
 A: The time plot indicates a non-constant mean function describing a major dip due to the COVID-19 pandemic and an increasing trend at other times. The ADF test does not support or refute that model.
 

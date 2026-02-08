@@ -9,10 +9,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.api as sm
 from statsmodels.graphics.tsaplots import plot_ccf
+from statsmodels.tsa.stattools import ccf
 
 # Read and process CPI data
 cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
-cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
+cpi_long = cpi_wide.iloc[:, 1:13].values.flatten()
 inflation = np.diff(np.log(cpi_long))
 year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
 inflation = inflation[year >= 1980] * 12 * 100  # percent, annualized
@@ -24,7 +25,7 @@ inflation = lowess[:, 1]
 
 # Read and process unemployment data
 unemp_wide = pd.read_csv("data/adjusted_unemployment.csv", comment='#')
-unemployment = unemp_wide.iloc[:, 1:13].values.T.flatten()
+unemployment = unemp_wide.iloc[:, 1:13].values.flatten()
 u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)
 mask = u_year >= 1980
 unemployment = unemployment[mask]
@@ -38,13 +39,21 @@ ax1.plot(year, inflation, 'k-', linewidth=1, label='inflation')
 ax1.plot(u_year, unemployment, 'r-', linewidth=1, label='unemployment')
 ax1.set_xlabel('')
 ax1.set_ylabel('')
-ax1.text(2000, 13, 'A', fontsize=16)
+ax1.text(0.25, 0.95, 'A', transform=ax1.transAxes, fontsize=16, va='top')
+
 
 # Panel B: Cross-correlation function
-plot_ccf(inflation, unemployment, lags=80, ax=ax2, alpha=0.05)
+
+cc=ccf(inflation, unemployment,nlags=30,alpha=0.05)
+
+#plot_ccf(inflation, unemployment, ax=ax2, alpha=0.05, negative_lags=True)
+plot_ccf(inflation, unemployment,lags=20, negative_lags=True,ax=ax2,fft=True)
+
 ax2.set_title('')
 ax2.set_ylabel('CCF')
-ax2.text(0, 0.32, 'B', fontsize=16)
+ax2.text(0.25, 0.95, 'B', transform=ax2.transAxes, fontsize=16, va='top')
+ax2.set_ylim(-0.5,0.5)
+
 
 plt.tight_layout()
 plt.show()

@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.stats.diagnostic import acorr_ljungbox
+import warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
 import os
 
 dat = pd.read_csv("data/huron_level.csv", comment='#')
@@ -38,12 +40,16 @@ def aic_blt_table(data, P, Q, blt_lag=5):
     for p in range(P+1):
         for q in range(Q+1):
             try:
-                mod = ARIMA(data, order=(p, 0, q),trend='c').fit(method_kwargs={'warn_convergence': False})
-                aic_table[p, q] = mod.aic
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", ConvergenceWarning)
+                    warnings.simplefilter("ignore", UserWarning)
+                    mod = ARIMA(data, order=(p, 0, q),
+		        trend='c').fit(method_kwargs={'warn_convergence': False})
+                    aic_table[p, q] = mod.aic
 
-                # Ljung-Box test on residuals
-                lb_test = acorr_ljungbox(mod.resid, lags=[blt_lag], return_df=False)
-                blt_table[p, q] = lb_test.iloc[0]['lb_pvalue']  # p-value
+                    # Ljung-Box test on residuals
+                    lb_test = acorr_ljungbox(mod.resid, lags=[blt_lag], return_df=False)
+                    blt_table[p, q] = lb_test.iloc[0]['lb_pvalue']  # p-value
             except:
                 # If model fails to fit, leave as NaN
                 pass

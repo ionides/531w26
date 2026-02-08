@@ -13,7 +13,7 @@ import statsmodels.api as sm
 # Read CPI data
 cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
 # Convert wide to long format (months in columns 2-13)
-cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
+cpi_long = cpi_wide.iloc[:, 1:13].values.flatten()
 # Compute inflation: diff of log
 inflation = np.diff(np.log(cpi_long))
 # Create year sequence
@@ -40,14 +40,14 @@ ax1.plot(year, inflation, 'k-', linewidth=0.5)
 ax1.plot(year, i_smo, 'r-', linewidth=1)
 ax1.set_xlabel('')
 ax1.set_ylabel('')
-ax1.text(0.05, 0.95, 'A', transform=ax1.transAxes, fontsize=16, va='top')
+ax1.text(0.05, 0.15, 'A', transform=ax1.transAxes, fontsize=16, va='top')
 
 # Panel B: Spectrum
 ax2.plot(freq1, 10*np.log10(psd1), 'k-', linewidth=0.5, label='inflation')
 ax2.plot(freq2, 10*np.log10(psd2), 'r--', linewidth=1, label='smooth')
 ax2.set_xlabel('frequency (cycles/year)')
 ax2.set_ylabel('')
-ax2.text(0.05, 0.95, 'B', transform=ax2.transAxes, fontsize=16, va='top')
+ax2.text(0.05, 0.15, 'B', transform=ax2.transAxes, fontsize=16, va='top')
 
 plt.tight_layout()
 plt.show()

@@ -16,7 +16,7 @@ x = np.diff(N2a)
 x = x[x < 10000] / 10  # units: milliseconds
 z = np.log(x)
 
-plot_acf(z, lags=20)
+z_acf = plot_acf(z, lags=20) # the assignment prevents double plotting
 ```
 
 We are interested about whether it is appropriate to model the time series as a stationary causal ARMA process. Which of the following is the best interpretation of the evidence from these plots:

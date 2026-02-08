@@ -12,19 +12,19 @@ from statsmodels.graphics.tsaplots import plot_acf
 
 # Read and process CPI data
 cpi_wide = pd.read_csv("data/consumer_price_index.csv", comment='#')
-cpi_long = cpi_wide.iloc[:, 1:13].values.T.flatten()
+cpi_long = cpi_wide.iloc[:, 1:13].values.flatten()
 inflation = np.diff(np.log(cpi_long))
 year = np.arange(1913, 1913 + len(cpi_long)/12, 1/12)[1:]
 inflation = inflation[year >= 1980] * 12 * 100  # percent, annualized
 year = year[year >= 1980]
 
 # Apply loess smoothing
-lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
+lowess = sm.nonparametric.lowess(inflation, year, frac=0.05)
 inflation = lowess[:, 1]
 
 # Read and process unemployment data
 unemp_wide = pd.read_csv("data/adjusted_unemployment.csv", comment='#')
-unemployment = unemp_wide.iloc[:, 1:13].values.T.flatten()
+unemployment = unemp_wide.iloc[:, 1:13].values.flatten()
 u_year = np.arange(1948, 1948 + len(unemployment)/12, 1/12)
 mask = u_year >= 1980
 unemployment = unemployment[mask]
@@ -42,24 +42,24 @@ ax1.plot(year, inflation, 'k-', linewidth=1)
 ax1.plot(u_year, unemployment, 'r-', linewidth=1)
 ax1.set_xlabel('')
 ax1.set_ylabel('')
-ax1.text(1988, 13, 'A', fontsize=16)
+ax1.text(2000, 13, 'A', fontsize=16)
 
 # Panel B: ACF of residuals
-plot_acf(ols.resid, lags=50, ax=ax2, alpha=0.05)
+plot_acf(ols.resid, lags=50, ax=ax2, alpha=0.05, bartlett_confint=False)
 ax2.set_title('')
-ax2.text(12, 0.87, 'B', fontsize=16)
+ax2.text(25, 0.75, 'B', fontsize=16)
 
 plt.tight_layout()
 plt.show()
 ```
 
-\(A) Inflation (black) and unemployment (red) for the USA, 1980-2024. (B) Sample autocorrelation function of the residuals from a least square regression, 'lm(inflation~unemployment)', with estimated coefficients below. Which is the best interpretation of these graphs and fitted model?
+\(A) Inflation (black) and unemployment (red) for the USA, 1980-2024. (B) Sample autocorrelation function of the residuals from a least square regression (`y=inflation, x=unemployment`), with estimated coefficients below. Which is the best interpretation of these graphs and fitted model?
 
 ```{python}
 #| label: q4_03_lm_inflation_unemployment
 #| echo: false
-# Print coefficients
-print(ols.params)
+
+ols.summary().tables[1]
 ```
 
 A: 0.05 is a reasonable estimate for the additional unemployment caused by one percentage point of additional inflation. We should not trust the uncertainty estimate (not shown), since our model does not allow for autocorrelation of the residuals.

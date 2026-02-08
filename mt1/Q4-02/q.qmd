@@ -30,12 +30,12 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7, 2.5))
 ax1.plot(year, mers, 'k-', linewidth=1)
 ax1.set_xlabel('Year')
 ax1.set_ylabel('MERS Reports')
-ax1.text(2012.1, 80, 'A', fontsize=16)
+ax1.text(2012.1, 85, 'A', fontsize=16)
 
 # Panel B: Q-Q plot
 stats.probplot(arma22.resid, dist="norm", plot=ax2)
 ax2.set_title('')
-ax2.text(-4.2, 35, 'B', fontsize=16)
+ax2.text(-4.4, 36, 'B', fontsize=16)
 
 plt.tight_layout()
 plt.show()
@@ -48,7 +48,7 @@ B: The model is missing seasonality, which could be critical in this situation.\
 C: For using ARMA methods, these data should be log-transformed to make a linear Gaussian approximation more appropriate.\
 D: The normal quantile plot shows a long-tailed distribution, but this is not a major problem. We have over 300 data points, so the central limit theorem should hold for parameter estimates.\
 E: The normal quantile plot shows long tails, but with the right tail noticeably longer than the left tail. We should consider an asymmetric error distribution.\
-F: We should not interpret (B) before testing for stationarity. First run `adf.test()` and, if the null hypothesis is not rejected, recalculate (B) when fitting to the differenced data.
+F: We should not interpret (B) before testing for stationarity. First make an ADF test and, if the null hypothesis is not rejected, recalculate (B) when fitting to the differenced data.
 
 
 

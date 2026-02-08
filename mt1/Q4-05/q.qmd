@@ -38,12 +38,12 @@ def aic_blt_table(data, P, Q, blt_lag=5):
     for p in range(P+1):
         for q in range(Q+1):
             try:
-                mod = ARIMA(data, order=(p, 0, q)).fit(method_kwargs={'warn_convergence': False})
+                mod = ARIMA(data, order=(p, 0, q),trend='c').fit(method_kwargs={'warn_convergence': False})
                 aic_table[p, q] = mod.aic
 
                 # Ljung-Box test on residuals
                 lb_test = acorr_ljungbox(mod.resid, lags=[blt_lag], return_df=False)
-                blt_table[p, q] = lb_test[1][0]  # p-value
+                blt_table[p, q] = lb_test.iloc[0]['lb_pvalue']  # p-value
             except:
                 # If model fails to fit, leave as NaN
                 pass
@@ -58,7 +58,7 @@ def aic_blt_table(data, P, Q, blt_lag=5):
 
     # Round for display
     aic_df = aic_df.round(2)
-    blt_df = blt_df.applymap(lambda x: f'{x:.3g}' if pd.notna(x) else 'NaN')
+    blt_df = blt_df.map(lambda x: f'{x:.3g}' if pd.notna(x) else 'NaN')
 
     return {'aic': aic_df, 'blt': blt_df}
 

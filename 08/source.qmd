@@ -377,7 +377,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-`{python}f"Frequency range (ratio > 0.5): [{l_interp:.3f}, {r_interp:.3f}]"`
+`{python} f"Frequency range (ratio > 0.5): [{l_interp:.3f}, {r_interp:.3f}]"`
 
 **Question.** Describe the frequencies (and corresponding periods) that this decomposition identifies as business cycles. 
 

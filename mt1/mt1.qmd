@@ -16,10 +16,10 @@ jupyter: python3
 # Configuration flags
 ALL = True
 SOL = True
-# SOL = False
+#SOL = False
 QLABELS = True
 EXAM = False
-# EXAM = True
+#EXAM = True
 
 if EXAM:
     ALL = False
@@ -31,7 +31,7 @@ if EXAM:
 
 \newcommand\exam[1]{#1}
 <!-- \renewcommand\exam[1]{} to remove exam formatting -->
-\renewcommand\exam[1]{}
+<!-- \renewcommand\exam[1]{} -->
 
 ```{python}
 #| label: setup
@@ -52,7 +52,7 @@ if EXAM:
 
 \exam{\vspace{1.5cm}
 
-{\bf Name: \hspace{6cm} UMID: }
+\textbf{Name: \hspace{6cm} UMID:}
 
 \vspace{1.5cm}
 
@@ -115,6 +115,8 @@ if ALL:
 ### Q6. Scholarship for time series projects
 
 {{< include tmp6.qmd >}}
+
+\exam{\newpage}
 
 ### Q7. Data analysis
 

@@ -12,8 +12,10 @@ import numpy as np
 # Configuration flags - should match mt1.qmd
 ALL = True
 SOL = True
+#SOL = False
 QLABELS = True
 EXAM = False
+#EXAM = True
 
 if EXAM:
     ALL = False
@@ -53,7 +55,7 @@ def q_setup(n):
         # Create temporary file with question label, content, and solution
         with open(q_tmp, 'w') as f:
             # Add question label block
-            results_option = 'asis' if QLABELS else 'hide'
+            results_option = 'asis' if QLABELS else 'false'
             f.write(f"```{{python}}\n")
             f.write(f"#| echo: false\n")
             f.write(f"#| output: {results_option}\n")
@@ -69,8 +71,7 @@ def q_setup(n):
             if SOL:
                 with open(sol_file, 'r') as qf:
                     f.write(qf.read())
- 
-
+                    
     # Concatenate all question files
     q_files = [os.path.join(d, "tmp.qmd") for d in q_dirs]
     if not ALL:

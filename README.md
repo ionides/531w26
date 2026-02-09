@@ -38,9 +38,9 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 7. [Introduction to time series analysis in the frequency domain](07)
 
-<!--
-
 8. [Smoothing in the time and frequency domains](08)
+
+<!--
 
 9. [Case study: An association between unemployment and mortality?](09)
 

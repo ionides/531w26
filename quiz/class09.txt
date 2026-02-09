@@ -1,0 +1,36 @@
+
+Class 9 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class09.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+1. Multiple choice question title:
+Interpreting a quantile plot: https://ionides.github.io/531w26/quiz/class09.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class09.pdf
+
+
+Answers: 
+
+(A). We should consider fitting a long-tailed error distribution, such as the t distribution.
+
+(B). The model is missing seasonality, which could be critical in this situation.
+
+(C). For using ARMA methods, these data should be log-transformed to make a linear Gaussian approximation more appropriate.
+
+(D). The normal quantile plot shows a long-tailed distribution, but this is not a major problem. We have over 300 data points, so the central limit theorem should hold for parameter estimates.
+
+(E). The normal quantile plot shows long tails, but with the right tail noticeably longer than the left tail. We should consider an asymmetric error distribution.
+
+(F). We should not interpret (B) before testing for stationarity. First make an ADF test and, if the null hypothesis is not rejected, recalculate (B) when fitting to the differenced data. 
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer to the multiple choice question. You are expected to write between one and three sentences.
+
+The credit is for Q2 not Q1. For this assignment, the grade is for participation and feedback not correctness. 
+
+
+

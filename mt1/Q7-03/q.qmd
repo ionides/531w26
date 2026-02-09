@@ -14,7 +14,7 @@ y = np.random.normal(size=N)
 
 fig, ax = plt.subplots(figsize=(8, 2.5))
 plot_acf(y, lags=20, ax=ax, alpha=0.05, title='')
-ax.set_ylabel('testing')
+ax.set_ylabel('')
 plt.tight_layout()
 plt.show()
 ```

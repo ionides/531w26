@@ -1,0 +1,36 @@
+
+Class 10 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class10.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+1. Multiple choice question title:
+Frequency analysis of smoothed inflation: https://ionides.github.io/531w26/quiz/class10.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class10.pdf
+
+
+Answers: 
+
+(A). Cycles longer than 2 months are removed
+
+(B). Cycles shorter than 2 months are removed
+
+(C). Cycles longer than 2 year are removed
+
+(D). Cycles shorter than 2 year are removed
+
+(E). Cycles longer than (1/2) year are removed
+
+(F). Cycles shorter than (1/2) year are removed
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer to the multiple choice question. You are expected to write between one and three sentences.
+
+The credit is for Q2 not Q1. For this assignment, the grade is for participation and feedback not correctness. 
+
+
+

@@ -23,7 +23,7 @@ inflation = inflation[year >= 1980] * 12 * 100  # percent, annualized
 year = year[year >= 1980]
 
 # Apply loess smoothing
-lowess = sm.nonparametric.lowess(inflation, year, frac=0.1)
+lowess = sm.nonparametric.lowess(inflation, year, frac=0.05)
 i_smo = lowess[:, 1]
 
 # Compute spectra using Welch's method

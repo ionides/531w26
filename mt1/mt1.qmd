@@ -16,7 +16,7 @@ jupyter: python3
 # Configuration flags
 ALL = True
 SOL = True
-#SOL = False
+SOL = False
 QLABELS = True
 EXAM = False
 #EXAM = True
@@ -31,7 +31,7 @@ if EXAM:
 
 \newcommand\exam[1]{#1}
 <!-- \renewcommand\exam[1]{} to remove exam formatting -->
-<!-- \renewcommand\exam[1]{} -->
+\renewcommand\exam[1]{}
 
 ```{python}
 #| label: setup

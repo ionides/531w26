@@ -12,7 +12,7 @@ import numpy as np
 # Configuration flags - should match mt1.qmd
 ALL = True
 SOL = True
-#SOL = False
+SOL = False
 QLABELS = True
 EXAM = False
 #EXAM = True

@@ -54,7 +54,7 @@ We begin by reviewing eigenvectors and eigenvalues of covariance matrices. This 
 
 -  **Normalized** eigenvectors are scaled such that $u_n^\mathsf{T} u_n = 1$.
 
-----
+##
 
 - We can check that the components of $Y$ in the directions of different eigenvectors are uncorrelated.
 
@@ -103,7 +103,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
+##
 
 Next 4 eigenvectors:
 ```{python}
@@ -117,7 +117,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-----
+##
 
 - We see that the eigenvectors, plotted as functions of time, look like sine wave oscillations.
 
@@ -144,7 +144,7 @@ or, writing out the matrix multiplication explicitly,
 
 - We look for a sinusoidal solution, $u_n = e^{2\pi i\omega n}$.
 
-----
+##
 
 \vspace{-3mm}
 
@@ -171,7 +171,7 @@ $u_n(\omega) = e^{2\pi i\omega n}$
 is an eigenvector for $\Gamma$ for any choice of $\omega$?
 
 
-----
+##
 
 - The eigenvalue at frequency $\omega$ is
 \begin{equation}
@@ -189,7 +189,7 @@ is an eigenvector for $\Gamma$ for any choice of $\omega$?
 \end{equation}
 - We obtain the sum from the integral when $\gamma(h)$ has a point mass $\gamma_h$ when $h$ is an integer, and $\gamma(x)=0$ for non-integer $x$.
 
-----
+##
 
 - It was convenient to do this calculation with complex exponentials. However, writing
 \begin{equation} e^{2\pi i\omega n} = \cos(2\pi\omega n) + i \sin(2\pi\omega n),\end{equation}
@@ -200,7 +200,7 @@ and noting that $\gamma_h$ is real, we see that the real and imaginary parts of 
 **Question.** Review: how would you demonstrate the correctness of the identity
 $e^{2\pi i\omega} = \cos(2\pi\omega)+i\,\sin(2\pi\omega)$?
 
-----
+##
 
 - Assuming that this computation for an infinite sum represents a limit of increasing dimension for finite matrices, we have found that the eigenvectors for any long, stationary time series model are approximately sinusoidal.
 
@@ -232,7 +232,7 @@ c_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N y^*_k\cos(2\pi \omega_n k) \text{ for } 0
 s_n &=& \frac{1}{\sqrt{N}}\sum_{k=1}^N y^*_k\sin(2\pi \omega_n k) \text{ for } 1\le n\le N/2.
 \end{eqnarray*}
 
-----
+##
 
 - The frequency components of the data can be written as real and imaginary parts of the **discrete Fourier transform**,
 \begin{eqnarray*}
@@ -247,7 +247,7 @@ d_n &=& \frac{1}{\sqrt{N}} \sum_{k=1}^N y^*_k e^{-2\pi i k n/N}
 
 - `fft` is an implementation of the fast Fourier transform algorithm, which enables computation of all the frequency components with order $N\log(N)$ computation. Directly computing the sums requires order $N^2$ additions and multiplications. When $N=10^5$ or $N=10^6$ this difference becomes important!
 
-----
+##
 
 - The first frequency component, $C_0$, is a special case, since it has mean $\mu=\mathrm{E}[Y_n]$ whereas the other components have mean zero.
 
@@ -298,7 +298,7 @@ as an estimator of the spectral density.
 
 - The spectral density function can therefore be called the **power spectrum**.
 
-----
+##
 
 **Question.** Consider the AR(1) model, $\phi(B)Y_n = \epsilon_n$ with $\phi(B)=1-\phi_1B$ and $\epsilon_n \sim \mathrm{WN}(\sigma^2)$, i.e., white noise with variance $\sigma^2$. Show that the spectrum of $Y$ is
 \begin{equation}
@@ -343,19 +343,25 @@ low = np.where(np.isnan(low), np.nanmean(low), low)
 
 ## Unsmoothed periodogram
 
+\footnotesize
+
 ```{python}
 #| echo: true
 #| eval: true
 from scipy.signal import periodogram
 freqs, psd = periodogram(low, scaling='spectrum')
 plt.figure(figsize=(10, 3.5))
-plt.semilogy(freqs, psd)
+plt.semilogy(freqs[1:], psd[1:])
 plt.xlabel('Frequency [cycles per observation]')
 plt.ylabel('Power spectral density')
 plt.tight_layout(); plt.show()
 ```
 
-----
+\normalsize
+
+* We remove frequency 0 since `periodogram` subtracts the mean
+
+##
 
 To smooth, we use Welch's method which divides the data into overlapping segments
 
@@ -367,7 +373,8 @@ To smooth, we use Welch's method which divides the data into overlapping segment
 from scipy.signal import welch
 from scipy.stats import chi2
 
-nperseg = 16 # neighborhood size for smoothing
+nperseg = 32
+ # neighborhood size for smoothing
 freqs, psd = welch(low, scaling='spectrum', nperseg=nperseg)
 
 # Calculate Degrees of Freedom (nu) using a standard approximation
@@ -387,13 +394,13 @@ psd_high = psd * upper_mult
 
 The confidence intervals are based on the chi-squared property. On the log scale, they have constant width at each frequency and are asymmetric.
 
-----
+##
 
 ```{python}
 #| echo: false
 plt.figure(figsize=(9, 4))
-plt.semilogy(freqs, psd, label='Welch PSD (Smoothed)')
-plt.fill_between(freqs, psd_low, psd_high, color='gray', 
+plt.semilogy(freqs[1:], psd[1:], label='Welch PSD (Smoothed)')
+plt.fill_between(freqs[1:], psd_low[1:], psd_high[1:], color='gray', 
     alpha=0.3, label='95% CI')
 
 plt.xlabel('Frequency [cycles per observation]')
@@ -435,7 +442,6 @@ plt.grid(True)
 plt.show()
 ```
 
-----
 
 ## Comparing Python scipy/statsmodels to R
 
@@ -456,35 +462,45 @@ Another standard way to estimate the spectrum is to fit an AR(p) model with $p$ 
 ```{python}
 #| echo: true
 #| eval: true
-from statsmodels.tsa.ar_model import AutoReg
-# Fit AR model with order selection by AIC
-ar_model = AutoReg(low, lags=range(1, 21),
-                   old_names=False).fit()
-print(f"Selected AR order: {len(ar_model.params)-1}")
+from statsmodels.tsa.ar_model import ar_select_order
+from statsmodels.tsa.arima_process import ArmaProcess
 
-# Compute spectrum from AR model
-ar_order = len(ar_model.params) - 1
-ar_coefs = -ar_model.params[1:]  # Exclude intercept
-freqs_ar = np.linspace(0, 0.5, 1000)
-# Compute AR spectrum
-spectrum_ar = ar_model.scale / np.abs(
-    1 - np.sum([ar_coefs[i] * np.exp(-2j*np.pi*freqs_ar*(i+1))
-                for i in range(len(ar_coefs))], axis=0))**2
+ar_selected = ar_select_order(low,maxlag=20,trend='c')
+ar_fitted = ar_selected.model.fit()
+print(f"Selected AR order: {len(ar_fitted.params)-1}")
+
+ar = np.r_[1, -ar_fitted.params[1:]]
+ma = [1]
+process=ArmaProcess(ar,ma)
+freqs_ar, spectrum_ar = process.periodogram(500)
+spectrum_ar = spectrum_ar * ar_fitted.scale
 ```
 
-----
+
+##
 
 ```{python}
 #| echo: false
 #| eval: true
 plt.figure(figsize=(11, 3.5))
 plt.semilogy(freqs_ar, spectrum_ar)
-plt.xlabel('Frequency [cycles per observation]')
+plt.xlabel('Frequency [radians per observation]')
 plt.ylabel('Spectral density')
 plt.title('Spectrum estimated via AR model picked by AIC')
-plt.tight_layout()
 plt.show()
 ```
+
+\footnotesize
+```{python}
+#| echo: true
+#| eval: true
+df_results = pd.DataFrame.from_dict(ar_selected.aic, 
+    orient='index', columns=['AIC'])
+df_results.index.name = 'Lags'
+df_results.sort_values('AIC').head(3)
+```
+\normalsize
+
 
 ## Units of frequency and period
 

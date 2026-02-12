@@ -153,8 +153,8 @@ freqs2, psd2 = signal.welch(u2, fs=12,
 #| echo: false
 #| eval: true
 plt.figure(figsize=(10, 4))
-plt.semilogy(freqs1, psd1, 'k-', label='Unadjusted')
-plt.semilogy(freqs2, psd2, 'r-', label='Seasonally adjusted')
+plt.semilogy(freqs1[1:], psd1[1:], 'k-', label='Unadjusted')
+plt.semilogy(freqs2[1:], psd2[1:], 'r-', label='Seasonally adjusted')
 plt.xlabel("Frequency (cycles per year)")
 plt.ylabel("Spectrum")
 plt.title("Unemployment: raw (black), seasonally adjusted (red)")
@@ -206,7 +206,7 @@ freq_response = psd_u2 / psd_u1
 #| fig-width: 10
 #| fig-height: 4
 plt.figure(figsize=(10, 5))
-plt.semilogy(freqs_u1, freq_response, '-')
+plt.semilogy(freqs_u1[1:], freq_response[1:], '-')
 plt.ylabel("Frequency ratio")
 plt.xlabel("Frequency (cycles per year)")
 plt.title("Frequency response (red lines at 0.8 and 1.2)")
@@ -269,7 +269,7 @@ freqs_raw, psd_raw = signal.periodogram(u1, fs=12,
 freqs_smooth, psd_smooth = signal.periodogram(u1_lowess[:, 1],
     fs=12, scaling='spectrum')
 plt.figure(figsize=(10, 5))
-plt.semilogy(freqs_smooth, psd_smooth / psd_raw, '-')
+plt.semilogy(freqs_smooth[1:], psd_smooth[1:] / psd_raw[1:], '-')
 plt.xlim(0, 1.5)
 plt.ylabel("Frequency ratio")
 plt.xlabel("Frequency (cycles per year)")
@@ -394,7 +394,7 @@ Below is a smoothed periodogram for the raw unemployment data, plotted up to 0.7
 freqs_zoom, psd_zoom = signal.welch(u1, fs=12, nperseg=256,
                                      scaling='spectrum')
 plt.figure(figsize=(9, 4))
-plt.semilogy(freqs_zoom, psd_zoom, '-')
+plt.semilogy(freqs_zoom[1:], psd_zoom[1:], '-')
 plt.xlim(0, 0.7)
 plt.ylim(1e-2, np.max(psd_zoom))
 plt.xlabel("Frequency (cycles per year)")

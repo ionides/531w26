@@ -43,8 +43,8 @@ ax1.set_ylabel('')
 ax1.text(0.05, 0.15, 'A', transform=ax1.transAxes, fontsize=16, va='top')
 
 # Panel B: Spectrum
-ax2.plot(freq1, 10*np.log10(psd1), 'k-', linewidth=0.5, label='inflation')
-ax2.plot(freq2, 10*np.log10(psd2), 'r--', linewidth=1, label='smooth')
+ax2.plot(freq1[1:], 10*np.log10(psd1[1:]), 'k-', linewidth=0.5, label='inflation')
+ax2.plot(freq2[1:], 10*np.log10(psd2[1:]), 'r--', linewidth=1, label='smooth')
 ax2.set_xlabel('frequency (cycles/year)')
 ax2.set_ylabel('')
 ax2.text(0.05, 0.15, 'B', transform=ax2.transAxes, fontsize=16, va='top')

@@ -23,7 +23,7 @@ x = x[x < 10000] / 10  # units: milliseconds
 z = np.log(x)
 
 # Compute smoothed periodogram using Welch's method
-nperseg=32
+nperseg=64
 freqs, psd = signal.welch(z, fs=1.0, nperseg=nperseg,
                           scaling='spectrum', detrend='linear')
 
@@ -40,8 +40,8 @@ psd_high = psd * upper_mult
 
 # Plot
 fig, ax = plt.subplots(figsize=(6, 4))
-plt.semilogy(freqs, psd, label='Welch PSD (Smoothed)')
-plt.fill_between(freqs, psd_low, psd_high, color='gray', 
+plt.semilogy(freqs[1:], psd[1:], label='Welch PSD (Smoothed)')
+plt.fill_between(freqs[1:], psd_low[1:], psd_high[1:], color='gray', 
     alpha=0.3, label='95% CI')
 plt.xlabel('Frequency [cycles per observation]')
 plt.ylabel('Power spectral density')

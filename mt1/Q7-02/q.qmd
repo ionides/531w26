@@ -6,7 +6,7 @@ A. A statistical inference requires a statistical model. Investigating a hypothe
 
 B. Parametric statistical tests require a model. However, where possible, we should use nonparametric methods (e.g., rank tests, or cross-validation) that do not require a model and so are more robust.
 
-C. Modeling is of intrinsic scientific value, as a way of understanding the data-generating mechanism. We do not have to have specific statistical tests in mind when developing a model.
+C. Modeling is of intrinsic scientific value, as a way of understanding the data-generating mechanism. We do not have to have specific statistical tests or scientific questions in mind when developing a model.
 
 
 

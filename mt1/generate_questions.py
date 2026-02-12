@@ -12,7 +12,7 @@ import numpy as np
 # Configuration flags - should match mt1.qmd
 ALL = True
 SOL = True
-SOL = False
+#SOL = False
 QLABELS = True
 EXAM = False
 #EXAM = True
@@ -23,8 +23,9 @@ if EXAM:
     QLABELS = False
 
 # Set random seed for reproducibility
-random.seed(48)
-np.random.seed(48)
+my_seed = 48
+random.seed(my_seed)
+np.random.seed(my_seed)
 
 def q_setup(n):
     """

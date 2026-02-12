@@ -1,6 +1,9 @@
 ## Consumer Price Index for All Urban Consumers (CPI-U)
 ## Series Id:    CUUR0000SA0
-## Data extracted on: February 7, 2025 (5:54:26 PM)
+## https://data.bls.gov/timeseries/CUUR0000SA0
+## Data extracted on: February 7, 2025. Updated Feb 12, 2026
+# Data unavailable Oct 2025 due to the lapse in appropriations.
+#   The NA has been replaced by an interpolated value of 324.461
 ## Not Seasonally Adjusted
 ## Series Title: All items in U.S. city average, all urban consumers, not seasonally adjusted
 ## Area:         U.S. city average
@@ -119,3 +122,4 @@ Year,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec,HALF1,HALF2
 2022,281.148,283.716,287.504,289.109,292.296,296.311,296.276,296.171,296.808,298.012,297.711,296.797,288.347,296.963
 2023,299.170,300.840,301.836,303.363,304.127,305.109,305.691,307.026,307.789,307.671,307.051,306.746,302.408,306.996
 2024,308.417,310.326,312.332,313.548,314.069,314.175,314.540,314.796,315.301,315.664,315.493,315.605,312.145,315.233
+2025,317.671,319.082,319.799,320.795,321.465,322.561,323.048,323.976,324.800,324.461,324.122,324.054,320.229,324.000

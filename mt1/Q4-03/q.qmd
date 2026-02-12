@@ -59,14 +59,15 @@ plt.show()
 #| label: q4_03_lm_inflation_unemployment
 #| echo: false
 
-ols.summary().tables[1]
+res = ols.summary().tables[1]
+res
 ```
 
-A: 0.05 is a reasonable estimate for the additional unemployment caused by one percentage point of additional inflation. We should not trust the uncertainty estimate (not shown), since our model does not allow for autocorrelation of the residuals.
+A: `{python} f"{ols.params[1]:.3f}"` is a reasonable estimate for the additional unemployment caused by one percentage point of additional inflation. We should not trust the uncertainty estimate, since our model does not allow for autocorrelation of the residuals.
 
-B: 0.05 is a reasonable estimate for the association between inflation and unemployment. We should not assume there is a causal relationship. We should not trust the uncertainty estimate (not shown), since our model does not allow for autocorrelation of the residuals.
+B: `{python} f"{ols.params[1]:.3f}"` is a reasonable estimate for the association between inflation and unemployment. We should not assume there is a causal relationship. We should not trust the uncertainty estimate, since our model does not allow for autocorrelation of the residuals.
 
-C: 0.05 is a reasonable estimate for the association between inflation and unemployment.  We should make an additional assumption that there are no confounding variables, and then we can interpret this association to be causal. We should not trust the uncertainty estimate (not shown), since our model does not allow for autocorrelation of the residuals.
+C: `{python} f"{ols.params[1]:.3f}"` is a reasonable estimate for the association between inflation and unemployment.  We should make an additional assumption that there are no confounding variables, and then we can interpret this association to be causal. We should not trust the uncertainty estimate, since our model does not allow for autocorrelation of the residuals.
 
 
 

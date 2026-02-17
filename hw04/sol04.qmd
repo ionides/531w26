@@ -1,0 +1,344 @@
+---
+title: "Solution to [Homework 4](q.pdf)"
+subtitle: "STATS/DATASCI 531"
+format:
+  html:
+    toc: true
+    embed-resources: true
+bibliography: sol04.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+jupyter: python3
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+
+--------
+
+```{python}
+# | echo: false
+import warnings
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy import signal
+from statsmodels.tsa.arima_process import ArmaProcess, arma_periodogram
+from statsmodels.tsa.stattools import acf
+from statsmodels.tsa.ar_model import AutoReg
+from statsmodels.tsa.ar_model import ar_select_order
+from IPython.display import Markdown
+
+warnings.filterwarnings("ignore")
+np.random.seed(2050320976)
+
+
+def myround(x, digits=1):
+    """Round and format for display; handles -0.0 like R."""
+    if digits < 1:
+        raise ValueError("This is intended for the case digits >= 1.")
+    if hasattr(digits, "__len__") and len(digits) > 1:
+        digits = digits[0]
+        warnings.warn("Using only digits[0]")
+    tmp = f"{float(x):.{digits}f}"
+    zero = "0." + "0" * digits
+    if tmp == "-" + zero:
+        tmp = zero
+    return tmp
+
+
+def mysignif(x, digits=1):
+    """Format significant digits."""
+    if abs(x) == 0:
+        return myround(x, digits)
+    return myround(x, digits - int(np.ceil(np.log10(abs(x)))))
+```
+
+**<big>Question 4.1</big>**. 
+
+
+**<normal>Part A</normal>**. 
+
+Given the AR2 model
+\begin{align*}
+X_{n}=1.5X_{n-1}-0.8X_{n-2}+\epsilon_{n},
+\end{align*}
+we have 
+\begin{align*}
+\epsilon_{n}=X_{n}-1.5X_{n-1}+0.8X_{n-2}.
+\end{align*}
+By definition, the autocovariance of the white noise process $\{\epsilon_n\}$ is $\gamma_\epsilon(h) = \sigma^2$ for $h=0$ and $\gamma_\epsilon(h) = 0$ otherwise.
+Thus the spectrum of the white noise is
+$$\lambda_\epsilon(\omega) = \sum_{h=-\infty}^\infty \gamma_\epsilon(h) e^{-i\omega h} = \sigma^2$$
+for all $\omega$. 
+Now we observe that the ACF for $\left\{\epsilon_{n}\right\}$ can be written as
+\begin{split}
+\gamma_{\epsilon}\left(h\right)&=\cov\left(\epsilon_{n+h},\epsilon_{n}\right)\\
+&=\cov\left(X_{n+h}-1.5X_{n+h-1}+0.8X_{n+h-2},X_{n}-1.5X_{n-1}+0.8X_{n-2}\right)\\
+&=(1+1.5^2+0.8^2)\gamma_{X}\left(h\right)+(-1.5-1.5\times0.8)\left[\gamma_{X}\left(h+1\right)+\gamma_{X}\left(h-1\right)\right]+0.8\left[\gamma_{X}\left(h+2\right)+\gamma_{X}\left(h-2\right)\right].
+\end{split}
+
+Thus we see that
+\begin{split}
+\lambda_\epsilon(\omega) &= \sum_{h=-\infty}^\infty \gamma_\epsilon(h) e^{-i\omega h}\\
+&= \sum_{h=-\infty}^\infty \left\{ 3.89 \gamma_X(h) - 2.7 [\gamma_X(h+1)+\gamma_X(h-1)] + 0.8[\gamma_X(h+2)+\gamma_X(h-2)] \right\} e^{-i\omega h}.
+\end{split}
+Note that
+\begin{split}
+\sum_{h=-\infty}^\infty \gamma_X(h+1)e^{-i\omega h} &= \sum_{h=\infty}^\infty \gamma_X(h+1) e^{-i\omega (h+1)} e^{i\omega} \\
+&= e^{i\omega} \sum_{h'=-\infty}^\infty \gamma_X(h') e^{-i\omega h'}\\
+&= e^{i\omega} \lambda_X(\omega)
+\end{split}
+where we used the change of variable $h' = h+1$.
+Similarly, we have
+
+\begin{align*}
+\sum_{h=-\infty}^\infty \gamma_X(h-1)e^{-i\omega h} = e^{-i\omega} \lambda_X(\omega), \qquad \sum_{h=-\infty}^\infty \gamma_X(h+2)e^{-i\omega h} = e^{2i\omega} \lambda_X(\omega), \qquad \sum_{h=-\infty}^\infty \gamma_X(h-2)e^{-i\omega h} = e^{-2i\omega} \lambda_X(\omega).
+\end{align*}
+
+It follows that
+\begin{align*}
+\sigma^2 = \lambda_\epsilon(\omega) = 3.89 \lambda_X(\omega) - 2.7 (e^{i\omega} + e^{-i\omega}) \lambda_X(\omega) + 0.8 (e^{2i\omega} + e^{-2i\omega})\lambda_X(\omega).
+\end{align*}
+Therefore,
+\begin{align*}
+\lambda_{X}(\omega)=\frac{\sigma^{2}}{3.89-5.4\cos(\omega)+1.6\cos(2\omega)}.
+\end{align*}
+
+
+The plot of the spectral density and autocovariance are given as follows.
+Note that $\omega = 2\pi f$, where $f$ denotes the frequency in cycles per unit time and $\omega$ measures radians per unit time.
+
+```{python}
+# | echo: false
+# | label: plot1
+ar_poly = np.r_[1, -np.array([1.5, -0.8])]
+ma_poly = np.array([1.0])
+arma_process = ArmaProcess(ar_poly, ma_poly)
+
+frequencies, spectral_density = arma_periodogram(ar_poly, ma_poly, worN=1000)
+
+frequencies_cycles = frequencies / (2 * np.pi)
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.83, 8))
+ax1.plot(frequencies_cycles, spectral_density)
+ax1.set_xlabel("Frequency (cycles per unit time)")
+ax1.set_ylabel("Spectral Density")
+ax1.set_title("Spectral Density: AR(2) model")
+ax1.grid(True, alpha=0.3)
+
+model_AR = arma_process.generate_sample(nsample=1000)
+
+acf_vals = acf(model_AR, nlags=40, fft=True)
+lags = np.arange(len(acf_vals))
+
+ax2.vlines(lags, 0, acf_vals)
+ax2.set_xlabel("Lag")
+ax2.set_ylabel("Autocovariance")
+ax2.set_title("Autocovariance: AR(2) model")
+ax2.grid(True, alpha=0.3)
+ax2.axhline(y=0, color='k', linewidth=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+**<normal>Part B</normal>**. 
+
+Given the MA2 model
+
+\begin{align*}
+X_{n}=\epsilon_{n-2}+\epsilon_{n-1}+\epsilon_{n}
+\end{align*}
+with $\var\left(\epsilon_{n}\right)=\sigma^{2}$, we start by writing
+the ACF
+$$\begin{eqnarray}
+\gamma\left(0\right)&=&\cov\left(X_{n},X_{n}\right)=3\sigma^{2}\\
+\gamma\left(1\right)&=&\gamma\left(-1\right)=\cov\left(X_{n},X_{n-1}\right)=2\sigma^{2}\\
+\gamma\left(2\right)&=&\gamma\left(-2\right)=\cov\left(X_{n},X_{n-2}\right)=\sigma^{2}\\
+\gamma\left(h\right)&=&0\;\forall|h|\geq3.
+\end{eqnarray}$$
+So we have 
+\begin{split}
+\lambda(\omega)&=\sum_{h=-\infty}^\infty \gamma\left(h\right)e^{- i\omega h}\\
+&=\sum_{h=-2}^{2}\gamma(h)e^{-i\omega h}\\
+&=\gamma(0)+2 \gamma(1)\cos(\omega)+2\gamma(2)\cos(2\omega)\\
+&=\sigma^{2}\left[3+4\cos(\omega)+2\cos(2\omega)\right]
+\end{split}
+The plot of the spectral density and autocovariance are given as follows:
+
+
+```{python}
+# | echo: false
+# | label: plot2
+ar_poly = np.array([1.0])
+ma_poly = np.r_[1, np.array([1.0, 1.0])]
+arma_process = ArmaProcess(ar_poly, ma_poly)
+
+frequencies, spectral_density = arma_periodogram(ar_poly, ma_poly, worN=1000)
+
+frequencies_cycles = frequencies / (2 * np.pi)
+
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.83, 8))
+ax1.plot(frequencies_cycles, spectral_density)
+ax1.set_xlabel("Frequency (cycles per unit time)")
+ax1.set_ylabel("Spectral Density")
+ax1.set_title("Spectral Density: MA(2) model")
+ax1.grid(True, alpha=0.3)
+
+model_MA = arma_process.generate_sample(nsample=1000)
+
+acf_vals = acf(model_MA, nlags=40, fft=True)
+lags = np.arange(len(acf_vals))
+
+ax2.vlines(lags, 0, acf_vals)
+ax2.set_xlabel("Lag")
+ax2.set_ylabel("Autocovariance")
+ax2.set_title("Autocovariance: MA(2) model")
+ax2.grid(True, alpha=0.3)
+ax2.axhline(y=0, color='k', linewidth=0.5)
+plt.tight_layout()
+plt.show()
+```
+
+**<normal>Part C</normal>**. 
+
+For part A, if we look closely at the spectrum density plot, we
+can see a peak at frequency around 0.1 (actually slightly less than
+0.1), which is the dominant frequency. This indicates that the dominant
+period is around 10 (precisely larger than 10). If we look at the
+ACF, we can see there exists an oscillatory behavior characteristic of
+period = 11. We see that these two are matched with each other.
+
+For part B, there is no appearant peak on the spectrum density plot,
+and there is no periodic behavior on the ACF plot either. Again, these
+two correspond to each other.
+
+-------------------
+
+**<big>Question 4.2</big>**.  
+We first read in the data from the source. We seek to find out the
+relationship between time and number. We now make a time plot of the
+data to explore.
+
+```{python}
+# | echo: false
+# | label: explore
+mydata = pd.read_csv("sunspots.txt", comment="#", sep=r"\s+", engine="python", skipinitialspace=True, on_bad_lines="skip")
+year = mydata["Time"]
+number = mydata["Number"]
+
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(year, number)
+ax.set_xlabel("Year")
+ax.set_ylabel("Number")
+ax.set_title("Sunspot Data")
+plt.tight_layout()
+plt.show()
+```
+
+From the plot, we see that there is a periodic behavior, with regularly spaced peaks. The time interval between these peaks are about 11 years. This is as expected from reading the NASA website [@nasa17].
+
+Now we take a look at the inconsistent spectral density estimate provided by the raw periodogram:
+
+```{python}
+# | echo: false
+# | label: spectral
+frequencies_raw, spectrum_raw = signal.periodogram(number, fs=1.0)
+
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(frequencies_raw[1:], spectrum_raw[1:])
+ax.set_yscale("log")
+ax.set_xlabel("frequency (cycles per month)")
+ax.set_ylabel("Spectrum")
+ax.set_title("Unsmoothed periodogram")
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+# | echo: false
+freq_raw_idx = np.argmax(spectrum_raw)
+freq_raw = frequencies_raw[freq_raw_idx]
+```
+
+This obtains a maximum at `{python} Markdown(mysignif(freq_raw, 3))` $\mathrm{month}^{-1}$, which corresponds to a period of `{python} Markdown(mysignif(1/(12*freq_raw), 3))` years.
+
+We compare with using repeated rectangular smoothing windows to obtain a non-parametrically smoothed periodogram.
+
+```{python}
+# | echo: false
+# | label: unsmoothperiodogram
+from scipy.ndimage import uniform_filter1d
+
+smoothed_spec = uniform_filter1d(spectrum_raw, size=30)
+smoothed_spec = uniform_filter1d(smoothed_spec, size=30)
+
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(frequencies_raw, smoothed_spec)
+ax.set_xlabel("frequency (cycles per month)")
+ax.set_ylabel("Spectrum")
+ax.set_yscale("log")
+ax.set_title("Smoothed periodogram")
+plt.tight_layout()
+plt.show()
+```
+
+We now determine the dominant frequency.
+```{python}
+# | echo: false
+freq_smoothed_idx = np.argmax(smoothed_spec)
+freq_smoothed = frequencies_raw[freq_smoothed_idx]
+```
+
+We see that the dominant frequency is `{python} Markdown(mysignif(freq_smoothed, 3))` $\mathrm{month}^{-1}$, which corresponds to a period of `{python} Markdown(mysignif(1/(12*freq_smoothed), 3))` years.
+
+
+Now we use parametric method to estimate the spectral density.
+
+```{python}
+# | echo: false
+# | label: estimate
+max_lag = int(10 * np.log10(len(number)))
+selector = ar_select_order(number, maxlag=max_lag, ic='aic', glob=False)
+p = selector.ar_lags[-1] if selector.ar_lags else 1
+
+model = AutoReg(number, lags=p, trend='c').fit()
+sigma2 = model.sigma2
+ar_coeffs = model.params[1:]
+
+den = np.concatenate(([1], -ar_coeffs))
+freqs, h = signal.freqz(np.sqrt(sigma2), den, fs=1.0)
+spec = np.abs(h)**2
+
+freq_parametric = freqs[np.argmax(spec)]
+
+plt.figure(figsize=(10, 6))
+plt.plot(freqs, spec)
+plt.yscale("log")
+plt.title("Spectrum estimated via AR model picked by AIC")
+plt.xlabel("frequency (cycles per month)")
+plt.axvline(freq_parametric, linestyle=':', color='black')
+plt.grid(alpha=0.3)
+plt.show()
+```
+
+We find that the dominant frequency is `{python} Markdown(mysignif(freq_parametric, 3))` $\mathrm{month}^{-1}$, which corresponds to a period of `{python} Markdown(mysignif(1/(12*freq_parametric), 3))` years.
+
+We see that the parametric approach gives a sharper peak estimate, which may be appropriate in this siutation.
+
+These two estimates are somewhat similar to each other, to the result from the raw periodogram, and to the 11 year period discussed by [@nasa17].
+In the absence of a full stochastic model for the sunspots, it is hard to say which of these is most trustworthy.
+
+---------------------
+
+### Sources
+
+Parts of this solution are adapted from a previous homework submission by Xiang Gao. 
+This is a vague attribution, perhaps appropriate here since it is not necessary to evalutate individual contributions. 
+For homework submissions, a generic attribution like this is not appropriate. 
+One should help the grader by being more precise about which parts of the code and/or explanation are derived from the source.
+
+### References
+

@@ -98,7 +98,7 @@ print(u_data.iloc[:3,:10])
 
 - Write $u_n$ for mean unemployment in year $t_n$.
 
-## A time plot of the raw data {.fragile}
+## A time plot of the raw data 
 
 \footnotesize
 ```{python}
@@ -121,7 +121,6 @@ ax2.plot(yr, u, '-')
 ax2.set_ylabel('u')
 ax2.set_xlabel('Year')
 ax2.grid(True, alpha=0.3)
-plt.tight_layout()
 plt.show()
 ```
 
@@ -183,7 +182,6 @@ ax2 = ax1.twinx()
 ax2.plot(yr, e_hp_cycle, 'r-')
 ax2.set_ylabel('Detrended e0', color='r')
 ax2.tick_params(axis='y', labelcolor='r')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -202,7 +200,6 @@ ax2 = ax1.twinx()
 ax2.plot(yr, e_hp_cycle, 'r-')
 ax2.set_ylabel('Detrended e0', color='r')
 ax2.tick_params(axis='y', labelcolor='r')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -291,6 +288,8 @@ We have been careful to talk about *association*, since observational data givin
 
 ## 
 
+\footnotesize
+
 ```{python}
 #| echo: true
 ccf_values = np.correlate(
@@ -299,6 +298,7 @@ ccf_values = np.correlate(
     mode='full') / (len(e_hp_cycle) *
     e_hp_cycle.std() * u_hp_cycle.std())
 ```
+\normalsize
 
 ```{python}
 #| echo: false
@@ -314,12 +314,10 @@ plt.axhline(y=-1.96/np.sqrt(len(e_hp_cycle)),
     color='b', linestyle='--', linewidth=0.5)
 plt.xlabel('Lag'); plt.ylabel('CCF')
 plt.title('e_hp & u_hp')
-plt.tight_layout(); plt.show()
+plt.show()
 ```
 
-- The strong positive cross-correlation at lag zero supports pro-cyclical mortality.
-
-- The oscillatory pattern is not significant pointwise but might be more evident in the frequency domain.
+- The strong positive cross-correlation at lag zero supports pro-cyclical mortality. The oscillatory pattern is not significant pointwise but might be more evident in the frequency domain.
 
 ## Cross-covariance and the cross-spectrum
 
@@ -368,7 +366,6 @@ plt.plot(freqs, coherence_sq, '-')
 plt.xlabel('Frequency')
 plt.ylabel('Squared Coherence')
 plt.ylim(0, 1)
-plt.tight_layout()
 plt.show()
 ```
 
@@ -378,25 +375,23 @@ plt.show()
 #| echo: false
 #| fig-width: 11
 #| fig-height: 3
-# Compute cross-spectrum using Welch's method
-freqs, Pxx = signal.welch(e_hp_cycle, nperseg=len(e_hp_cycle)//4)
-freqs, Pyy = signal.welch(u_hp_cycle, nperseg=len(u_hp_cycle)//4)
+# Compute cross-spectrum and coherence by Welch's method
+nperseq=20
+freqs, Pxx = signal.welch(e_hp_cycle, nperseg=nperseq)
+freqs, Pyy = signal.welch(u_hp_cycle, nperseg=nperseq)
 freqs, Pxy = signal.csd(e_hp_cycle, u_hp_cycle,
-                        nperseg=len(e_hp_cycle)//4)
-
-# Compute squared coherence
+    nperseg=nperseq)
 coherence_sq = np.abs(Pxy)**2 / (Pxx * Pyy)
 
 plt.figure(figsize=(11, 3))
-plt.plot(freqs, coherence_sq, '-')
+plt.plot(freqs[1:], coherence_sq[1:], '-')
 plt.xlabel('Frequency')
 plt.ylabel('Squared Coherence')
-plt.ylim(0, 1)
-plt.tight_layout()
 plt.show()
 ```
 
-- Python calculates squared coherence, the squared absolute coherency. This is like reporting $r^2$ for regression, rather than $|r|$.
+- Python calculates squared coherence, i.e., the squared absolute coherency. 
+This is like reporting $r^2$ for regression, rather than $|r|$.
 
 **Question.** Interpret the squared coherence plot.
 
@@ -414,7 +409,6 @@ plt.plot(freqs, phase, '-')
 plt.axhline(y=0, color='red', linestyle='-')
 plt.xlabel('Frequency')
 plt.ylabel('Phase')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -431,7 +425,6 @@ plt.plot(freqs, phase, '-')
 plt.axhline(y=0, color='red', linestyle='-')
 plt.xlabel('Frequency')
 plt.ylabel('Phase')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -507,7 +500,7 @@ print(f"Log-likelihood:      {a3.llf:.2f}")
 
 ##  
 
-- The estimated ARMA(3,1) is at the boundary of invertibility, with an MA1 coefficient on the unit circle.
+- The estimated ARMA(3,1) is at the boundary of invertibility, with an MA1 coefficient close to the unit circle.
 
 - This is reminiscent of our earlier analysis of the Lake Huron depth data.
 
@@ -559,7 +552,6 @@ plt.figure(figsize=(10, 4))
 plt.plot(r, '-')
 plt.ylabel('Residuals')
 plt.xlabel('Time')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -574,7 +566,6 @@ plt.figure(figsize=(10, 4))
 plt.plot(r, '-')
 plt.ylabel('Residuals')
 plt.xlabel('Time')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -587,7 +578,6 @@ plt.show()
 #| eval: false
 fig, ax = plt.subplots(figsize=(9, 3))
 plot_acf(r, ax=ax, lags=18)
-plt.tight_layout()
 plt.show()
 ```
 
@@ -599,7 +589,6 @@ plt.show()
 #| fig-height: 3
 fig, ax = plt.subplots(figsize=(9, 3))
 plot_acf(r, ax=ax, lags=18)
-plt.tight_layout()
 plt.show()
 ```
 
@@ -638,7 +627,6 @@ ax2 = ax1.twinx()
 ax2.plot(yr, delta_e, 'r-')
 ax2.set_ylabel('Differenced e0', color='r')
 ax2.tick_params(axis='y', labelcolor='r')
-plt.tight_layout()
 plt.show()
 ```
 
@@ -648,10 +636,12 @@ plt.show()
 
 - The relationship is also harder to find by statistical methods:
 
+\footnotesize
 ```{python}
 #| echo: true
 a4 = SARIMAX(delta_e, exog=u_hp_df, order=(1, 0, 1)).fit()
 ```
+\normalsize
 
 ```{python}
 #| echo: false
@@ -678,7 +668,7 @@ print(f"Log-likelihood:      {a4.llf:.2f}")
 
 ## Acknowledgments
 
-- Compiled on \today using Python.
+- Compiled on \today, using Python.
 - Licensed under the [Creative Commons Attribution-NonCommercial license](http://creativecommons.org/licenses/by-nc/4.0/). Please share and remix non-commercially, mentioning its origin.
 - We acknowledge [previous versions of this course](https://ionides.github.io/531w26/acknowledge.html).
 

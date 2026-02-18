@@ -411,7 +411,7 @@ plt.show()
 
 - Above, we have used the *local regression smoother* `lowess` from statsmodels, but there are other similar options.
 
-- `scipy.ndimage.gaussian_filter1d` is a *Gaussian kernel smoother*. The default periodogram smoother in `signal.welch` is also a form of kernel smoothing.
+- `scipy.ndimage.gaussian_filter1d` is a *Gaussian kernel smoother*.
 
 - `scipy.interpolate.UnivariateSpline` is a *spline smoother*.
 

@@ -1,30 +1,23 @@
 
-Class 10 discussion problem
+Class 12 discussion problem
 
-Solve the question at https://ionides.github.io/531w26/quiz/class10.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+Solve the question at https://ionides.github.io/531w26/quiz/class12.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
 
 
 1. Multiple choice question title:
-Frequency analysis of smoothed inflation: https://ionides.github.io/531w26/quiz/class10.pdf
+ Cross-correlation: https://ionides.github.io/531w26/quiz/class12.pdf
 
 Question text:
-The question is posted at https://ionides.github.io/531w26/quiz/class10.pdf
+The question is posted at https://ionides.github.io/531w26/quiz/class12.pdf
 
 
 Answers: 
 
-(A). Cycles longer than 2 months are removed
+(A). High inflation generally led high unemployment, with a lag of about 4 yr.
 
-(B). Cycles shorter than 2 months are removed
+(B). High inflation generally followed high unemployment, with a lag of about 4 yr.
 
-(C). Cycles longer than 2 year are removed
-
-(D). Cycles shorter than 2 year are removed
-
-(E). Cycles longer than (1/2) year are removed
-
-(F). Cycles shorter than (1/2) year are removed
-
+(C). Association is not causation, so we should not interpret a cross-correlation plot in terms of lead and lag relationships.
 
 2. essay question title: Supporting reasoning
 

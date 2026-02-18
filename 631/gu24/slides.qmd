@@ -1,0 +1,53 @@
+---
+title: "Gu & Dao, 2024"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
+---
+
+## Impact
+
+
+Gu, A., & Dao, T. (2024, May). Mamba: Linear-time sequence modeling with selective state spaces. In [_First Conference on Language Modeling (COLM)_](https://arxiv.org/pdf/2312.00752).
+
+
+* cited 8426 times
+
+* Sometimes considered an advance over transformer architectures.
+
+## Insights
+
+_" letting the SSM parameters be functions of the input addresses their weakness with discrete modalities, allowing the model to selectively propagate or forget information along the sequence length dimension depending on the current token"_
+
+_"We integrate these selective SSMs into a simplified end-to-end neural network architecture without attention or even MLP blocks (Mamba). Mamba enjoys fast inference (5$\times$higher throughput than Transformers) and linear scaling in sequence length, and its performance improves on real data up to million-length sequences."_
+
+
+## Selective state space models
+
+* Obtained by parameterizing the SSM based on the input
+
+* _"hardware-aware algorithm that computes the model recurrently with a scan instead of convolution"_
+
+  - Gemini: A "scan" (prefix sum) is a parallel algorithm that computes cumulative sums of elements. It is foundational to parallel algorithms
+
+  - Sengupta, S., Harris, M., Zhang, Y., & Owens, J. D. (2007). Scan primitives for GPU computing. https://doi.org/10.2312/EGGH/EGGH07/097-106
+
+##
+
+\includegraphics[width=11cm]{gu24fig1.png}
+
+
+## Selection
+
+* In a similar category as gating in LSTM or attention in LLM.
+
+* $\Delta$, $B$, $C$ are learned functions of the input
+
+
+## Evaluation
+
+* How did the authors convince people that their method works well?
+

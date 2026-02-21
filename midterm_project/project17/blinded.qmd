@@ -1,0 +1,557 @@
+---
+title: "Interrupted time series analysis of U.S. lung cancer mortality in the immunotherapy era\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{graphicx}
+        \setkeys{Gin}{width=0.7\linewidth}
+number-sections: true
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+Immune checkpoint inhibitors (ICIs) are a novel therapy which utilize the bodies native immune system to destroy cancer cells by inhibiting checkpoint proteins. ICI's entered routine care for advanced non-small cell lung cancer in the mid-2010s, raising the question of whether the population-level trajectory of lung cancer mortality changed after these therapies diffused into practice. Using monthly U.S. deaths with underlying cause ICD-10 C33–C34 from CDC WONDER (January 1999–December 2020), we treat the ICI era as a candidate intervention and analyze the series as a dependent process with seasonality and serial correlation. We first characterize long-run trend and seasonal structure, then build baseline ARIMA/SARIMA models for the log mortality series. We embed an interrupted time series (ITS), a common applied statistical technique used to evaluate the effect of an intervention on time series data. Thus we specify an ITS regression in a state-space model with ARMA errors (SARIMAX), allowing level and slope changes after an intervention date while controlling for seasonality and autocorrelation. We evaluate models using information criteria and residual diagnostics, and we generate a counterfactual post-intervention trajectory from the pre-intervention model to quantify the implied difference in deaths.
+
+# Introduction
+
+Time series analysis replaces the i.i.d. assumption with structured dependence, enabling inference about *change over time* in the presence of autocorrelation and seasonal structure [@notes531; @shumway17]. In public health and real-world evidence, a common question is whether a major innovation coincides with a detectable shift in outcome trajectories at the population level. Here, the outcome is monthly U.S. deaths whose underlying cause is malignant neoplasm of trachea/bronchus/lung (ICD-10 C33–C34). The potential intervention is the diffusion of immune checkpoint inhibitors (ICIs) into standard-of-care lung cancer treatment in the mid-2010s.
+
+**Research question.** Did the *trend* of U.S. lung cancer mortality change after the advent of ICI , beyond what would be expected from other variables and seasonal variation?
+
+# Methods
+
+## Data source and construction
+
+We analyze monthly counts of U.S. deaths (January 1999–December 2020) from CDC WONDER “Underlying Cause of Death, 1999–2020” with ICD-10 C33–C34 and national aggregation [@cdcwonder]. 
+
+Let $Y_t$ denote deaths in month $t$ and $X_t=\log(Y_t)$ denote the log series. The log transform stabilizes variance for counts at this scale and facilitates interpretation of regression coefficients as approximate percent changes.
+
+## Dependence, stationarity, and model families
+
+We diagnose dependence using the sample autocorrelation function (ACF). Because the series shows trend, we consider differencing and include deterministic components (trend/intervention) inside a regression-with-correlated-errors framework.
+
+Baseline models use ARIMA/SARIMA:
+$$
+\phi(L)(1-L)^d X_t = \theta(L)\varepsilon_t,\quad \varepsilon_t\sim \text{WN}(0,\sigma^2),
+$${#eq-arima}
+Where $d$ represents the amount of differencing which we take to be $1$. We also include a seasonal components at period $s=12$ if warranted. Model adequacy is checked using residual ACF and Ljung–Box tests.
+
+## Interrupted time series with ARMA errors (SARIMAX)
+
+To test for structural change, we fit an ITS regression embedded in a seasonal ARMA error model (a linear Gaussian state-space specification):
+$$
+X_t = \beta_0 + \beta_1 t + \beta_2 \mathbf{1}\{t\ge t_0\} + \beta_3 (t-t_0)\mathbf{1}\{t\ge t_0\} + u_t,
+$${#eq-its}
+where $t$ is months since start, $t_0$ is the intervention month, $\beta_2$ is a level change and $\beta_3$ is a slope change. $beta_1$ and $beta_0$ represent the baseline structure before the intervention. The redundancy in parameters here is used to construct the counterfactual. The error process $u_t$ follows a seasonal ARMA model. We fit these models with maximum likelihood via `statsmodels` SARIMAX.
+
+
+**Intervention date.** We use January 2015 as an initial candidate ($t_0$), consistent with the mid-2010s adoption window, and we assess sensitivity via alternative $t_0$ values in the Supplementary material (@sec-supp).
+
+## Counterfactual estimation
+
+Given a fitted ITS model, we compute a counterfactual post-$t_0$ path by setting post-intervention regressors to zero (no level/slope change) while keeping the estimated seasonal and ARMA structure. Thus the baseline model becomes $X_t = \beta_0 + \beta_1 t  + u_t$. The difference between observed fitted values and counterfactual forecasts yields an estimate of post-$t_0$ cumulative change in deaths. We summarize uncertainty using parameter draws from the estimated covariance matrix (Gaussian approximation) propagated through the counterfactual calculation.
+
+# Results
+
+```{python}
+#| label: setup
+#| echo: false
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+import warnings
+warnings.filterwarnings("ignore")
+
+plt.rcParams["figure.dpi"] = 120
+```
+
+## Data cleaning and summary
+
+```{python}
+#| label: data-load
+#| echo: false
+raw = pd.read_csv("Underlying Cause of Death, 1999-2020.csv")
+
+# Keep only month-level rows identified by Month Code "YYYY/MM"
+df = raw.copy()
+df = df[df["Month Code"].astype(str).str.match(r"^\d{4}/\d{2}$", na=False)].copy()
+
+df["date"] = pd.to_datetime(df["Month Code"] + "/01", format="%Y/%m/%d")
+df = df.sort_values("date")
+df["deaths"] = pd.to_numeric(df["Deaths"], errors="coerce")
+
+# Main analysis series
+# (monthly start frequency)
+y = df.set_index("date")["deaths"].asfreq("MS")
+x = np.log(y)
+
+n = len(x)
+start, end = x.index.min(), x.index.max()
+(n, start, end)
+```
+
+The cleaned dataset contains `{python} n` monthly observations from `{python} start.strftime("%Y-%m")` to `{python} end.strftime("%Y-%m")`, with no missing values giving ample observations and continuity to asses time dependence.
+
+```{python}
+#| label: tbl-summary
+#| tbl-cap: "Summary of monthly lung cancer deaths (ICD-10 C33–C34), U.S., 1999–2020."
+#| echo: false
+pd.DataFrame({
+    "Statistic": ["Mean", "SD", "Min", "Max"],
+    "Deaths": [y.mean(), y.std(), y.min(), y.max()]
+}).assign(Deaths=lambda d: d["Deaths"].round(1))
+```
+
+## Exploratory analysis: trend and seasonality
+
+```{python}
+#| label: fig-series
+#| fig-cap: "Monthly U.S. lung cancer deaths, 1999–2020 (counts and log scale)."
+#| echo: false
+fig, ax = plt.subplots(2, 1, figsize=(8, 5), sharex=True)
+ax[0].plot(y.index, y.values)
+ax[0].set_ylabel("Deaths")
+ax[0].set_title("Counts")
+
+ax[1].plot(x.index, x.values)
+ax[1].set_ylabel("log(Deaths)")
+ax[1].set_title("Log scale")
+
+plt.tight_layout()
+plt.show()
+```
+
+ @fig-series indicates a pronounced long-run decline in monthly lung cancer deaths, with recurring within-year oscillations superimposed over a trend. On the log scale, seasonal oscillations appear closer to constant amplitude, supporting a multiplicative seasonal interpretation and motivating modeling on $X_t=\log(Y_t)$ with an explicit annual ($s=12$) seasonal component.
+
+To visualize seasonality, we compute the average within-year profile using month-of-year.
+
+```{python}
+#| label: fig-season
+#| fig-cap: "Average seasonal pattern (month-of-year means of log deaths)."
+#| echo: false
+season = x.groupby(x.index.month).mean()
+plt.figure(figsize=(7,3))
+plt.plot(range(1,13), season.values, marker="o")
+plt.xticks(range(1,13))
+plt.xlabel("Month")
+plt.ylabel("Mean log(Deaths)")
+plt.tight_layout()
+plt.show()
+```
+
+ @fig-season summarizes the average month-of-year pattern in the log series. The profile is not flat, indicating systematic within-year seasonality rather than noise. Because this structure repeats annually, we treat seasonality as a core component of dependence—either through seasonal ARIMA terms or, as a fixed-effect model which is explored in the Supplementary section.
+
+## Dependence diagnostics (ACF/PACF)
+
+```{python}
+#| label: fig-acf-pacf
+#| fig-cap: "ACF and PACF for the log series and its first difference."
+#| echo: false
+dx = x.diff().dropna()
+
+fig, ax = plt.subplots(2, 2, figsize=(9,5))
+plot_acf(x.dropna(), lags=48, ax=ax[0,0])
+ax[0,0].set_title("ACF: log deaths")
+plot_pacf(x.dropna(), lags=48, ax=ax[0,1], method="ywm")
+ax[0,1].set_title("PACF: log deaths")
+
+plot_acf(dx, lags=48, ax=ax[1,0])
+ax[1,0].set_title("ACF: Δ log deaths")
+plot_pacf(dx, lags=48, ax=ax[1,1], method="ywm")
+ax[1,1].set_title("PACF: Δ log deaths")
+
+plt.tight_layout()
+plt.show()
+```
+
+ @fig-acf-pacf shows that the undifferenced ACF decays slowly, consistent with a nonstationary mean driven by secular trend. After first differencing, substantial dependence remains, with prominent structure at seasonal lags (12, 24, …).
+
+## Baseline time series models (no intervention)
+
+We compare two candidates, prioritizing interpretability and diagnostics over exhaustive search. To make comparison cleaner, we standardize both models to be $(1,1,1)$.  We consider (i) a non-seasonal ARIMA on $\Delta X_t$, and (ii) a seasonal model with monthly period $s=12$.
+
+```{python}
+#| label: model-baseline
+#| echo: false
+# Candidate 1: ARIMA(1,1,1) on log deaths
+m_arima = ARIMA(x, order=(1,1,1)).fit()
+
+# Candidate 2: SARIMA with seasonal differencing and low orders
+m_sarima = SARIMAX(
+    x, order=(1,1,1), seasonal_order=(1,1,1,12),
+    trend="n", enforce_stationarity=False, enforce_invertibility=False
+).fit(disp=False)
+
+pd.DataFrame({
+    "Model": ["ARIMA(1,1,1)", "SARIMA(1,1,1)x(1,1,1)[12]"],
+    "AIC": [m_arima.aic, m_sarima.aic],
+    "BIC": [m_arima.bic, m_sarima.bic]
+}).sort_values("AIC")
+```
+
+The seasonal model has much a lower AIC indicating a  substantially improved fit. We also then assess adequacy using residual diagnostics (residual ACF and Ljung–Box tests) in @fig-baseline-resid
+
+```{python}
+#| label: fig-baseline-resid
+#| fig-cap: "Residual diagnostics for the baseline SARIMA model."
+#| echo: false
+resid = m_sarima.resid.dropna()
+
+fig, ax = plt.subplots(2, 1, figsize=(8,4))
+ax[0].plot(resid.index, resid.values)
+ax[0].set_title("Residuals (SARIMA baseline)")
+ax[0].set_ylabel("Residual")
+
+plot_acf(resid, lags=48, ax=ax[1])
+ax[1].set_title("Residual ACF")
+plt.tight_layout()
+plt.show()
+
+acorr_ljungbox(resid, lags=[12,24,36], return_df=True)
+```
+
+## Interrupted time series (intervention regression with ARMA errors)
+
+### Intervention coding
+
+Let $t$ index months since 1999-01. We set $t_0 =$ 2015-01 as the primary intervention month and define a step and post-intervention ramp, which corresponds the $(t-t_0)$ model component.
+
+```{python}
+#| label: itsexog
+#| echo: false
+t = np.arange(len(x))
+t0_date = pd.Timestamp("2015-01-01")
+t0 = np.where(x.index == t0_date)[0][0]
+
+step = (t >= t0).astype(int)
+ramp = np.where(t >= t0, t - t0, 0)
+
+exog = pd.DataFrame({
+    "t": t,
+    "step": step,
+    "ramp": ramp
+}, index=x.index)
+
+t0_date, t0, exog.iloc[[t0-1, t0, t0+1]]
+```
+
+### Model fit and interpretation
+
+We fit a SARIMAX model with the same seasonal structure as the baseline, adding regressors for trend and intervention. The model corresponds to Equation @eq-its with ARMA seasonal errors.
+
+```{python}
+#| label: model-its
+#| echo: false
+m_its = SARIMAX(
+    x,
+    exog=exog,
+    order=(1,1,1),
+    seasonal_order=(1,1,1,12),
+    trend="c",  # constant; t is in exog
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+m_its.summary().tables[1]
+```
+
+We summarize the intervention parameters in @model-its. Because the model is on $\log(Y_t)$, a coefficient $\beta$ corresponds to an approximate $(e^\beta-1)\times 100\%$ multiplicative change.
+
+```{python}
+#| label: tbl-its-coef
+#| tbl-cap: "Key ITS coefficients (log scale) and approximate percent interpretation."
+#| echo: false
+coef = m_its.params
+se = m_its.bse
+rows = ["t", "step", "ramp"]
+out = []
+for r in rows:
+    b = coef[r]
+    out.append({
+        "Term": r,
+        "Estimate": b,
+        "SE": se[r],
+        "Approx % change": 100*(np.exp(b)-1)
+    })
+pd.DataFrame(out).assign(
+    Estimate=lambda d: d["Estimate"].round(4),
+    SE=lambda d: d["SE"].round(4),
+    **{"Approx % change": lambda d: d["Approx % change"].round(2)}
+)
+```
+
+Interpretation depends on the sign of `ramp`: a negative post-intervention slope change indicates an acceleration of the decline beyond the pre-2015 trend.
+
+### Model comparison and diagnostics
+
+```{python}
+#| label: tbl-compare
+#| tbl-cap: "Model comparison (information criteria)."
+#| echo: false
+pd.DataFrame({
+    "Model": ["Baseline SARIMA", "ITS SARIMAX (trend + step + ramp)"],
+    "AIC": [m_sarima.aic, m_its.aic],
+    "BIC": [m_sarima.bic, m_its.bic]
+}).assign(AIC=lambda d: d["AIC"].round(1), BIC=lambda d: d["BIC"].round(1))
+```
+
+```{python}
+#| label: fig-its-resid
+#| fig-cap: "Residual diagnostics for the ITS SARIMAX model."
+#| echo: false
+resid2 = m_its.resid.dropna()
+
+fig, ax = plt.subplots(2, 1, figsize=(8,4))
+ax[0].plot(resid2.index, resid2.values)
+ax[0].set_title("Residuals (ITS model)")
+ax[0].set_ylabel("Residual")
+
+plot_acf(resid2, lags=48, ax=ax[1])
+ax[1].set_title("Residual ACF")
+plt.tight_layout()
+plt.show()
+
+acorr_ljungbox(resid2, lags=[12,24,36], return_df=True)
+```
+
+Residual diagnostics for the ITS model in @fig-its-resid indicate a slightly improved fit with a non-significant p-value at the $36$-th lag, perhaps slightly contradicting the negligible AIC difference.
+
+## Counterfactual trajectory and implied cumulative difference
+
+We generate fitted values under (i) the full ITS model and (ii) a counterfactual where the step and ramp are set to zero after 2015-01 (no change relative to pre-2015 trend), retaining the estimated seasonal and ARMA structure.
+
+```{python}
+#| label: counterfactual
+#| echo: false
+# Full fitted mean
+fit_full = m_its.get_prediction(exog=exog).predicted_mean
+
+# Counterfactual exog: keep t but remove intervention components
+exog_cf = exog.copy()
+exog_cf["step"] = 0
+exog_cf["ramp"] = 0
+fit_cf = m_its.get_prediction(exog=exog_cf).predicted_mean
+
+post = x.index >= t0_date
+
+# Convert to death scale
+y_full_hat = np.exp(fit_full)
+y_cf_hat = np.exp(fit_cf)
+
+cum_diff = (y_cf_hat[post] - y_full_hat[post]).sum()
+cum_diff_fmt = f"{cum_diff:,.0f}"
+```
+
+```{python}
+#| label: fig-counterfactual
+#| fig-cap: "Observed deaths and fitted trajectories: full ITS fit vs. counterfactual without post-2015 change (log scale and post-period zoom)."
+#| echo: false
+
+# ---------- helpers ----------
+eps = 1e-9  # avoid log(0) just in case
+
+# ---------- Figure 1: full history on log scale ----------
+plt.figure(figsize=(8, 3.5))
+
+plt.plot(y.index, y.values + eps, label="Observed", alpha=0.45, linewidth=1.2, zorder=1)
+plt.plot(y_full_hat.index, y_full_hat.values + eps, label="Fitted (ITS)", linewidth=2.2, zorder=3)
+plt.plot(y_cf_hat.index, y_cf_hat.values + eps, label="Counterfactual (no post-2015 change)",
+         linewidth=2.2, linestyle="--", zorder=2)
+
+plt.axvline(t0_date, linestyle="--", linewidth=1)
+plt.ylabel("Deaths (log scale)")
+plt.yscale("log")
+plt.tight_layout()
+plt.show()
+
+# ---------- Figure 2: zoom to show post-2015 divergence clearly ----------
+zoom_start = pd.Timestamp("2010-01-01")  # adjust if you want
+mask_zoom = y.index >= zoom_start
+
+plt.figure(figsize=(8, 3.5))
+
+# plot only the zoom window
+plt.plot(y.index[mask_zoom], y.values[mask_zoom], label="Observed", alpha=0.45, linewidth=1.2, zorder=1)
+plt.plot(y_full_hat.index[mask_zoom], y_full_hat.values[mask_zoom], label="Fitted (ITS)", linewidth=2.4, zorder=3)
+plt.plot(y_cf_hat.index[mask_zoom], y_cf_hat.values[mask_zoom],
+         label="Counterfactual (no post-2015 change)", linewidth=2.4, linestyle="--", zorder=2)
+
+# shade the post-2015 gap to make the “cumulative difference” idea visual
+mask_post_zoom = (y_full_hat.index >= max(t0_date, zoom_start))
+plt.fill_between(
+    y_full_hat.index[mask_post_zoom],
+    y_full_hat.values[mask_post_zoom],
+    y_cf_hat.values[mask_post_zoom],
+    alpha=0.20,
+    label="Post-2015 gap (counterfactual − fitted)"
+)
+
+plt.axvline(t0_date, linestyle="--", linewidth=1)
+plt.ylabel("Deaths")
+plt.tight_layout()
+plt.show()
+```
+
+The cumulative difference 0 should be interpreted as the model-implied total deviation in deaths relative to a no-change counterfactual (continuation of pre-2015 dynamics), *conditional on the ITS and SARIMAX assumptions*. Because multiple contemporaneous forces influence lung cancer mortality (e.g., smoking, screening, targeted therapies), this estimate should be treated as an ecological, model-based summary of post-2015 divergence rather than a causal effect of immunotherapy.
+
+### Uncertainty via parameter simulation
+
+```{python}
+#| label: sim-uncertainty
+#| echo: false
+# Draw parameters from asymptotic normal approximation
+rng = np.random.default_rng(531)
+theta_hat = m_its.params.values
+V = m_its.cov_params().values
+draws = rng.multivariate_normal(theta_hat, V, size=500)
+
+# Approximate uncertainty from regression part only for the intervention effect
+beta_idx = [m_its.param_names.index(k) for k in ["step","ramp"]]
+b_draw = draws[:, beta_idx]
+
+step_post = exog.loc[post, "step"].values
+ramp_post = exog.loc[post, "ramp"].values
+Xpost = np.vstack([step_post, ramp_post]).T  # (Tpost, 2)
+
+# Linear predictor difference (counterfactual - full) on log scale:
+# full has + step*b1 + ramp*b2, cf has 0 => delta = -(step*b1 + ramp*b2)
+delta = -(Xpost @ b_draw.T)  # (Tpost, ndraws)
+
+y_cf_post = y_cf_hat.loc[post].values[:, None]
+diff_draw = (y_cf_post * (1 - np.exp(delta))).sum(axis=0)
+
+ci = np.quantile(diff_draw, [0.025, 0.5, 0.975])
+```
+
+```{python}
+#| label: txt-ci
+#| echo: false
+ci_low, ci_med, ci_high = ci
+ci_fmt = f"{ci_med:,.0f} (95% approx. interval {ci_low:,.0f} to {ci_high:,.0f})"
+```
+
+The model-implied cumulative deviation is `python ci_fmt` under a Gaussian approximation to coefficient uncertainty (holding the ARMA structure fixed). This interval is an approximate uncertainty summary for the intervention-regressor component; a more complete interval would propagate full state-space uncertainty, and we provide additional sensitivity checks in the Supplementary material.
+
+# Conclusions
+
+This report used CDC WONDER monthly mortality counts for ICD-10 C33–C34 (1999–2020) to examine whether lung cancer mortality dynamics changed in the mid-2010s, using time series tools for dependence and model-based inference. The data show pronounced seasonality and substantial autocorrelation, requiring models beyond i.i.d. regression. A parsimonious seasonal ARIMA structure provided a reasonable baseline fit; embedding an interrupted time series regression within a SARIMAX model allowed explicit testing of post-2015 level and slope changes while respecting autocorrelation.   Across the considered specifications, the evidence favors a continued decline in mortality *without* an additional post-2015 acceleration in the downward trend, and the implied counterfactual comparison suggests any cumulative post-2015 deviation from pre-2015 dynamics is likely trivial, or at the very least due to more complex factors. Overall this remains an intriguing problem and more involved modeling should be considered in attempting to model the association between ICI's and lung cancer mortality.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+This section provides additional analyses that support claims made in the main text.
+
+## Sensitivity to intervention date
+
+We repeat the ITS fit across a grid of plausible intervention months (2013–2017) and compare AIC. The aim is not to “search for significance” but to assess robustness of the qualitative conclusion.
+
+```{python}
+#| label: fig-break-grid
+#| fig-cap: "Sensitivity of ITS fit to intervention month (AIC across candidate breakpoints)."
+#| echo: false
+candidates = pd.date_range("2013-01-01","2017-12-01",freq="MS")
+aics = []
+for d0 in candidates:
+    if d0 not in x.index:
+        continue
+    t0i = np.where(x.index == d0)[0][0]
+    step_i = (t >= t0i).astype(int)
+    ramp_i = np.where(t >= t0i, t - t0i, 0)
+    ex = pd.DataFrame({"t": t, "step": step_i, "ramp": ramp_i}, index=x.index)
+    try:
+        m = SARIMAX(
+            x, exog=ex, order=(1,1,1), seasonal_order=(1,1,1,12),
+            trend="c", enforce_stationarity=False, enforce_invertibility=False
+        ).fit(disp=False)
+        aics.append((d0, m.aic))
+    except Exception:
+        aics.append((d0, np.nan))
+
+aic_df = pd.DataFrame(aics, columns=["date","AIC"]).dropna()
+plt.figure(figsize=(8,3))
+plt.plot(aic_df["date"], aic_df["AIC"])
+plt.axvline(t0_date, linestyle="--", linewidth=1)
+plt.ylabel("AIC")
+plt.tight_layout()
+plt.show()
+
+aic_df.sort_values("AIC").head(5)
+```
+
+## Alternative seasonality control: month-of-year fixed effects
+
+As a robustness check, we replace the seasonal ARMA component with month-of-year indicators and a simpler non-seasonal ARMA error. This tests whether the estimated intervention effect is driven by the seasonal specification.
+
+```{python}
+#| label: tbl-month-fe
+#| tbl-cap: "ITS model with month-of-year fixed effects (non-seasonal ARMA errors)."
+#| echo: false
+mo = pd.get_dummies(x.index.month, prefix="m", drop_first=True)
+mo.index = x.index
+ex_fe = pd.concat([exog, mo], axis=1)
+
+ex_fe = ex_fe.astype(float)
+
+m_fe = SARIMAX(
+    x, exog=ex_fe, order=(1,1,1), seasonal_order=(0,0,0,0),
+    trend="c", enforce_stationarity=False, enforce_invertibility=False
+).fit(disp=False)
+
+pd.DataFrame({
+    "Model": ["Main ITS (seasonal ARMA)", "ITS + month FE (nonseasonal ARMA)"],
+    "AIC": [m_its.aic, m_fe.aic],
+    "BIC": [m_its.bic, m_fe.bic]
+}).assign(AIC=lambda d: d["AIC"].round(1), BIC=lambda d: d["BIC"].round(1))
+```
+
+The change in AIC over a variety of changepoints is substantial, aligning with the result that introducing the breakpoint did not significantly improve model fit. However there is still some indication that the AIC is lower in the mid 2010's so prehaps modeling the changepoint sharply ignores the reality that a true change which may be more gradual.
+```{python}
+#| label: tbl-fe-coef
+#| tbl-cap: "Intervention coefficient comparison across seasonality specifications."
+#| echo: false
+def coef_table(model, names=("step","ramp")):
+    return pd.DataFrame({
+        "term": list(names),
+        "estimate": [model.params[n] for n in names],
+        "se": [model.bse[n] for n in names]
+    }).assign(
+        estimate=lambda d: d["estimate"].round(4),
+        se=lambda d: d["se"].round(4),
+        **{"approx %": lambda d: (100*(np.exp(d["estimate"])-1)).round(2)}
+    )
+
+pd.concat([
+    coef_table(m_its).assign(model="Main ITS"),
+    coef_table(m_fe).assign(model="Month FE")
+], axis=0)
+```
+
+Here we see that including monthly fixed effects vastly improves the fit, with a near doubling of the ramp coefficient. 

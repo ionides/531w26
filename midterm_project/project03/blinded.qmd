@@ -1,0 +1,418 @@
+---
+title: "Time Series Analysis of Fish Recruitment in the Central Pacific\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+execute:
+  echo: false
+  warning: false
+  message: false
+  fig-width: 7
+  fig-height: 4
+---
+
+```{r setup}
+#| include: false
+library(astsa)
+library(forecast)
+library(tseries)
+library(knitr)
+opts_chunk$set(fig.pos = "H")
+```
+
+## Abstract {.unnumbered}
+
+We analyze the monthly fish recruitment series in the central Pacific Ocean (453 observations, 1950--1987) from the `astsa` R package, paired with the Southern Oscillation Index (SOI). Using spectral analysis, SARIMA modeling, and regression with ARMA errors, we characterize recruitment dynamics and investigate the SOI--recruitment association. A SARIMA model with seasonal differencing captures the dominant annual cycle. The contemporaneous SOI effect is not significant after accounting for autocorrelation; cross-correlation analysis reveals a 5--7 month lagged relationship, but the lagged regression also fails to reach significance due to strong internal dynamics, highlighting a limitation of regression with ARMA errors and motivating state-space approaches.
+
+# Introduction
+
+Understanding the temporal dynamics of fish populations is central to fisheries science and management. Recruitment---the number of new individuals entering a population---is a key demographic process driven by environmental conditions such as ocean temperature and atmospheric circulation patterns, making it inherently variable and challenging to predict [@shumway17].
+
+This report analyzes the monthly recruitment series for fish in the central Pacific Ocean, spanning January 1950 through September 1987 (453 observations), available in the `astsa` R package. We pair this with the Southern Oscillation Index (SOI), a measure of El Niño/La Niña activity, to investigate potential environmental drivers of recruitment variability.
+
+Our analysis proceeds in three stages: (1) exploratory data analysis and spectral analysis to characterize temporal structure; (2) SARIMA modeling to capture trend and cyclical dynamics; and (3) regression with ARMA errors to examine the SOI--recruitment association, including a lagged specification motivated by cross-correlation analysis. This classical approach provides a phenomenological baseline that complements mechanistic models used in modern stock assessment, such as TMB [@kristensen2016] and POMP [@king2016]. Our methodology follows the course notes [@notes531] and the textbook treatment in @shumway17 [Ch. 4].
+
+## Relationship to Previous STATS 531 Projects
+
+Several previous STATS 531 midterm projects have analyzed environmental time series with similar methodology. A W25 project on Lake Malawi water levels [@w25p08] applied SARIMA with seasonal differencing---a pattern we also encounter. A W24 project on Detroit precipitation [@w24p07] used covariate regression; peer reviewers noted the importance of lagged effects, which we address here. A W16 project on PM2.5 and temperature [@w16p06] demonstrated regression with ARMA errors and likelihood ratio testing; we adopt the same framework. Our contribution focuses on fisheries recruitment and connects classical methods to state-space models.
+
+
+# Exploratory Data Analysis
+
+```{r eda-data}
+data(rec)
+data(soi)
+n <- length(rec)
+rec_ts <- ts(rec, start = c(1950, 1), frequency = 12)
+soi_ts <- ts(soi, start = c(1950, 1), frequency = 12)
+```
+
+The recruitment series contains `r n` monthly observations from `r start(rec_ts)[1]` to `r end(rec_ts)[1]`. @fig-rawts shows the raw time series alongside the SOI.
+
+```{r}
+#| label: fig-rawts
+#| fig-cap: "Monthly fish recruitment in the central Pacific (top) and Southern Oscillation Index (bottom), 1950--1987."
+#| fig-height: 3.5
+par(mfrow = c(2, 1), mar = c(3, 4, 2, 1))
+plot(rec_ts, ylab = "Recruitment", main = "Central Pacific Fish Recruitment",
+     col = "steelblue", lwd = 0.8)
+plot(soi_ts, ylab = "SOI", main = "Southern Oscillation Index",
+     col = "darkred", lwd = 0.8)
+abline(h = 0, lty = 2, col = "gray50")
+```
+
+```{r}
+#| include: false
+lrec <- log(rec_ts)
+```
+
+Recruitment ranges from `r round(min(rec))` to `r round(max(rec))` with a mean of `r round(mean(rec), 1)` and standard deviation of `r round(sd(rec), 1)`. The series exhibits strong cyclical behavior and right-skewed variability, so we apply a log transformation to stabilize the variance. The log transformation produces a more symmetric distribution (@fig-hist). A seasonal subseries plot (@fig-logrec) reveals modest seasonal variation, and an STL decomposition (@fig-decompose) confirms a slowly varying trend with multi-year oscillations, a stable seasonal component, and substantial irregular variation.
+
+
+# Frequency Domain Analysis
+
+```{r}
+#| label: fig-spectrum
+#| fig-cap: "Smoothed periodogram of log recruitment (top) and squared coherence between log recruitment and SOI (bottom). Dashed red lines mark annual and semi-annual frequencies."
+#| fig-height: 3.5
+par(mfrow = c(2, 1), mar = c(4, 4, 2, 1))
+spec_rec <- spectrum(lrec, spans = c(7, 7), main = "Smoothed Periodogram: log(Recruitment)",
+                     col = "steelblue", lwd = 2, log = "yes")
+abline(v = 1/12, lty = 2, col = "red")
+abline(v = 2/12, lty = 2, col = "red")
+text(1/12, max(spec_rec$spec) * 0.5, "12 mo", col = "red", pos = 4, cex = 0.8)
+cross_spec <- spectrum(cbind(lrec, soi_ts), spans = c(7, 7),
+                       main = "Squared Coherence: log(Rec) vs SOI",
+                       plot.type = "coherency", col = "steelblue", lwd = 2)
+abline(v = 1/12, lty = 2, col = "red")
+```
+
+The periodogram (@fig-spectrum, top) confirms a dominant peak near 1/12 cycles per month (annual cycle), along with substantial low-frequency power reflecting multi-year oscillations. The squared coherence (bottom) shows elevated coherence at low frequencies, indicating that recruitment variability shares structure with ENSO at interannual time scales. This motivates the regression analysis in @sec-regression.
+
+
+# SARIMA Model Selection
+
+## ACF/PACF Analysis and Differencing
+
+```{r}
+#| label: fig-acf
+#| fig-cap: "Sample ACF and PACF of log recruitment (top) and of the differenced series $\\nabla \\nabla_{12} \\log(\\text{Rec})$ (bottom)."
+#| fig-height: 4.5
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1), oma = c(0, 0, 0, 0))
+acf(lrec, lag.max = 48, main = "ACF: log(Rec)")
+pacf(lrec, lag.max = 48, main = "PACF: log(Rec)")
+dlrec <- diff(diff(lrec, lag = 12))
+acf(dlrec, lag.max = 48, main = expression("ACF: " ~ nabla ~ nabla[12] ~ "log(Rec)"))
+pacf(dlrec, lag.max = 48, main = expression("PACF: " ~ nabla ~ nabla[12] ~ "log(Rec)"))
+```
+
+```{r}
+#| include: false
+adf_result <- adf.test(dlrec)
+```
+
+The ACF of log recruitment (@fig-acf, top left) decays slowly with a sinusoidal pattern, indicating non-stationarity. After applying $d = 1$ and seasonal differencing $D = 1$ (period 12), the ACF and PACF (bottom) show rapid decay with a significant negative spike at seasonal lag 1 in the ACF (suggesting seasonal MA(1)) and significant spikes at lags 1--2 in the PACF (suggesting low-order AR terms). An augmented Dickey--Fuller test confirms stationarity ($p < 0.01$).
+
+## Model Comparison
+
+```{r model-comparison}
+#| include: false
+models <- list(
+  "SARIMA(1,1,1)(1,1,1)" = c(1,1,1,1,1,1),
+  "SARIMA(2,1,0)(1,1,1)" = c(2,1,0,1,1,1),
+  "SARIMA(2,1,1)(1,1,1)" = c(2,1,1,1,1,1),
+  "SARIMA(1,1,1)(0,1,1)" = c(1,1,1,0,1,1),
+  "SARIMA(2,1,1)(0,1,1)" = c(2,1,1,0,1,1),
+  "SARIMA(2,1,0)(0,1,1)" = c(2,1,0,0,1,1),
+  "SARIMA(1,1,0)(1,1,1)" = c(1,1,0,1,1,1),
+  "SARIMA(3,1,1)(1,1,1)" = c(3,1,1,1,1,1)
+)
+
+results <- data.frame(Model = character(), AIC = numeric(), BIC = numeric(),
+                      logLik = numeric(), npar = integer(), stringsAsFactors = FALSE)
+
+for (name in names(models)) {
+  m <- models[[name]]
+  fit <- tryCatch(
+    arima(lrec, order = c(m[1], m[2], m[3]),
+          seasonal = list(order = c(m[4], m[5], m[6]), period = 12),
+          method = "ML"),
+    error = function(e) NULL
+  )
+  if (!is.null(fit)) {
+    np <- length(fit$coef) + 1
+    results <- rbind(results, data.frame(
+      Model = name, AIC = round(AIC(fit), 2),
+      BIC = round(BIC(fit), 2),
+      logLik = round(fit$loglik, 2),
+      npar = np,
+      stringsAsFactors = FALSE
+    ))
+  }
+}
+results <- results[order(results$AIC), ]
+```
+
+We compare eight SARIMA$(p,d,q) \times (P,D,Q)_{12}$ models with $d=1$, $D=1$ (@tbl-aic). The best candidate by AIC is `r results$Model[1]` (AIC = `r results$AIC[1]`).
+
+```{r autoarima}
+#| include: false
+auto_fit <- auto.arima(lrec, seasonal = TRUE, stepwise = FALSE,
+                       approximation = FALSE, trace = FALSE)
+auto_order <- auto_fit$arma
+auto_label <- paste0("SARIMA(", auto_order[1], ",", auto_order[6], ",",
+                     auto_order[2], ")(", auto_order[3], ",", auto_order[7],
+                     ",", auto_order[4], ")_{12}")
+```
+
+For comparison, `auto.arima()` selects `r auto_label` with AIC = `r round(AIC(auto_fit), 2)`. This stationary model ($d=0$, $D=0$) uses higher-order AR terms to capture persistence. We proceed with our best differenced model for parsimony, while acknowledging the stationary alternative achieves a lower AIC.
+
+## Diagnostics
+
+```{r}
+best_idx <- which.min(results$AIC)
+best_name <- results$Model[best_idx]
+bm <- models[[best_name]]
+best_fit <- arima(lrec, order = c(bm[1], bm[2], bm[3]),
+                  seasonal = list(order = c(bm[4], bm[5], bm[6]), period = 12),
+                  method = "ML")
+```
+
+We select **`r best_name`** (lowest AIC among differenced candidates). Parameter estimates are in @tbl-params.
+
+```{r}
+#| label: tbl-params
+#| tbl-cap: "Parameter estimates for the selected SARIMA model."
+coef_df <- data.frame(
+  Parameter = names(best_fit$coef),
+  Estimate = round(best_fit$coef, 4),
+  SE = round(sqrt(diag(best_fit$var.coef)), 4)
+)
+coef_df$`z-value` <- round(coef_df$Estimate / coef_df$SE, 2)
+kable(coef_df, row.names = FALSE, align = "lrrr")
+```
+
+```{r}
+#| label: fig-diag
+#| fig-cap: "Diagnostic plots: standardized residuals (top), ACF of residuals (middle), and Ljung-Box p-values (bottom)."
+#| fig-height: 5
+tsdiag(best_fit, gof.lag = 36)
+```
+
+```{r}
+n_fitdf <- sum(bm[c(1,3,4,6)])
+lb12 <- Box.test(residuals(best_fit), lag = 12, type = "Ljung-Box", fitdf = n_fitdf)
+lb24 <- Box.test(residuals(best_fit), lag = 24, type = "Ljung-Box", fitdf = n_fitdf)
+```
+
+The residual ACF (@fig-diag) shows no significant autocorrelation at low lags. Ljung--Box tests give $p =$ `r round(lb12$p.value, 3)` at lag 12 and $p =$ `r round(lb24$p.value, 3)` at lag 24, with p-values decreasing at higher lags, suggesting some residual structure consistent with `auto.arima()`'s lower AIC. The Q-Q plot (@fig-qq) shows approximate normality with mild right-tail deviation.
+
+
+# Environmental Association: Recruitment and SOI {#sec-regression}
+
+We model the SOI--recruitment association using regression with ARMA errors [@shumway17, Ch. 4], following the framework in @w16p06:
+$$
+\log(\text{Rec}_t) = \beta_0 + \beta_1 \, \text{SOI}_t + \eta_t, \quad \eta_t \sim \text{ARMA}(p, q)
+$$
+
+```{r soi-regression}
+reg_models <- list()
+reg_aic <- c()
+
+for (p in 0:3) {
+  for (q in 0:3) {
+    if (p == 0 && q == 0) next
+    fit <- tryCatch(
+      arima(lrec, order = c(p, 0, q), xreg = soi_ts, method = "ML"),
+      error = function(e) NULL
+    )
+    if (!is.null(fit)) {
+      label <- paste0("ARMA(", p, ",", q, ")")
+      reg_models[[label]] <- fit
+      reg_aic <- c(reg_aic, AIC(fit))
+      names(reg_aic)[length(reg_aic)] <- label
+    }
+  }
+}
+
+best_reg_name <- names(which.min(reg_aic))
+best_reg <- reg_models[[best_reg_name]]
+
+best_p <- best_reg$arma[1]
+best_q <- best_reg$arma[2]
+null_reg <- arima(lrec, order = c(best_p, 0, best_q), method = "ML")
+
+lr_stat <- 2 * (best_reg$loglik - null_reg$loglik)
+lr_pval <- pchisq(lr_stat, df = 1, lower.tail = FALSE)
+
+soi_coef <- best_reg$coef["soi_ts"]
+soi_se <- sqrt(best_reg$var.coef["soi_ts", "soi_ts"])
+soi_z <- soi_coef / soi_se
+```
+
+The best-fitting model uses `r best_reg_name` errors (AIC = `r round(AIC(best_reg), 2)`). The SOI coefficient is $\hat{\beta}_1 =$ `r round(soi_coef, 3)` (SE = `r round(soi_se, 3)`, $z =$ `r round(soi_z, 2)`). A likelihood ratio test yields $\Lambda =$ `r round(lr_stat, 2)` ($p =$ `r round(lr_pval, 3)`). The contemporaneous effect is **not statistically significant** after accounting for autocorrelation.
+
+```{r}
+#| label: fig-ccf
+#| fig-cap: "Cross-correlation function between SOI and log recruitment. Negative lags indicate SOI leading recruitment."
+#| fig-height: 2.8
+ccf(as.numeric(soi_ts), as.numeric(lrec), lag.max = 24,
+    main = "CCF: SOI vs log(Recruitment)", ylab = "CCF",
+    col = "steelblue", lwd = 2)
+```
+
+The CCF (@fig-ccf) reveals the strongest association at negative lags of approximately 5--7 months, indicating SOI leads recruitment. This motivates a lagged regression.
+
+## Lagged SOI Regression
+
+Based on the CCF, we fit a regression with SOI$_{t-6}$ as the covariate:
+
+```{r lagged-regression}
+soi_lag6 <- stats::lag(soi_ts, -6)
+aligned <- ts.intersect(lrec, soi_lag6)
+y_aligned <- aligned[,1]
+x_aligned <- aligned[,2]
+
+lag_models <- list()
+lag_aic <- c()
+
+for (p in 0:3) {
+  for (q in 0:3) {
+    if (p == 0 && q == 0) next
+    fit <- tryCatch(
+      arima(y_aligned, order = c(p, 0, q), xreg = x_aligned, method = "ML"),
+      error = function(e) NULL
+    )
+    if (!is.null(fit)) {
+      label <- paste0("ARMA(", p, ",", q, ")")
+      lag_models[[label]] <- fit
+      lag_aic <- c(lag_aic, AIC(fit))
+      names(lag_aic)[length(lag_aic)] <- label
+    }
+  }
+}
+
+best_lag_name <- names(which.min(lag_aic))
+best_lag <- lag_models[[best_lag_name]]
+
+best_lag_p <- best_lag$arma[1]
+best_lag_q <- best_lag$arma[2]
+null_lag <- arima(y_aligned, order = c(best_lag_p, 0, best_lag_q), method = "ML")
+
+lr_lag_stat <- 2 * (best_lag$loglik - null_lag$loglik)
+lr_lag_pval <- pchisq(lr_lag_stat, df = 1, lower.tail = FALSE)
+
+# Find the SOI coefficient (last non-intercept xreg coefficient)
+xreg_name <- names(best_lag$coef)[grep("x_aligned", names(best_lag$coef))]
+if (length(xreg_name) == 0) xreg_name <- setdiff(names(best_lag$coef), c(grep("^ar|^ma|^intercept", names(best_lag$coef), value = TRUE)))
+xreg_name <- xreg_name[1]
+soi_lag_coef <- best_lag$coef[xreg_name]
+soi_lag_se <- sqrt(best_lag$var.coef[xreg_name, xreg_name])
+soi_lag_z <- soi_lag_coef / soi_lag_se
+```
+
+With `r best_lag_name` errors, the lagged SOI coefficient is $\hat{\beta}_1 =$ `r round(soi_lag_coef, 3)` (SE = `r round(soi_lag_se, 3)`, $z =$ `r round(soi_lag_z, 2)`). The likelihood ratio test gives $\Lambda =$ `r round(lr_lag_stat, 2)` ($p =$ `r format.pval(lr_lag_pval, digits = 3)`). Like the contemporaneous model, the lagged effect is not significant. While the CCF shows a clear bivariate association, the strong AR dynamics in the recruitment series absorb most predictable variation, leaving little for SOI to explain. This is a known limitation of regression with ARMA errors for highly autocorrelated series [@shumway17, Ch. 4], and motivates state-space models where SOI can enter as a mechanistic driver.
+
+
+# Conclusions
+
+The central Pacific fish recruitment series exhibits strong cyclical behavior with an approximately annual period, detectable through both time- and frequency-domain methods. A `r best_name` model adequately captures temporal dynamics among differenced candidates, though `auto.arima()` suggests a stationary alternative with lower AIC. The SOI--recruitment relationship illustrates a limitation of regression with ARMA errors: while the CCF reveals a clear 5--7 month lagged association, neither the contemporaneous nor the lagged regression detects a significant effect, because the strong AR dynamics absorb most predictable variation.
+
+These classical methods provide a phenomenological description but do not incorporate biological mechanisms. State-space models---TMB [@kristensen2016] via Laplace approximation and POMP [@king2016] via sequential Monte Carlo---can incorporate SOI as a mechanistic driver of recruitment, and comparing these approaches is a natural extension for the final project.
+
+## Acknowledgments {.unnumbered}
+
+Analysis was conducted using R [@R-base] with the `astsa`, `forecast`, and `tseries` packages. Claude (Anthropic) was used for debugging. Course notes [@notes531] and the textbook [@shumway17] informed the methodology throughout.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+```{r}
+#| label: fig-logrec
+#| fig-cap: "Log-transformed recruitment series (top) and seasonal subseries plot (bottom)."
+#| fig-height: 3.5
+par(mfrow = c(2, 1), mar = c(3, 4, 2, 1))
+plot(lrec, ylab = "log(Recruitment)", main = "Log Recruitment", col = "steelblue")
+monthplot(lrec, ylab = "log(Recruitment)", main = "Seasonal Subseries",
+          col.base = 2, lwd.base = 2)
+```
+
+```{r}
+#| label: tbl-aic
+#| tbl-cap: "SARIMA model comparison by AIC and BIC."
+kable(results[, c("Model", "AIC", "BIC", "logLik")], row.names = FALSE, align = "lrrr")
+```
+
+```{r}
+#| label: fig-hist
+#| fig-cap: "Histogram and density of log-transformed recruitment."
+#| fig-height: 3
+lrec <- log(rec_ts)
+hist(lrec, breaks = 30, main = "Distribution of log(Rec)", xlab = "log(Recruitment)",
+     col = "lightblue", border = "white", probability = TRUE)
+lines(density(lrec), col = "steelblue", lwd = 2)
+```
+
+```{r}
+#| label: fig-decompose
+#| fig-cap: "STL decomposition of log recruitment showing trend, seasonal, and remainder components."
+#| fig-height: 4.5
+stl_fit <- stl(lrec, s.window = "periodic")
+plot(stl_fit, main = "STL Decomposition of log(Recruitment)", col = "steelblue")
+```
+
+```{r}
+#| label: fig-qq
+#| fig-cap: "Q-Q plot of standardized residuals from the selected SARIMA model."
+#| fig-height: 3
+resid_std <- residuals(best_fit) / sqrt(best_fit$sigma2)
+qqnorm(resid_std, main = "Normal Q-Q Plot of Residuals", col = "steelblue", pch = 16, cex = 0.5)
+qqline(resid_std, col = "red", lwd = 2)
+```
+
+```{r}
+#| label: fig-forecast
+#| fig-cap: "24-month forecast from the selected SARIMA model with 80\\% and 95\\% prediction intervals."
+#| fig-height: 3
+fc <- forecast(best_fit, h = 24)
+plot(fc, main = paste("24-Month Forecast:", best_name),
+     ylab = "log(Recruitment)", xlab = "Year",
+     col = "steelblue", shadecols = c("lightblue", "lightyellow"),
+     fcol = "darkblue", lwd = 2)
+```
+
+```{r}
+#| label: tbl-regcoef
+#| tbl-cap: "Regression with ARMA errors: parameter estimates for contemporaneous SOI model."
+reg_coef_df <- data.frame(
+  Parameter = names(best_reg$coef),
+  Estimate = round(best_reg$coef, 4),
+  SE = round(sqrt(diag(best_reg$var.coef)), 4)
+)
+reg_coef_df$`z-value` <- round(reg_coef_df$Estimate / reg_coef_df$SE, 2)
+kable(reg_coef_df, row.names = FALSE, align = "lrrr")
+```

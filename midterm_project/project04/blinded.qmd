@@ -1,0 +1,1065 @@
+---
+title: "Modelling TSA Checkpoint Data\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+Following an analysis of TSA checkpoint data from 2019 to 2026 in the frequency domain and using STL decomposition, we find strong evidence of both annual and weekly seasonality in the data. Aggregating by week to predict annual trends, we fit an ARIMA(3,1,0) model to the seasonally adjusted log data, and a SARIMA(2,1,1) model to the log data.  We find that the ARIMA(3,1,0) model on the seasonally adjusted data outperforms the SARIMA(2,1,1) model on the log data, with better forecasting ability.
+
+# Introduction
+
+Airports are responsible for much of the long-distance commercial travel foundational for the function of a healthy economy. As such, the commercial throughput of a country's airports stands as a quantity of interest.
+
+When it comes to planning airport logistics, flight tracking, or security adjustments, detecting repeating patterns in travel and aiport activity is paramount to ensuring optimal operational adjustments can be made.
+
+This begs the natural question - what sort of data can one use to analyze such a quantity? Data on the number of flights alone is likely insufficient, as noted in past project comments [@W25P02_comments], as it is important to consider passenger flights independently of cargo flights.  Thus, we focus on the number of people passing through Transportation Security Administration (TSA) checkpoints daily. The TSA checkpoint data serves as a very close proxy for the number of daily airline passengers, which may or may not double-count those with layovers, depending on the airport's policies regarding bag checks.
+
+In this project, we analyze daily TSA checkpoint data ranging from 1/1/2019 through 2/10/2026, taken from the TSA's website [@tsa_data].  We analyze this data using power spectral density estimation and STL decomposition.  From here, we determine that the weekly fluctuations are strong and periodic, and thus employ weekly aggregation to explore the annual trends specifically. We fit an ARIMA model to the de-seasonalized log data as well as a SARIMA model to the log data.  We attempt to answer questions regarding seasonality and trends present.  Practically, we set out to answer the question of whether an ARIMA model on the seasonally adjusted log data can outperform a SARIMA model on the log data.
+
+# Methods
+
+## Power Spectral Density Estimation (PSD)
+We estimated the PSD by squaring the absolute value of the FFT of the data [@notes531, Lecture 7]. To mitigate spectral leakage and increase visual resolution, we detrended the data, applied a Hanning window, and zero-padded to $2^{16}$ points. The PSD was only taken for post-pandemic data (after 2022-01-01) to eliminate the disruptive effects of the COVID-19 pandemic on the spectrum. We identified peaks using the `scipy.signal.find_peaks` function, with a minimum height threshold of 10% of the maximum PSD value to focus on the most prominent peaks. We then computed the corresponding frequencies and periods for these peaks to interpret the periodicities in the data.
+
+## Short-Time Fourier Transform (STFT)
+To analyze how the frequency content of the data evolves over time, we implemented a STFT [@wikipedia_stft]. We used a window size of 91 days (13 weeks) to capture seasonal patterns, with a step size of 7 days to ensure weekly resolution. Each window was detrended, windowed with a Hanning window, and zero-padded to $2048$ points. The PSD was estimated by squaring the absolute value of the FFT of each window. The results were visualized as a heatmap, or spectrogram, with time on the x-axis, frequency on the y-axis, and color representing the magnitude of the FFT (square root of the PSD). This was done for the entire dataset to capture the evolution of frequency content over the full time span, including the pandemic period.
+
+## Spectral Entropy 
+To quantify the complexity of the frequency content over time, we computed the spectral entropy for each window. We divided the power of each frequency bin by the total power to get a probability distribution, then computed the Shannon entropy of this distribution. We then normalized the entropy by dividing by $\log(N)$, where $N$ is the number of frequency bins, to ensure the spectral entropy ranges from 0 to 1 [@entWiki]. 
+\begin{align*}
+  p_k = \frac{PSD_k}{\sum_{j=1}^{N} PSD_j} \quad\quad\quad\quad
+  \hat{H} = -\frac{1}{\log(N)} \sum_{k=1}^{N} p_k \log(p_k)
+\end{align*}
+$\hat{H}=0$ indicates that all power in concentrated in a single frequency bin, while $\hat{H}=1$ indicates that the power is uniformly distributed across all frequency bins. A higher spectral entropy indicates a more complex frequency content, while a lower value indicates a more regular, periodic signal.
+
+## STL decomposition (trend + seasonality + remainder)
+
+STL, shorthand for (Seasonal-Trend decomposition using LOESS [@statsmodels_stl]) is a framework that decomposes a time series into three components: trend (smooth long-run movement),
+ seasonality (recurring periodic pattern), and the remainder / Residual  (irregular component left after removing trend and seasonality).
+
+In additive form, STL decomposition is written as $y_t = T_t + S_t + R_t$ where $y_t$ is the observed series, $T_t$ is the trend component, $S_t$ is the seasonal component, and $R_t$ is the remainder (residual) component. In the `statsmodels` STL implementation, these are returned as `trend`, `seasonal`, and `resid`. The method uses **LOESS** (locally estimated scatterplot smoothing) to obtain smooth estimates of the components.
+After STL decomposition, a common object for downstream ARIMA modeling is the seasonally adjusted series, obtained by removing the seasonal component:
+
+$$
+y_t^{(\mathrm{sa})} = y_t - S_t = T_t + R_t
+$$
+
+We applied STL decomposition to the weekly aggregated data, as the PSD analysis revealed strong seasonality.  We used a 52 week period to capture annual seasonality.  
+Once deseasonalized, we fit an ARIMA model to the seasonally adjusted log data, and a SARIMA model to the log data, to compare the performance of these two approaches.
+
+# Likelihood Ratio Test for ARIMA Models
+To compare nested ARIMA models, we used a likelihood ratio test [@notes531, Chapter 5]. The test statistic is calculated as:
+$$
+\Lambda = 2 \left( \log L_{\text{larger}} - \log L_{\text{smaller}} \right)
+$$
+where $L$ is the likelihood of the model. Under the null hypothesis that the smaller model is correct, $\Lambda$ follows a $\chi^2$ distribution with degrees of freedom equal to the difference in degrees of freedom between the two models. We used this test to compare the best ARIMA(3,1,0) model with ARIMA(2,1,0), ARIMA(4,1,0), and ARIMA(3,1,1) to ensure that we were not overfitting by including unnecessary parameters.
+
+# Ljung-Box Test
+The Ljung-Box test checks whether a time series (or model residuals) has autocorrelation across a set of lags [@wikipedia_ljung]. 
+It tests the null hypothesis that the autocorrelations up to lag $h$ are jointly zero. 
+In ARIMA, it is typically applied to the residuals to assess whether the fitted model has removed serial dependence. The Null hypothesis is that no serial correlation up to lag $h$, while the alternative hypothesis is that at least one autocorrelation up to lag $h$ is nonzero.  The Ljung--Box statistic is
+$$
+Q = n(n+2)\sum_{k=1}^{h}\frac{\hat{\rho}_k^2}{n-k},
+$$
+where $n$ is the sample size, $\hat{\rho}_k$ is the sample autocorrelation at lag $k$, and $h$ is the maximum lag being tested.  Under the null hypothesis (asymptotically), $Q \sim \chi^2_h$.
+So for significance level $\alpha$, we reject the null when $Q > \chi^2_{1-\alpha,\,h}$.
+
+# Exploratory Data Analysis
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+from statsmodels.tsa.stattools import acf
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.seasonal import STL
+from statsmodels.stats.diagnostic import acorr_ljungbox,het_arch
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.graphics.gofplots import qqplot
+
+from scipy.stats import jarque_bera
+from scipy.signal import periodogram
+from scipy.stats import skew, kurtosis
+from sklearn.metrics import mean_squared_error
+import warnings
+
+df = pd.read_csv(
+    "TSA_volume.txt",        # or the full path if needed
+    sep="|",                 # pipe-delimited
+    header=None,             # no header row in the txt
+    names=["Date", "travel"],
+    thousands=",",           # handles "2,201,765"
+    decimal=".",             # safe default
+    engine="python"
+)
+
+df["Date"] = pd.to_datetime(df["Date"], format="%m/%d/%Y", errors="raise")
+df = df.sort_values("Date").reset_index(drop=True)
+df["travel"] = df["travel"].astype(float)
+
+plt.figure(figsize=(12, 3))
+plt.plot(df["Date"], df["travel"])
+plt.xlabel("Date")
+plt.ylabel("TSA Throughput")
+plt.title("Daily TSA Checkpoint Data")
+plt.grid()
+plt.tight_layout()
+plt.show()
+
+df["year"]  = df["Date"].dt.year
+df["month"] = df["Date"].dt.month
+df["dow"]   = df["Date"].dt.day_name()
+```
+
+The data appears highly seasonal, with a clear annual pattern that is interrupted by the COVID-19 pandemic in early 2020. Post-pandemic, there appears to be a repeating annual pattern that slowly trends upwards. This inuitively makes sense, as we would have expected the pandemic to have disrupted normal travel patterns, with travel gradually recovering over time.
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+from scipy import signal
+from scipy import fftpack
+
+# take the data after 2022-01-01 to focus on the post-pandemic period
+PSD_input = df[df['Date'] >= '2022-01-01']['travel'].values
+PSD_dates = df[df['Date'] >= '2022-01-01']['Date'].values
+# detrend the data
+PSD_input = signal.detrend(PSD_input)
+# apply a Hanning window
+PSD_input = PSD_input * np.hanning(len(PSD_input))
+# zero-pad
+PSD_input = np.pad(PSD_input, (0, 2**16 - len(PSD_input)), mode='constant')
+# use the FFT to compute PSD
+PSD = np.abs(fftpack.fft(PSD_input))**2
+# compute the corresponding frequencies
+freqs = fftpack.fftfreq(len(PSD_input), d=1)  # 1 day sampling
+# smooth out the PSD
+PSD = PSD[:len(PSD)//2]  # take the positive frequencies
+freqs = freqs[:len(freqs)//2]
+# find the peaks in the PSD
+peaks, _ = signal.find_peaks(PSD, height=np.max(PSD)/10)
+# plot the PSD
+plt.figure(figsize=(12, 3))
+plt.plot(freqs, PSD, label='PSD')
+plt.plot(freqs[peaks], PSD[peaks], 'ro', label='Peaks')
+plt.title('Power Spectral Density of TSA Traffic (Post-Pandemic)')
+plt.xlabel('Frequency (cycles per day)')
+plt.ylabel('Power')
+plt.grid()
+plt.legend()
+plt.tight_layout()
+plt.show()
+freq_per = pd.DataFrame({
+    "Frequency (cycles/day)": freqs[peaks],
+    "Period (days)": 1/freqs[peaks],})
+
+display(freq_per.T)
+```
+
+The power spectral density (PSD) of the post-pandemic data is exceptionally clean. Peaks 0, 1, and 2 correspond to the annual cycle, with 1 and 2 being the $1/3$ and $1/5$ harmonics, respectively. Peak 3 corresponds to the weekly cycle, with peaks 4 and 5 being the $1/2$ and $1/3$ harmonics, respectively. The presence of these peaks confirms the strong seasonality in the data, with both annual and weekly patterns clearly present. Of particular note is the height of peak 4, which is the highest peak in the spectrum. This indicates a significant non-sinusoidal component to the weekly pattern [@W25P02_comments].
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# # manual implementation of spectral entropy
+def spectral_entropy(psd):
+  psd = psd[:len(psd)//2]  # take the positive frequencies
+  psd = psd + 1e-10  # avoid log(0)
+  psd_norm = psd / np.sum(psd)
+  return -np.sum(psd_norm * np.log(psd_norm)) / np.log(len(psd_norm))
+
+# manual calculation of a spectrogram
+stft_input = df['travel'].values
+stft_dates = df['Date'].values
+w_size = 7 * 13
+step = 7
+n_windows = (len(stft_input) - w_size) // step + 1
+spectrogram = np.zeros((n_windows, 1024))
+entropy = np.zeros(n_windows)
+for i in range(n_windows):
+  w_data = stft_input[i*step:i*step+w_size]
+  w_data = signal.detrend(w_data) * np.hanning(w_size)
+  w_data = np.pad(w_data, (0, 2048 - len(w_data)), mode='constant')
+  w_psd = np.abs(fftpack.fft(w_data))**2
+  spectrogram[i, :] = w_psd[:2048//2]
+  entropy[i] = spectral_entropy(w_psd)
+```
+
+```{python}  
+# | echo: false
+# | error: false
+# | warning: false
+import matplotlib.dates as mdates
+import scipy.fftpack as fftpack
+import matplotlib.gridspec as gridspec
+
+# 1. Extract start dates and compute frequencies
+start_dates = stft_dates[::step][:n_windows]
+frequencies = fftpack.fftfreq(2048, d=1.0)[:1024]
+
+# 2. Create the figure and the GridSpec layout
+fig = plt.figure(figsize=(12, 5), layout="constrained")
+
+# Create a 2x2 grid. 
+# Width ratios: 1 for the main plots, 0.03 for the colorbar.
+# wspace adds a little horizontal padding between the plot and colorbar.
+gs = fig.add_gridspec(2, 2, width_ratios=[1, 0.03], wspace=0.05)
+
+# Assign axes to the grid
+ax1 = fig.add_subplot(gs[0, 0])              # Top left: Spectrogram
+ax2 = fig.add_subplot(gs[1, 0], sharex=ax1)  # Bottom left: Entropy
+cax = fig.add_subplot(gs[0, 1])              # Top right: Dedicated Colorbar axis
+
+# --- Top Plot: Spectrogram ---
+spectrogram_transformed = np.sqrt(spectrogram.T)
+c = ax1.pcolormesh(start_dates, frequencies, spectrogram_transformed, shading='auto', cmap='turbo')
+ax1.set_ylabel("Frequency (cycles/day)")
+ax1.set_title("TSA Travel Volume Spectrogram")
+
+# Add the colorbar explicitly to our dedicated cax
+fig.colorbar(c, cax=cax, label="FFT Magnitude")
+
+# --- Bottom Plot: Spectral Entropy ---
+ax2.plot(start_dates, entropy, color='steelblue', linewidth=2, label='Spectral Entropy')
+ax2.set_ylabel("Spectral Entropy")
+ax2.set_xlabel("Window Start Date")
+ax2.set_title("Spectral Entropy over Time")
+
+# Format the x-axis date ticks
+ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+ax2.xaxis.set_major_locator(mdates.AutoDateLocator())
+ax2.legend()
+
+# add grid for better readability
+ax2.grid()
+
+# Convert to Pandas DatetimeIndex to easily extract the year
+dates_idx = pd.DatetimeIndex(start_dates)
+unique_years = dates_idx.year.unique()
+
+max_dates = []
+max_entropies = []
+
+for year in unique_years:
+    # Find all indices where the year matches
+    year_mask = (dates_idx.year == year)
+    
+    # Skip if there's no data for this year
+    if not year_mask.any():
+        continue
+        
+    # Get the specific indices for this year, then find the one with the max entropy
+    year_indices = np.where(year_mask)[0]
+    max_idx = year_indices[np.argmax(entropy[year_indices])]
+    
+    # Store the coordinates
+    max_date = start_dates[max_idx]
+    max_val = entropy[max_idx]
+    
+    max_dates.append(max_date)
+    max_entropies.append(max_val)
+# Plot the dots on the entropy axis (ax2)
+# 'ko' means black dots. zorder=5 ensures they sit on top of the line.
+ax2.plot(max_dates, max_entropies, 'ro', markersize=6, label='Yearly Max', zorder=5)
+ax2.legend()
+plt.show()
+
+# convert dates to string for display
+max_dates = pd.to_datetime(max_dates)
+
+# display the max entropy dates
+max_dates_str = ""
+for date in max_dates:
+    max_dates_str += date.strftime('%m-%d') + "; "
+print("Max Spectral Entropy Dates (one per year):\n", max_dates_str)
+```
+
+The spectrogram is broadly very consistent with the PSD analysis. We see strong horizontal bands corresponding to the weekly cycles, with the annual cycles missing due to the short window length. There is a vertical blank band corresponding to the COVID-19 pandemic. On the spectral entropy plot, we see an annual cycle with maximum entropy in mid-October. Correspondingly, we see fuzzy vertical bands in the spectrogram. These windows with higher entropy encompass the holiday season, spanning until mid-January. Both of these patterns are likely the result of increased variability in travel patterns during the holiday season, with people flying to visit family or take vacations. The complexity of the frequency domain appears to fluctuate consistently and periodically. 
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+df_2022 = df[df["Date"] >= "2022-01-01"].copy()
+df_2022_weekly = df[df["Date"] >= "2022-01-01"].copy()
+df_2022_weekly["week_start"] = df_2022_weekly["Date"] - pd.to_timedelta(df_2022_weekly["Date"].dt.weekday, unit="D")
+
+days_per_week_2022 = df_2022_weekly.groupby("week_start")["Date"].nunique()
+full_weeks_2022 = days_per_week_2022[days_per_week_2022 == 7].index
+
+tsa_weekly_full_2022 = (
+    df_2022_weekly.groupby("week_start")["travel"]
+                  .sum()
+                  .loc[full_weeks_2022]
+                  .sort_index()
+)
+# Log weekly totals (safer scale for multiplicative variation)
+tsa_log = np.log(tsa_weekly_full_2022.clip(lower=1))
+
+# STL with annual seasonality for weekly data
+stl_fit = STL(tsa_log, period=52, robust=True).fit()
+
+trend = stl_fit.trend
+seasonal = stl_fit.seasonal
+remainder = stl_fit.resid
+
+# Seasonally adjusted log series (trend + remainder)
+tsa_sa = tsa_log - seasonal
+# Plot STL components
+fig, axes = plt.subplots(2, 2, figsize=(12, 5), sharex=True)
+
+axes[0, 0].plot(tsa_log.index, tsa_log.values)
+axes[0, 0].set_title("Log Weekly TSA Volume (2022 onward, full weeks)")
+axes[0, 0].set_ylabel("log(TSA)")
+axes[0, 0].grid()
+
+axes[1, 0].plot(trend.index, trend.values)
+axes[1, 0].set_title("STL Trend")
+axes[1, 0].set_ylabel("Trend")
+axes[1, 0].set_xlabel("Week start")
+axes[1, 0].grid()
+# show every year on the x-axis for better readability
+axes[1, 0].set_xticks(tsa_log.index[::52]) 
+
+axes[0, 1].plot(seasonal.index, seasonal.values)
+axes[0, 1].set_title("STL Seasonal Component (period = 52)")
+axes[0, 1].set_ylabel("Seasonal")
+axes[0, 1].grid()
+
+axes[1, 1].plot(remainder.index, remainder.values)
+axes[1, 1].set_title("STL Remainder")
+axes[1, 1].set_ylabel("Remainder")
+axes[1, 1].set_xlabel("Week start")
+axes[1, 1].grid()
+
+plt.tight_layout()
+plt.show()
+```
+
+To explore the annual trends in the time domain, we can examine the STL decomposition of the weekly TSA data post 2022. Here, we can see that the STL decomposition demonstrates the strong annual trend as well as an overall upwards trend.  We see that the remainders are not white noise, and still contain some sort of serial dependence, as shown by the Ljung-box test in the supplementary material (under STL residuals).  Next, we will fit an ARIMA model to the seasonally adjusted log data, and a SARIMA model to the log data, and compare the two.
+
+# Results
+### ARIMA and SARIMA Modeling
+We begin by building an AIC table for ARIMA  [@wikipedia_arima] to determine the best ARIMA model for the data.
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+def aic_table_arima(data, d=1, P=4, Q=4):
+    y = pd.Series(data).astype(float).dropna()
+    table = np.full((P + 1, Q + 1), np.nan)
+
+    for p in range(P + 1):
+        for q in range(Q + 1):
+            try:
+                res = ARIMA(y, order=(p, d, q)).fit()
+                table[p, q] = res.aic
+            except Exception:
+                table[p, q] = np.nan
+
+    out = pd.DataFrame(
+        table,
+        index=[f"AR{p}" for p in range(P + 1)],
+        columns=[f"MA{q}" for q in range(Q + 1)]
+    )
+    return out
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    aic_tsa_sa = aic_table_arima(tsa_sa, d=1, P=5, Q=5)
+print(aic_tsa_sa.round(2))
+```
+
+Here we can see that the best ARIMA(p,d,q) for the seasonal-adjusted log data is ARIMA(3,1,0) with an AIC of `{python} f"{aic_tsa_sa.min().min():.2f}"`.  However, to avoid overfitting, we will also use a likelihood ratio test to compare this model with ARIMA(2,1,0), ARIMA(4,1,0), and ARIMA(3,1,1).
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+from scipy.stats import chi2
+
+def lr_test(res_small, res_big, name_small="small", name_big="big"):
+    """
+    Likelihood ratio test for nested ARIMA models.
+    res_small: fitted restricted model
+    res_big:   fitted unrestricted model
+    """
+    ll_small = res_small.llf
+    ll_big = res_big.llf
+
+    # number of estimated parameters (includes variance, and possibly intercept/trend if present)
+    k_small = len(res_small.params)
+    k_big = len(res_big.params)
+
+    LR = 2 * (ll_big - ll_small)
+    df = k_big - k_small
+    pval = 1 - chi2.cdf(LR, df)
+
+    out = {
+        "small": name_small,
+        "big": name_big,
+        "LR_stat": float(LR),
+        "df": int(df),
+        "pvalue": float(pval)
+    }
+    return out
+y_mod = tsa_sa.dropna()
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fit_210 = ARIMA(y_mod, order=(2,1,0)).fit()
+    fit_310 = ARIMA(y_mod, order=(3,1,0)).fit()
+    fit_410 = ARIMA(y_mod, order=(4,1,0)).fit()
+    fit_311 = ARIMA(y_mod, order=(3,1,1)).fit()
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    test_1 = lr_test(fit_210, fit_310, "ARIMA(2,1,0)", "ARIMA(3,1,0)")
+    test_2 = lr_test(fit_310, fit_410, "ARIMA(3,1,0)", "ARIMA(4,1,0)")
+    test_3 = lr_test(fit_310, fit_311, "ARIMA(3,1,0)", "ARIMA(3,1,1)")
+    print(test_1)
+    print(test_2)
+    print(test_3)
+
+```
+
+We note that in `{python} test_1['small']` vs `{python} test_1['big']`: (LR = `{python} round(test_1['LR_stat'], 2)`), (p < 10^{-16}).  This strongly supports including the third AR term.  Additionally, in `{python} test_2['small']` vs `{python} test_2['big']`: (LR = `{python} round(test_2['LR_stat'], 3)`), (p = `{python} round(test_2['pvalue'], 3)`)
+This provides no evidence that adding a fourth AR term improves fit.  Finally, in `{python} test_3['small']` vs `{python} test_3['big']`: (LR = `{python} round(test_3['LR_stat'], 3)`), (p = `{python} round(test_3['pvalue'], 3)`).  This provides no evidence that adding an MA(1) term improves fit.  Thus, we proceed with fitting ARIMA(3,1,0), and a residual analysis.
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    y_mod = pd.Series(tsa_sa).dropna().astype(float)
+    fit_310 = ARIMA(y_mod, order=(3,1,0)).fit()
+
+# Trim first few residuals to reduce initialization artifacts
+eps = pd.Series(fit_310.resid, index=y_mod.index).dropna().iloc[5:]
+eps_std = (eps - eps.mean()) / eps.std(ddof=0)
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 5))
+
+# (1) Residual time plot
+axes[0, 0].plot(eps.index, eps.values)
+axes[0, 0].set_title("Residuals")
+axes[0, 0].set_xlabel("Week")
+axes[0, 0].set_ylabel("Residual")
+axes[0, 0].grid()
+axes[0, 0].set_xticks(eps.index[::52]) 
+
+# (2) ACF
+plot_acf(eps, lags=60, zero=False, ax=axes[0, 1])
+axes[0, 1].set_title("ACF of Residuals")
+axes[0, 1].set_xlabel("Lag")
+axes[0, 1].set_ylabel("Autocorrelation")
+axes[0, 1].grid()
+
+# (3) Histogram
+axes[1, 0].hist(eps_std, bins=25, edgecolor="black")
+axes[1, 0].set_title("Histogram of Standardized Residuals")
+axes[1, 0].set_xlabel("Standardized residual")
+axes[1, 0].set_ylabel("Frequency")
+axes[1, 0].grid()
+
+# (4) QQ plot
+qqplot(eps_std, line="45", ax=axes[1, 1])
+axes[1, 1].set_title("QQ Plot of Standardized Residuals")
+axes[1, 1].set_xlabel("Theoretical Quantiles")
+axes[1, 1].set_ylabel("Sample Quantiles")
+axes[1, 1].grid()
+
+plt.tight_layout()
+plt.show()
+```
+
+The residuals visually appear to be uncorrelated, and the QQ plot of standardized ARIMA(3,1,0) residuals shows only rough alignment with the reference line in the middle quantiles, with clear departures in both tails, especially the upper tail. This indicates substantial nonnormality in the residual distribution, with heavy tails and right skewed extreme values.
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+# 1. Get the top 25 largest absolute errors from the ARIMA model
+top_errors = eps.abs().sort_values(ascending=False).head(25)
+
+print("Dates of the Top 10 Largest ARIMA Residuals:")
+print("-" * 45)
+
+# 2. Loop through and print the date and the error value
+for date, val in top_errors.items():
+    # Keep the original sign of the residual for context
+    actual_val = eps.loc[date] 
+    print(f"Week of: {date.strftime('%Y-%m-%d')} | Residual: {actual_val:.4f}")
+
+# 3. Check how many of these fall into the high-entropy window (Oct - Feb)
+# Month 10 = Oct, 11 = Nov, 12 = Dec, 1 = Jan
+holiday_months = [10, 11, 12, 1, 2]
+holiday_errors = top_errors[top_errors.index.month.isin(holiday_months)]
+```
+
+There are several unusually large positive shocks and a smaller number of large negative shocks. This pattern is consistent with occasional abrupt changes in TSA checkpoint volume that are not fully captured by a Gaussian error assumption. In fact, we observe that `{python} len(holiday_errors)` of the top 25 largest absolute residuals fall within the high-entropy holiday season portion of the year (October through February). This suggests that the increased variability in travel patterns during the holiday season may be contributing to these large residuals, and that the ARIMA(3,1,0) model may struggle to capture this heightened complexity during these periods. There are several unusually large positive shocks and a smaller number of large negative shocks. This pattern is consistent with occasional abrupt changes in TSA checkpoint volume that are not fully captured by a Gaussian error assumption.
+
+This result does not contradict the Ljung-Box diagnostics. The Ljung-Box tests (see below) indicate that the ARIMA(3,1,0) model adequately removes serial dependence in the mean, while the QQ plot shows that the residuals remain non-normal in distribution.
+
+Next, we fit a SARIMA model [@notes531, Chapter 6] to the log data, to see if we can capture the seasonality better than STL decomposition. We find that the optimal SARIMA model is SARIMA(2,1,1). The full grid search, alongside other diagnostics such as the QQ plot, can be found in the supplemental materials. 
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+y_sar = pd.Series(tsa_log).dropna().astype(float)
+fit_sar_best = SARIMAX(
+    y_sar,                       
+    order=(2,1,1),
+    seasonal_order=(0,0,0,52),
+    trend="n",
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+display(fit_sar_best.summary())
+
+eps_sar = pd.Series(fit_sar_best.resid).dropna()
+eps_sar_use = eps_sar.iloc[5:].copy()   # trim a few initial points for cleaner diagnostics
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+#1 Fit the two models
+fit_arima_stl = ARIMA(tsa_sa.dropna(), order=(3, 1, 0), trend="n").fit()
+
+fit_sarima = SARIMAX(
+    y_sar.dropna(),
+    order=(2, 1, 1),
+    seasonal_order=(0, 0, 0, 52),
+    trend="n",
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+#2 Residual extraction helper
+def get_diag_resid(fit, name, burn=5):
+    # Prefer standardized one-step-ahead forecast errors from state space results
+    if hasattr(fit, "filter_results") and hasattr(fit.filter_results, "standardized_forecasts_error"):
+        sfe = fit.filter_results.standardized_forecasts_error
+        # first row corresponds to the observed series for univariate models
+        r = pd.Series(np.asarray(sfe)[0], index=fit.model.data.row_labels)
+    else:
+        r = pd.Series(fit.resid, index=fit.model.data.row_labels)
+
+    r = r.replace([np.inf, -np.inf], np.nan).dropna()
+
+    # Burn-in trim to remove filter initialization artifacts
+    if burn and len(r) > burn:
+        r = r.iloc[burn:]
+
+    r.name = name
+    return r
+
+eps_arima = get_diag_resid(fit_arima_stl, "STL+ARIMA(3,1,0)", burn=5)
+eps_sar   = get_diag_resid(fit_sarima,   "SARIMA(2,1,1)",   burn=5)
+
+
+#3 Diagnostic summary function
+def diag_summary(fit, resid, model_name, lb_lags=(10, 20, 52), arch_lags=12):
+    resid = pd.Series(resid).dropna()
+
+    # Ljung-Box
+    lb = acorr_ljungbox(resid, lags=list(lb_lags), return_df=True)
+
+    # Jarque-Bera 
+    jb_stat, jb_p = jarque_bera(resid)
+    
+    row = {
+        "model": model_name,
+        "n_obs_used": int(fit.nobs),
+        "n_resid": int(resid.shape[0]),
+        "aic": float(fit.aic),
+        "bic": float(fit.bic),
+        "llf": float(fit.llf),
+        "LB_p_10": float(lb.loc[10, "lb_pvalue"]) if 10 in lb.index else np.nan,
+        "LB_p_20": float(lb.loc[20, "lb_pvalue"]) if 20 in lb.index else np.nan,
+        "LB_p_52": float(lb.loc[52, "lb_pvalue"]) if 52 in lb.index else np.nan,
+        "JB_stat": float(jb_stat),
+        "JB_p": float(jb_p),
+        "resid_mean": float(resid.mean()),
+        "resid_std": float(resid.std(ddof=1)),
+    }
+    return row, lb
+
+#4 Table Construction
+row1, lb1 = diag_summary(fit_arima_stl, eps_arima, "STL+ARIMA(3,1,0)")
+row2, lb2 = diag_summary(fit_sarima,   eps_sar,   "SARIMA(2,1,1)")
+
+diag_table = pd.DataFrame([row1, row2]).set_index("model")
+print(diag_table.round(4))
+
+#5 Ljung-Box Tablles
+print("\nLjung-Box (STL+ARIMA residuals)")
+print(lb1)
+
+print("\nLjung-Box (SARIMA residuals)")
+print(lb2)
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+# The code above is still kept for transparency, completeness, and reproducibility
+# We also still need to fit the models anyways, but these AIC and BIC values are not reported here
+compact_table = diag_table[["LB_p_52"]].copy()
+display(compact_table.round(4))
+```
+
+Confirming what we observed visually with the ARIMA model, the Ljung-Box test results show that the SARIMA model residuals have significant autocorrelation, while the STL+ARIMA model residuals do not.  The Ljung-Box test at lag 52 for the STL+ARIMA model yields a p-value of `{python} round(row1["LB_p_52"], 4)`. For the SARIMA model, the p-value is `{python} round(row2["LB_p_52"], 4)`. This is a strong indication that the STL+ARIMA model is better at capturing the underlying structure of the data, and that the SARIMA model is missing some important patterns.  We can examine this in more practical terms by looking at the forecasts of these two models.
+
+## Forecasting
+
+Ultimately, the primary question raised by our project involved finding the most reliable model
+to perform forecasting with. ARIMA and SARIMA models are heavily used in
+general forecasting applications, and given that TSA data is extremely seasonal, we 
+benchmark our ARIMA(3,1,0) and SARIMA(2,1,1) models with a naive yearly and weekly forecast.
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+# Cell 1: Build weekly full-week series from 2022 onward
+df_fc = df.copy()
+df_fc = df_fc[df_fc["Date"] >= "2022-01-01"].copy()
+
+df_fc["week_start"] = df_fc["Date"] - pd.to_timedelta(df_fc["Date"].dt.weekday, unit="D")
+
+days_per_week_fc = df_fc.groupby("week_start")["Date"].nunique()
+full_week_idx_fc = days_per_week_fc[days_per_week_fc == 7].index
+
+# Weekly total on full weeks only
+y_w_full = (
+    df_fc.groupby("week_start")["travel"]
+    .sum()
+    .loc[full_week_idx_fc]
+    .sort_index()
+)
+
+# Ensure a proper weekly frequency for statsmodels forecasting
+y_w_full.index = pd.DatetimeIndex(y_w_full.index)
+y_w_full = y_w_full.asfreq("W-MON")
+
+# Log transform
+y_log_full = np.log(y_w_full.clip(lower=1))
+```
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+H = 12 
+
+# Level series
+y_level = y_w_full.copy()
+
+# Log series
+y_log = y_log_full.copy()
+
+# Split
+train_lvl = y_level.iloc[:-H].copy()
+test_lvl  = y_level.iloc[-H:].copy()
+
+train_log = y_log.iloc[:-H].copy()
+test_log  = y_log.iloc[-H:].copy()
+
+# Ensure weekly frequency for statsmodels
+train_lvl = train_lvl.asfreq("W-MON")
+test_lvl  = test_lvl.asfreq("W-MON")
+train_log = train_log.asfreq("W-MON")
+test_log  = test_log.asfreq("W-MON")
+
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+# Cell 3: Metrics
+def forecast_metrics(y_true, y_pred):
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
+
+    err = y_true - y_pred
+    mae = np.mean(np.abs(err))
+    rmse = np.sqrt(np.mean(err**2))
+    mape = np.mean(np.abs(err) / np.clip(np.abs(y_true), 1, None)) * 100
+
+    return {"MAE": mae, "RMSE": rmse, "MAPE_pct": mape}
+```
+There are four forecasting Time-Series models used for the weekly forecasting test.
+
+1. ARIMA(3,1,0): Our STL+ARIMA(3,1,0) depends on the de-seasonalized logged TSA checkpoint values, before reverting back our log-forecasts back into level values.
+
+2. SARIMA(2,1,1): The SARIMA(2,1,1)x(0,0,0,52) model is trained on logged seasonal TSA data. Before evaluating more complex time-series models, we include simple benchmark forecasts. These are useful because they provide a baseline that any advanced model should outperform to justify its added complexity.
+
+3. Naive last-week forecast: This benchmark predicts the current week's TSA total using the previous week's observed total, $[ \hat{y}t = y{t-1} ]$.  This is a short-memory benchmark. It assumes week-to-week conditions remain similar, but it does not explicitly account for annual seasonal patterns.
+
+4. Seasonal naive (last-year) forecast: This benchmark predicts the current week's TSA total using the same week from the previous year, $[ \hat{y}t = y{t-52} ]$.  Since TSA checkpoint volume has strong annual seasonality, this is a rather strong benchmark. However, in the end it's still naive, and extreme events can always shift forecast results. Nevertheless, we use this to benchmark against the STL ARIMA and SARIMA models
+(To find the code for these forecasts and run it, please consult the appendix)
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+# STL + ARIMA(3,1,0) Forecast
+# Build STL seasonally adjusted training series (must run before fit_stl_arima)
+
+# make sure train_log exists from the train/test split cell
+train_log = train_log.sort_index().asfreq("W-MON")
+test_log  = test_log.sort_index().asfreq("W-MON")
+
+# drop any missing values before STL
+train_log_clean = train_log.dropna().copy()
+
+# STL decomposition on training log series
+stl_train = STL(train_log_clean, period=52, robust=True).fit()
+
+# Extract seasonal component and seasonally adjusted series
+season_train = stl_train.seasonal
+tsa_sa_train = (train_log_clean - season_train).dropna()
+
+# Forecast horizon (if not already defined)
+H = len(test_log.dropna())
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+def fit_stl_arima(y):
+    candidates = [(3,1,0), (2,1,0), (1,1,0), (2,0,0)]
+    last_err = None
+
+    for ord_ in candidates:
+        try:
+            fit = SARIMAX(
+                y,
+                order=ord_,
+                seasonal_order=(0,0,0,0),
+                trend="n",
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            ).fit(disp=False, maxiter=500)
+            print("STL+ARIMA fit succeeded with order:", ord_, 
+                  "| converged:", fit.mle_retvals.get("converged", None))
+            return fit, ord_
+        except Exception as e:
+            print("Failed order", ord_, "->", repr(e))
+            last_err = e
+
+    raise last_err
+
+fit_arima_stl_fc, used_order = fit_stl_arima(tsa_sa_train)
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+# Forecast seasonally adjusted component
+fc_sa_log = fit_arima_stl_fc.forecast(steps=H)
+
+# Repeat last 52 seasonal values from training STL
+last_season_cycle = season_train.dropna().iloc[-52:].to_numpy()
+season_fc_vals = np.resize(last_season_cycle, H)
+
+# Use test index explicitly
+test_idx = test_log.dropna().index
+
+fc_stl_arima_log = pd.Series(
+    np.asarray(fc_sa_log) + season_fc_vals,
+    index=test_idx
+)
+fc_stl_arima_lvl = np.exp(fc_stl_arima_log)
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+# SARIMA Forecast
+# Fit SARIMA directly on the weekly log series. Effectively SARIMA(2,1,1)
+
+# Cell 5: SARIMA forecast (log scale -> back to level)
+fit_sarima_fc = SARIMAX(
+    train_log,
+    order=(2, 1, 1),
+    seasonal_order=(0, 0, 0, 52),
+    trend="n",
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+fc_sarima_log = fit_sarima_fc.forecast(steps=H)
+fc_sarima_lvl = np.exp(fc_sarima_log)
+```
+
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+# | output: false
+
+# Cell 6: Naive Forecast Benchmarks
+
+
+# Last-week naive
+fc_naive_last_week = pd.Series(
+    np.repeat(train_lvl.iloc[-1], H),
+    index=test_lvl.index,
+    name="Naive_LastWeek"
+)
+
+# Seasonal naive (same week last year, lag 52), if enough history exists
+fc_naive_last_year = pd.Series(index=test_lvl.index, dtype=float, name="Naive_LastYear")
+for t in test_lvl.index:
+    t_lag = t - pd.Timedelta(weeks=52)
+    if t_lag in y_w_full.index:
+        fc_naive_last_year.loc[t] = y_w_full.loc[t_lag]
+
+# If some values are missing (unlikely here), fallback to last-week naive
+fc_naive_last_year = fc_naive_last_year.fillna(fc_naive_last_week)
+```
+```{python}
+# | echo: false
+# | error: false
+# | warning: false
+
+# Cell 7: Accuracy table
+results_fc = []
+
+models_dict = {
+    "STL+ARIMA(3,1,0)": fc_stl_arima_lvl,
+    "SARIMA(2,1,1)": fc_sarima_lvl,
+    "Naive (last week)": fc_naive_last_week,
+    "Naive (last year)": fc_naive_last_year,
+}
+
+for name, pred in models_dict.items():
+    idx = test_lvl.index.intersection(pred.index)
+    m = forecast_metrics(test_lvl.loc[idx], pred.loc[idx])
+    m["Model"] = name
+    results_fc.append(m)
+
+forecast_table = pd.DataFrame(results_fc).set_index("Model").sort_values("RMSE")
+forecast_table.round(2)
+```
+
+The results show that while the naive annual forecast had the smallest Mean Absolute Error, the ARIMA(3,1,0) on de-seasonalized log data performed much better than the weekly naive forecast and the SARIMA(2,1,1).  Interestingly, the SARIMA(2,1,1) performed the worst, despite being a time-series model designed to handle seasonal data. This indicates that the Seasonality and Trend Decomposition by LOESS did capture several patterns in the data that the SARIMA(2,1,1) (which has the lowest AIC/BIC values among all SARIMA combinations) failed to capture. We also note that the residuals of the ARIMA(3,1,0), while exhibiting heavy tails, were closer to the normal QQ-plot than the SARIMA residuals. 
+
+# Conclusion {.unnumbered}
+We analyze TSA checkpoint data from 2019 onwards, with a focus on the post-pandemic period beginning in 2022.  We find a strong seasonal component to the data, alongside a general upwards trend.  Through spectral analysis, we confirm the presence of strong annual and weekly seasonality, along with their harmonics.  We find that the STL decomposition captures the seasonality well, but the residuals still show some serial dependence.  We find that an ARIMA(3,1,0) model on the seasonally adjusted data captures the remaining structure well, and better than the SARIMA model.
+
+In this setting, the key result is that forecasting performance depends more on separating deterministic seasonal structure from stochastic dependence before modeling. The TSA series is a good example of why that matters. It contains recurring patterns that are highly predictable, but also abrupt deviations that distort standard parametric seasonal fits. Hence, the STL ARIMA remains a reliable choice of model when it comes to decomposing and forcasting seasonal data.
+
+## Acknowledgments {.unnumbered}
+This project is related to the work done in W25P02 [@W25P02].  However, while that project explored pre-Covid flight numbers, we explore beyond the pandemic, and focus on TSA checkpoint data, which is a more direct proxy for passenger volume than flight numbers, which may be confounded by cargo flights and changes in average passengers per flight.  This is noted in  comments 1 and 2 in the W25P02 comments [@W25P02_comments].  Similarly, following the note made W25P02 comment 6 regarding the use of SARIMA vs ARIMA, we explore both ARIMA and SARIMA models in our work.
+
+We also examined the work done in W20P37 [@W20P37].  While our work has some similarities, we note the same distinction as with W25P02, where rather than using Kaggle data, we use data straight from the TSA.  Of course, the time period we explore is also much more modern.  While with some other data this may not matter much, specifically in the case of airline data, the trends observed during the popularization of air travel differ significantly from current trends.  We also explore forecasting not only with our ARIMA model as in W20P37, but also using our SARIMA model.
+
+We made use of various LLMs (Gemini, Github Copilot) to assist in particular with code debugging and generation, and to a lesser extent to verify interpretations of results.  Some code blocks were generated with LLM assistance, and all code blocks were reviewed/verified by us and LLM assistance.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+## Supplementary material {#sec-supp}
+[1]
+```{python}
+# | echo: false
+def sarima_grid_search(y, p_list=(0,1,2,3), d=1, q_list=(0,1,2),
+                       P_list=(0,1), D_list=(0,1), Q_list=(0,1),
+                       s=52, trend="n"):
+    rows = []
+    for p in p_list:
+        for q in q_list:
+            for P in P_list:
+                for D in D_list:
+                    for Q in Q_list:
+                        order = (p, d, q)
+                        seas = (P, D, Q, s)
+                        try:
+                            fit = SARIMAX(
+                                y,
+                                order=order,
+                                seasonal_order=seas,
+                                trend=trend,
+                                enforce_stationarity=False,
+                                enforce_invertibility=False
+                            ).fit(disp=False)
+                            rows.append({
+                                "order": order,
+                                "seasonal_order": seas,
+                                "aic": fit.aic,
+                                "bic": fit.bic,
+                                "llf": fit.llf,
+                                "n_params": len(fit.params),
+                                "converged": bool(fit.mle_retvals.get("converged", True))
+                            })
+                        except Exception as e:
+                            rows.append({
+                                "order": order,
+                                "seasonal_order": seas,
+                                "aic": np.nan,
+                                "bic": np.nan,
+                                "llf": np.nan,
+                                "n_params": np.nan,
+                                "converged": False,
+                                "error": str(e)[:120]
+                            })
+    out = pd.DataFrame(rows)
+    out = out.sort_values(["aic", "bic"], na_position="last").reset_index(drop=True)
+    return out
+```
+
+Residual Plots for SARIMA(2,1,1)
+
+```{python}
+# | echo: false
+# Residual plot
+plt.figure()
+plt.plot(eps_sar_use.index, eps_sar_use.values)
+plt.title("Residuals: SARIMA(2,1,1)x(0,0,0,52)")
+plt.show()
+```
+
+```{python}
+# | echo: false
+# Residual ACF
+plot_acf(eps_sar_use, lags=80, zero=False)
+plt.title("ACF of SARIMA residuals")
+plt.show()
+```
+
+```{python}
+# | echo: false
+# Ljung-Box
+print("Ljung-Box (SARIMA residuals)")
+print(acorr_ljungbox(eps_sar_use, lags=[10,20,52], return_df=True))
+```
+
+```{python}
+# | echo: false
+qqplot(eps_sar_use, line="45")
+plt.title("QQ plot of SARIMA residuals")
+plt.show()
+```
+
+```{python}
+# | echo: false
+# Jarque-Bera
+jb_stat, jb_p = jarque_bera(eps_sar)
+print("Jarque-Bera:", {"JB": jb_stat, "pvalue": jb_p})
+```
+```{python}
+# | echo: false
+arch_stat, arch_p, f_stat, f_p = het_arch(eps_sar)
+print("ARCH LM:", {"LM_stat": arch_stat, "LM_pvalue": arch_p, "F_stat": f_stat, "F_pvalue": f_p})
+```
+
+```{python}
+# | echo: false
+plot_acf((eps_sar**2), lags=60, zero=False)
+plt.title("ACF of squared SARIMA residuals")
+plt.show()
+```
+Residual Analyses: Comparison between STL+ARIMA(3,1,0) and SARIMA(2,1,1)
+```{python}
+# | echo: false
+# We trimmed the first 5 residuals before diagnostic testing because ARIMA residuals at the start of the sample can reflect model initialization and differencing startup effects.
+print("STL+ARIMA residual head:")
+print(eps_arima.head(10))
+
+print("\nLargest abs residuals:")
+print(eps_arima.abs().sort_values(ascending=False).head(10))
+print("\nSummary:")
+print(eps_arima.describe())
+```
+
+[STL remainder diagnostics]
+```{python}
+
+# STL remainder diagnostics 
+
+#1 Time plot
+plt.figure(figsize=(10,4))
+plt.plot(remainder.index, remainder.values)
+plt.title("STL remainder (weekly log TSA)")
+plt.xlabel("Week")
+plt.ylabel("Remainder")
+plt.show()
+
+#2 ACF
+plot_acf(remainder.dropna(), lags=60, zero=False)
+plt.title("ACF of STL remainder")
+plt.show()
+
+#3 Ljung-Box test
+lb_rem = acorr_ljungbox(remainder.dropna(), lags=[10,20,52], return_df=True)
+print("Ljung-Box on STL remainder")
+print(lb_rem)
+
+#4 differenced remainder check
+dr = remainder.dropna().diff().dropna()
+
+plot_acf(dr, lags=60, zero=False)
+plt.title("ACF of differenced STL remainder")
+plt.show()
+
+lb_dr = acorr_ljungbox(dr, lags=[10,20,52], return_df=True)
+print("\nLjung-Box on differenced STL remainder")
+print(lb_dr)
+```

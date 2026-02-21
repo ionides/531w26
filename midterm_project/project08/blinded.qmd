@@ -1,0 +1,355 @@
+---
+title: "Quantifying the Cracks: A Bivariate Time Series Analysis of Global Political Polarization and Regime Change"
+author: "Anonymous (Blinded for Peer Review)"
+bibliography: references.bib
+output: pdf_document
+execute:
+    echo: false
+    warning: false
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[beforeskip=0.5em,runin=false,afterskip=0em]{section}
+        \RedeclareSectionCommand[beforeskip=0em,runin=false,afterskip=0em]{subsection}
+        \RedeclareSectionCommand[beforeskip=0em,runin=false,afterskip=0em]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{float}
+number-sections: true
+jupyter: python3
+---
+
+\newcommand{\arma}[2]{\mathrm{ARMA}(#1,#2)}
+\newcommand{\arima}[3]{\mathrm{ARIMA}(#1,#2,#3)}
+
+
+## Abstract {.unnumbered}
+
+This report investigates the temporal dynamics and associations between global political polarization and democratic regime changes from 1900 to 2024. Building upon a Winter 2024 STATS 531 project that identified a historical peak in the quantity of democratic regimes, we analyze the societal cohesion underlying these structures. Using data from the Varieties of Democracy (V-Dem) project, we apply SARIMAX modeling to capture structural U-shaped trends in polarization and utilize Cross-Correlation Functions (CCF) to test for leading/lagging relationships. We find a significant bidirectional feedback loop: polarization acts as a 10-year leading indicator for democratic decline, while regime changes induce delayed polarization echoes a decade later. 
+
+# Introduction and Motivation
+
+In Stats 531 Winter 2024 Midterm Project 24 [@pastproj], the author demonstrated that the global count of democracies has reached historical highs. However, political scientists increasingly warn of "democratic backsliding"—a phenomenon where democracies do not collapse via sudden coups, but gradually degrade through intense societal division and polarization [@vdem]. 
+
+This project builds directly on that previous work. While the previous authors analyzed the *quantity* of regimes, we analyze their *stability*. Understanding whether polarization is a transient phase or a structural shift that dictates the future of political regimes is critical for forecasting global stability.
+
+# Data Description and Research Questions
+
+We utilize the Country-Year dataset from the Varieties of Democracy (V-Dem) project. To construct continuous time series, we aggregate the data globally.
+
+1.  **Primary Series (Polarization):** The V-Dem index for "Polarization into political camps" (`v2cacamps_ord`). This measures the extent to which society is divided into antagonistic political factions.  It is shown on a scale from 0 to 4, with 4 being opposite political factions are extremely hostile, while 0 being no polarization. We calculate the global annual average and take the first difference ($\nabla X_n$) to achieve stationarity.
+2.  **Reference Series (Regime Change):** To mirror and extend the Winter 2024 project, we calculate the annual *net change* in the total count of Electoral and Liberal Democracies (`v2x_regime`).
+
+**Formal Research Questions:**
+
+1. **Univariate Modeling:** Can the historical trajectory of global polarization be effectively modeled using time series methods? Specifically, what is the optimal SARIMA framework to capture its structural trends and persistence?
+
+2. **Bivariate Association:** Is there a statistically significant association between changes in global polarization and the net change in democratic regimes? Furthermore, does one series act as a leading indicator for the other?
+
+The main time series is visualized below:
+
+```{python}
+#| fig-align: center
+#| label: fig-polarization
+#| fig-cap: "Average Polarization Score (1900-2024)"
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+
+data = pd.read_csv("smaller_data.csv")
+
+time_series = data.groupby("year").v2cacamps_ord.mean().reset_index()
+time_series.dropna(inplace=True)
+time_series = pd.DataFrame(time_series).rename(columns = {"v2cacamps_ord": "mean_polarization"}).reset_index()
+
+plt.plot(time_series.year, time_series.mean_polarization)
+plt.xlabel("Year")
+plt.ylabel("Average Polarization Score")
+plt.title("Average Polarization Score (1900-2024)")
+plt.show()
+```
+
+There looks to be a general upward trend in @fig-polarization with a large dip around the 1970s through the 1990s. To complement this visual analysis, we can also look at the periodogram of the data to check for any clear periodicity:
+
+```{python}
+#| fig-align: center
+#| lablel: fig-periodogram
+#| fig-cap: "Periodogram of Average Polarization Score"
+from scipy.signal import periodogram
+freqs, psd = periodogram(time_series.mean_polarization, scaling = "spectrum")
+plt.semilogy(freqs[1:], psd[1:])
+plt.xlabel("Frequency (cycles per year)")
+plt.ylabel("Power Spectral Density")
+plt.title("Periodogram of Average Polarization Score")
+plt.show()
+```
+
+Like the previous project, there aren't any peaks and thus no clear periodicity in the data. Most of the power is concentrated at low frequencies, indicating that the data is dominated by long-term trends rather than short-term cycles.
+
+Both of these would suggest a stationary model would not work well here. To remedy this issue and try to remove the trend, we can take the first difference, defined with the backshift operator as: 
+$$Y^*_n = X^*_n - X^*_{n-1} = (1-B)X^*_n$$
+
+This is visualized in @fig-diff-polarization below:
+
+```{python}
+#| fig-align: center
+#| label: fig-diff-polarization
+#| fig-cap: "Difference of Average Polarization Score (1900-2024)"
+time_series["diff_polarization"] = time_series.mean_polarization.diff()
+plt.plot(time_series.year, time_series.diff_polarization)
+plt.xlabel("Year")
+plt.ylabel("Difference of Average Polarization Score")
+plt.title("Difference of Average Polarization Score (1900-2024)")
+plt.show()
+```
+
+Some large drops remain, with the largest in `{python} f"{time_series[time_series.diff_polarization == time_series.diff_polarization.min()].year.iloc[0]}"`, but overall this data looks more stationary, so we can proceed using ARMA methods.
+
+# ARIMA Modeling
+
+The general ARIMA model is defined as:
+$$\phi(B)((1-B)X_n - \mu) = \theta(B)\epsilon_n$$ 
+
+where $\phi(B), \theta(B)$ are the AR and MA polynomials of order $p$ and $q$ respectively, and $\epsilon_n$ is white noise with distribution $N(0,\sigma^2)$ [@notes531].
+
+The first method of finding an ideal model is to look at the AIC values for different values of $p$ and $q$, shown in the table below:
+
+```{python}
+P,Q = 4,4
+table = np.zeros((P+1,Q+1))
+for p in range(P+1):
+    for q in range(Q+1):
+        try:
+            model = sm.tsa.arima.ARIMA(time_series.mean_polarization, order=(p,1,q), trend = "t").fit()
+            table[p,q] = round(model.aic, 2)
+        except:
+            table[p,q] = np.nan
+        
+
+display_table = pd.DataFrame(table, index = [f'AR{p}' for p in range(P+1)], columns = [f'MA{q}' for q in range(Q+1)])
+
+display_table
+```
+
+The model with the lowest AIC value is $\arima{1}{1}{1}$, but the $\arima{2}{1}{1}$ and $\arima{1}{1}{2}$ models have a very similar AIC value. We can test the bigger models against the null hypothesis of $\arima{1}{1}{1}$ using the likelihood ratio test, and Wilk's theorem, that says that:
+$$ T = \ell_1 - \ell_0 \approx 0.5\chi^2_{D^{(1)} - D^{0}} $$
+where $\ell_1$ and $\ell_0$ are the log-likelihoods of the bigger and smaller models respectively, and $D^{(1)}$ and $D^0$ are the number of parameters in the bigger and smaller models respectively [@notes531]. 
+
+Since the difference in parameters is 1 for both tests, we know the cutoff value is $1.92$ for a significance level of $0.05$. Using the relationship between AIC and log-likelihood, we get values of $0.55$ and $0.54$ for the $\arima{2}{1}{1}$ and $\arima{1}{1}{2}$ models respectively, so we fail to reject the null hypothesis that the $\arima{1}{1}{1}$ model is sufficient.
+
+We can then proceed with this model and formally write it as:
+
+```{python}
+arima111 = sm.tsa.arima.ARIMA(time_series.mean_polarization, order=(1,1,1), trend = "t").fit()
+params = arima111.params
+
+ar1 = params.get("ar.L1")
+ma1 = params.get("ma.L1")
+trend = params.get("x1")
+sigma2 = params.get("sigma2")
+```
+
+$$(1 - \phi_1B)((1-B)X_n - \mu) = (1 + \theta_1B)\epsilon_n$$
+
+where $\phi_1 =$ `{python} f"{ar1:.2f}"`, $\theta_1 =$ `{python} f"{ma1:.2f}"`, $\mu =$ `{python} f"{trend:.4f}"`, and the variance of $\epsilon_n$ is $\sigma^2 =$ `{python} f"{sigma2:.4f}"`. 
+
+The AR root of this model is $1/\phi_1 =$ `{python} f"{1/ar1:.2f}"`, and the MA root is $-1/\theta_1 =$ `{python} f"{-1/ma1:.2f}"`. Since both of these roots are outside the unit circle, we know that the model is causal and invertible [@notes531].
+
+Now we must check that the residuals of the model. The first residual is unnaturally large due to the initalization of the integrated model [@chadfulton], so it will be ignored in our analysis, since we have a large number of observations. The ACF and QQ plot of the residuals are shown below: 
+
+```{python}
+residuals = arima111.resid[1:]
+fig, ax = plt.subplots(1,2, figsize=(12,4))
+sm.graphics.tsa.plot_acf(residuals, lags=20, ax=ax[0])
+ax[0].set_title("ACF of Residuals")
+ax[0].set_xlabel("Lag")
+ax[0].set_ylabel("Autocorrelation")
+sm.qqplot(residuals, line='s', ax=ax[1])
+ax[1].set_title("QQ Plot of Residuals")
+plt.show()
+```
+
+The ACF plot shows no clear pattern nor any significant lags, so we can conclude that the residuals are uncorrelated. The QQ plot is less clear, but most of the residuals do fall near the line, with a few outliers in the left tail, which lines up with the graph of the time series, which has a few large dips. However, overall the residuals do not look too far from normal, so we can conclude that the model is a good fit for the data.
+
+#  Hypothesis Testing: Regression with ARMA Errors
+
+Recreating the past project, we have the net change in regimes over this range, visualized in @fig-regime-change [@pastproj]:
+
+```{python}
+#| fig-align: center
+#| label: fig-regime-change
+#| fig-cap: "Net Change in Regime Count (1900-2024)"
+
+regime_count = data.groupby("year").v2x_regime.value_counts().reset_index().pivot(index="year", columns="v2x_regime", values="count").fillna(0)
+regime_count['total'] = regime_count.sum(axis=1)
+regime_count['change'] = regime_count.total.diff()
+regime_count = regime_count.reset_index()
+
+plt.plot(regime_count.year, regime_count.change)
+plt.xlabel("Year")
+plt.ylabel("Net Change in Regime Count")
+plt.title("Net Change in Regime Count (1900-2024)")
+plt.show()
+```
+
+We can visually overlap [@copilot] them with the differenced polarization series to get a sense of their relationship in @fig-overlap:
+
+```{python}
+#| fig-align: center
+#| label: fig-overlap
+#| fig-cap: "Difference of Polarization Score and Net Change in Regime Count (1900-2024)"
+#| fig-pos: H
+fig, ax1 = plt.subplots()
+
+ax1.plot(time_series.year, time_series.diff_polarization, color='blue', label='Difference of Average Polarization Score')
+ax1.set_ylabel('Difference of Polarization Score', color='blue')
+
+ax2 = ax1.twinx()
+ax2.plot(regime_count.year, regime_count.change, color='red', label='Net Change in Regimes')
+ax2.set_ylabel('Net Change in Regime Count', color='red')
+
+ax1.set_xlabel('Year')
+plt.title('Difference of Polarization Score and Net Change in Regime Count (1900-2024)')
+plt.show()
+```
+
+We can investigate the dependence of regime change count on polarization change by regressing the former on the latter, while controlling for ARMA errors. The AIC table for this regression is shown in the supplementary material, and the model that was chosen from it was the $\arma{1}{0}$ model. Thus we fit 
+$$\Delta_{regime} = \alpha + \beta \Delta_{polarization} + \epsilon_n$$
+where $\epsilon_n$ follows an $\arma{1}{0}$ process [@notes531]. The results of this regression are shown below:
+
+```{python}
+import scipy.stats as stats
+a0 = sm.tsa.statespace.SARIMAX(regime_count.change[1:], order = (1,0,0), exog = time_series.diff_polarization[1:], trend = "c").fit()
+
+beta = a0.params.get("diff_polarization")
+beta_pval = a0.pvalues.get("diff_polarization")
+
+a0_null = sm.tsa.statespace.SARIMAX(regime_count.change[1:], order = (1,0,0), trend = "c").fit()
+
+log_like_ratio = a0.llf - a0_null.llf
+LRT_pval = 1 - stats.chi2.cdf(2 * log_like_ratio, df=1)
+```
+
+The coefficient this results in is $\beta=$ `{python} f"{beta:.4f}"`, with a p-value less than $0.05$. The likelihood ratio test comparing this model to the null model without dependence also gives us a p-value less than $0.05$. Thus we can conclude that there is a statistically significant relationship between the change in polarization and the change in regime count, even after controlling for ARMA errors.
+
+# Cross-Correlation Analysis
+
+Following the methodology of Chapter 9 [@notes531], we further investigate the relationship between our two time series. Having established that both the differenced polarization series and the regime change series are stationary, we compute the Cross-Correlation Function (CCF) to test for leading or lagging associations.
+
+```{python}
+#| echo: false
+#| label: fig-ccf
+#| fig-cap: "Cross-Correlation: Polarization Change vs. Regime Change"
+#| fig-pos: H
+
+pol_df = pd.DataFrame({
+    'year': time_series.year[1:],
+    'Polarization_Change': time_series.diff_polarization[1:]
+})
+
+reg_df = pd.DataFrame({
+    'year': regime_count['year'],
+    'Regime_Change': regime_count['change']
+})
+
+aligned_data = pd.merge(pol_df, reg_df, on='year').dropna()
+
+pol_change = aligned_data['Polarization_Change'].values
+reg_change = aligned_data['Regime_Change'].values
+
+ccf_vals = sm.tsa.stattools.ccf(pol_change, reg_change, adjusted=False)
+
+ccf_backwards = sm.tsa.stattools.ccf(reg_change, pol_change, adjusted=False)
+
+num_lags = 15
+lags = np.arange(-num_lags, num_lags + 1)
+ccf_combined = np.concatenate([ccf_backwards[1:num_lags+1][::-1], ccf_vals[:num_lags+1]])
+
+conf_int = 1.96 / np.sqrt(len(aligned_data))
+
+plt.figure(figsize=(10, 5))
+plt.stem(lags, ccf_combined, basefmt=" ")
+plt.axhline(y=conf_int, color='red', linestyle='--', alpha=0.5, label='95% Confidence Interval')
+plt.axhline(y=-conf_int, color='red', linestyle='--', alpha=0.5)
+
+plt.title('Cross-Correlation: Polarization Change vs. Regime Change')
+plt.xlabel('Lag (Years)')
+plt.ylabel('Cross-Correlation (CCF)')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.show()
+```
+
+@fig-ccf reveals a complex, bidirectional feedback loop between societal division and government structure, with several distinct spikes exceeding the 95% confidence interval boundaries:
+
+1.  **Simultaneous Effect (Lag 0):** There is a significant negative correlation at lag 0. This indicates that in the exact year societal polarization spikes, the net formation of democratic regimes drops.
+2.  **Polarization as a Leading Indicator (Lag -10):** A significant negative spike at lag -10 suggests that an increase in polarization today predicts a decline in democratic regime growth a full decade later, acting as an early warning sign of institutional decay.
+3.  **Regime Change as a Leading Indicator (Lags +10 to +15):** Significant correlations at positive lags (notably a negative spike near +10) indicate a delayed "echo" effect. Shifts in political regimes create structural societal divisions that manifest 10 to 15 years later, potentially reflecting generational political realignments.
+
+# Conclusion
+
+This project set out to bridge the gap between the *quantity* of democratic regimes and their *societal quality*. Our analysis found that the $\arima{1}{1}{1}$ model fits the differenced polarization series well. Where previous analyses established that democracies have quantitatively triumphed over autocracies historically, our analysis reveals a concerning caveat: the societal polarization within these states has surged concurrently. 
+
+Our bivariate time series analysis proves that polarization and democratic backsliding are fundamentally intertwined. Polarization is not merely a symptom of regime change; it is both a simultaneous suppressor of democracy and a decade-long leading indicator of democratic decline. Without structural intervention, shocks that divide societies are likely to echo through the political landscape for generations.
+
+# Scholarship and Acknowledgments
+
+* **Contextual Integration:** This project directly extends the analytical framework of the STATS 531 Winter 2024 Project 13 ("Timeseries Analysis of Political Regimes From 1900 to 2022"). While the former focused on regime *counts* (using V-Dem's `v2x_regime`), we pivoted to regime *quality* by analyzing the Polarization index (`v2cacamps_ord`) and deploying Chapter 9 methodologies to establish a temporal association between the two phenomena.
+
+* **AI Usage:** AI was consulted primarily for debugging code and for instructions on how to properly format the report qmd. Any AI use beyond this was acknowledged in the citations. 
+
+# Bibliography
+
+::: {#refs}
+:::
+
+# Supplementary Material
+
+The Python code utilized to generate the CCF analysis is provided below.
+
+```{python}
+#| echo: true
+
+pol_df = pd.DataFrame({
+    'year': time_series.year[1:],
+    'Polarization_Change': time_series.diff_polarization[1:]
+})
+
+reg_df = pd.DataFrame({
+    'year': regime_count['year'],
+    'Regime_Change': regime_count['change']
+})
+
+aligned_data = pd.merge(pol_df, reg_df, on='year').dropna()
+
+pol_change = aligned_data['Polarization_Change'].values
+reg_change = aligned_data['Regime_Change'].values
+
+ccf_vals = sm.tsa.stattools.ccf(pol_change, reg_change, adjusted=False)
+
+ccf_backwards = sm.tsa.stattools.ccf(reg_change, pol_change, adjusted=False)
+
+num_lags = 15
+lags = np.arange(-num_lags, num_lags + 1)
+ccf_combined = np.concatenate([ccf_backwards[1:num_lags+1][::-1], ccf_vals[:num_lags+1]])
+
+conf_int = 1.96 / np.sqrt(len(aligned_data))
+```
+
+The AIC table for the regression between the differenced polarization series and the regime change series is shown below:
+
+```{python}
+P,Q = 4,4
+table = np.zeros((P+1,Q+1))
+for p in range(P+1):
+    for q in range(Q+1):
+        try:
+            model = sm.tsa.statespace.SARIMAX(regime_count.change[1:], order=(p,0,q), exog=time_series.diff_polarization[1:], trend = "c").fit()
+            table[p,q] = round(model.aic, 2)
+        except:
+            table[p,q] = np.nan
+
+display_table = pd.DataFrame(table, index = [f'AR{p}' for p in range(P+1)], columns = [f'MA{q}' for q in range(Q+1)])
+display_table
+```

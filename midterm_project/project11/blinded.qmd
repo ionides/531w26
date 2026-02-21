@@ -1,0 +1,1521 @@
+---
+title: "STATS 531 - Midterm Project"
+output: pdf_document
+bibliography: references.bib
+nocite: |
+  @*
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+execute:
+  engine: knitr
+---
+
+
+We look into the DAX Stock Index in Germany, and investigate how we can model the stock's opening prices, volatility, and other features. The DAX index tracks the performance of the 40 largest companies listed on the Frankfurt Stock Exchange [@stoxx_dax_index]. They represent the diversified economy of Germany. The DAX is generally known as the German equity benchmark, surviving for over 30 years. What are the best ways to model changes in the stock's price and its returns? How do we model its volatility, and how accurately? 
+
+# Exploratory Data Analysis
+### Introduction 
+
+We look at the daily stock price open for the DAX index for every day from 2010 to 2020 through a time series graph. The data above for stock open shows a roughly nonstationary data. The mean is not constant, and we have a large dip in 2020, associated with covid [@Caporale2022]. Then we analyze volatility for the DAX stock, $y_n = log(z_n) - log(z_{n-1})$ [@ionides2026_time_series_intro].
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.legend_handler import HandlerPatch
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+
+flag_height = 0.1
+flag_width = 0.2
+# Colors: Black, Red, Gold
+colors = ['black', '#DD0000', '#FFCE00']
+patches = [mpatches.Rectangle((0, i*flag_height), flag_width, flag_height, 
+           color=colors[i]) for i in range(3)]
+flag_patch = mpatches.Patch(color='#FFCE00', label='DAX Open Prices')
+
+class HandlerFlag(HandlerPatch):
+    def create_artists(self, legend, orig_handle,
+                       xdescent, ydescent, width, height, fontsize, trans):
+        x = 0
+        y = 0
+        # Create three rectangles for the flag
+        p1 = mpatches.Rectangle((x, y), width, height/3, color='#FFCE00')
+        p2 = mpatches.Rectangle((x, y+height/3), width, height/3, color='#DD0000')
+        p3 = mpatches.Rectangle((x, y+2*height/3), width, height/3, color='black')
+        return [p1, p2, p3]
+flag_proxy = mpatches.Patch(color='none', label='DAX Open Prices')
+
+plt.figure(figsize=(10, 2))
+plt.plot(data['Open'], label = "DAX Open", color='#006400')
+plt.legend(
+    handles=[flag_proxy],
+    handler_map={flag_proxy: HandlerFlag()}
+)
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.title("DAX 2010-2020 – Open Prices")
+plt.show()
+
+```
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+
+flag_height = 0.1
+flag_width = 0.2
+# Colors: Black, Red, Gold
+colors = ['black', '#DD0000', '#FFCE00']
+patches = [mpatches.Rectangle((0, i*flag_height), flag_width, flag_height, 
+           color=colors[i]) for i in range(3)]
+flag_patch = mpatches.Patch(color='#FFCE00', label='DAX Return')
+
+class HandlerFlag(HandlerPatch):
+    def create_artists(self, legend, orig_handle,
+                       xdescent, ydescent, width, height, fontsize, trans):
+        x = 0
+        y = 0
+        # Create three rectangles for the flag
+        p1 = mpatches.Rectangle((x, y), width, height/3, color='#FFCE00')
+        p2 = mpatches.Rectangle((x, y+height/3), width, height/3, color='#DD0000')
+        p3 = mpatches.Rectangle((x, y+2*height/3), width, height/3, color='black')
+        return [p1, p2, p3]
+flag_proxy = mpatches.Patch(color='none', label='DAX Return')
+
+plt.figure(figsize=(10, 1))
+plt.plot(data['returns'], label = "DAX Returns", color='#006400')
+plt.legend(
+    handles=[flag_proxy],
+    handler_map={flag_proxy: HandlerFlag()}
+)
+plt.xlabel('Date')
+plt.ylabel('Price')
+plt.title("DAX 2010-2020 – Returns")
+plt.show()
+```
+
+Through visual inspection, volatility is stationary with a more or less constant mean. 
+
+
+### Autocorrelation
+
+ We look at the autocorrelation function below to see how much lags depend on each other. DAX opening prices are all highly correlated from the original value down until the 35th lag. Correlation then drops slowly. This tells us that a model that depends on its lags seems suitable.
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+data.set_index('Date', inplace=True)
+
+fig, ax = plt.subplots(figsize=(8, 2))
+plot_acf(data['Open'], ax=ax)
+plt.xlabel('Lag t')
+plt.ylabel('Autocorrelation $\gamma_{x}(0,t)$')
+plt.title('DAX Returns Autocorrelation')
+plt.tight_layout()
+plt.show()
+```
+
+The autocorrelation graph for DAX Returns is below. The correlation of the returns are such that they could be i.i.d.. This means that the relationships between the first price return and its lags aren't as heavily correlated.
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+data.set_index('Date', inplace=True)
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+fig, ax = plt.subplots(figsize=(8, 2))
+plot_acf(data['returns'].dropna(), ax=ax)
+plt.xlabel('Lag t')
+plt.ylabel('Autocorrelation $\gamma_{x}(0,t)$')
+plt.title('DAX Returns Autocorrelation')
+plt.tight_layout()
+plt.show()
+```
+
+### Distributions
+
+Now we show the histogram for the opening prices, returns, and volatility. These display the shapes of our data. While returns and volatility are normally distributed, opening prices are more uniformally distributed. 
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+data.set_index('Date', inplace=True)
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+log_returns = np.log(data['Open'] / data['Open'].shift(1)).dropna()
+
+
+fig, axes = plt.subplots(1, 3, figsize=(18, 3))  # 1 row, 3 columns
+
+# Histogram 1: Returns
+axes[0].hist(data['returns'], bins=50, edgecolor='black', color = '#006400')
+axes[0].set_title('Histogram of Returns')
+axes[0].set_xlabel(r'DAX Return: $\sigma$ = {:.4f}'.format(data['returns'].std()))
+axes[0].set_ylabel('Frequency')
+
+# Histogram 2: Open
+axes[1].hist(data['Open'], bins=50, edgecolor='black', color = '#006400')
+axes[1].set_title('Histogram of Open')
+axes[1].set_xlabel(r'DAX Open: $\sigma$ = {:.4f}'.format(data['Open'].std()))
+axes[1].set_ylabel('Frequency')
+
+# Histogram 3: Log Returns (Volatility)
+axes[2].hist(log_returns, bins=50, edgecolor='black', color = '#006400')
+axes[2].set_title(r'Histogram of $Y_n / Y_{n-1}$')
+axes[2].set_xlabel('Y_n / Y_(n-1): $\sigma$ = {:.4f}'.format(np.std(log_returns)))
+axes[2].set_ylabel('Frequency')
+
+plt.tight_layout()
+plt.show()
+```
+
+### Stationary vs Non Stationary
+
+The time series graphs for DAX Opening prices look nonstationary through visual inspection, and the returns for DAX by day look stationary. We obtain empirical data to show whether the data is stationary or not through the Augmented Dickey Fuller Test. A time series model has a unit root if its first difference is stationary. For a linear time series model, this is equivalent to a $(1-B)$ factor in the AR polynomial $\phi(B)$. The Augmented Dickey Fuller Test will look for evidence of a unit root. We use the test to verify the DAX Opening prices are nonstationary, and the returns for the DAX stock index are stationary. Performing an ADF test on DAX Opens gives a p value of 0.603955, so, we fail to reject the null, so we may assume it is nonstationary. On the other hand, the DAX Return has a p value of 0 after running the test. We reject the null and there is evidence to show that the data is stationary. (See the Supplementary Details for the full results of the ADF test.)
+
+###  Spectral Density Function 
+
+An estimator of the spectral density function determine a signal’s frequency context content from
+a time series sample. It is measured as $\lambda(\omega) = \int_{\infty}^{-\infty} \gamma(x) e^{-2\pi i \omega x}$ [@ionides2026_time_series_intro]. In this section, we look at the frequencies for the DAX Stock Prices and Returns. It splits data into overlapping segments, computes modified periodograms, and averages them to reduce the variance. From the graphs, we may visually inspect the point at which the spectral density is the highest. This will be the dominant frequency, the most common rate at which an oscillation in the stock index happens.
+
+Below, we show frequency vs spectral density function of the DAX Open and Return values.
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima_process import ArmaProcess
+from statsmodels.tsa.arima.model import ARIMA
+from scipy.signal import welch
+from scipy.stats import chi2
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+
+nperseg = len(data['Open'])
+frequencies, psd = welch(data['Open'].to_numpy(), fs=1, nperseg=nperseg)
+
+idx_max = np.argmax(psd)
+dom_freq = frequencies[idx_max]
+dom_psd = psd[idx_max]
+
+
+
+plt.figure(figsize=(10, 2))
+plt.semilogy(frequencies, psd)
+plt.axvline(dom_freq, color='red', linestyle='--', 
+            label=f'Dominant freq = {dom_freq:.3f}')
+plt.scatter(dom_freq, dom_psd, color='red')
+
+plt.xlabel("Frequency")
+plt.ylabel("Spectral Density")
+plt.title("(Welch) Spectral Density of DAX Open Prices")
+plt.show()
+
+```
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima_process import ArmaProcess
+from statsmodels.tsa.arima.model import ARIMA
+from scipy.signal import welch
+from scipy.stats import chi2
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+returns = data['returns'].dropna().to_numpy()
+
+nperseg = len(data['returns'])
+frequencies, psd = welch(returns, fs=1)
+
+idx_max = np.argmax(psd)
+dom_freq = frequencies[idx_max]
+dom_psd = psd[idx_max]
+
+plt.figure(figsize=(10, 2))
+plt.semilogy(frequencies, psd)
+plt.axvline(dom_freq, color='red', linestyle='--', 
+            label=f'Dominant freq = {dom_freq:.3f}')
+plt.scatter(dom_freq, dom_psd, color='red')
+plt.xlabel("Frequency")
+plt.ylabel("Spectral Density")
+plt.title("(Welch) Spectral Density of DAX Returns")
+plt.show()
+```
+
+The highest spectral densities in our graphs above are at frequencies of 0.00036 and 0.3, which indicates that these are the dominant frequencies for DAX open and return values, respectively. The periods are 2777 and 3.3 for the dominant oscillation. These make sense, as, we have roughly 2777 data, so, there is one unique non stationary pattern for open prices. Returns are stationary, and repeat roughly every 3.3 stock measurements, which is roughly 3.3 days.
+
+# Fitting Time Series Models
+
+Let's train models on time series data to accurately reflect our observations on the DAX Stock Index from the exploratory data analysis, respecting stationarity.
+
+### ARMA and ARIMA
+How do we forecast DAX Stock Prices and Returns? The exploratory data analysis reveals that these values depend on lags and differencing. This information is captured in an ARMA model [@shumway2000].
+
+$$ y_n = \phi_1 y_{n-1} + \phi_2 y_{n-2} + \phi_3 y_{n-3} + \theta_1 \epsilon_n + \theta_2 \epsilon_{n-1} $$
+$$ y_n = \phi_1 B y_n + \phi_2 B^2 y_n + \phi_3 B^3 y_n + \theta_1 \epsilon_n + \theta_2 B \epsilon_n $$
+$$ y_n \phi(B) = \theta(B) \epsilon_n $$
+
+
+
+#### DAX Open Prices
+
+
+Let's analyze the results of an ARIMA model on the DAX Open Prices; our visual analysis and ADF test revealed that the DAX Open Prices as a time series are nonstationary. Because of the COVID wave in 2020, for purposes of fitting a model, we use all results from Januray 1, 2010 to December 31, 2018. The best ARIMA model for DAX Open Prices is an ARIMA(3,1,2). The shape matches, and has a relatively low AIC of -3916.7  - it is trained and graphed on top of raw data below, overlapping almost perfectly. Before measuring residuals, we compare models by $AIC = 2k -2ln(\hat{L})$, which punishes complexity and lack of goodness of fit. A lower AIC score is better.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+
+model = ARIMA(data['Open'], order=(3,1,2))
+result = model.fit()
+
+# In-sample prediction (in original scale)
+pred = result.predict(start=data.index[0], end=data.index[-1], typ='levels')
+
+plt.figure(figsize=(10,2))
+plt.plot(data.index, data['Open'], label='Actual Open', color='yellow')
+plt.plot(data.index, pred, label='ARIMA Predicted', color='blue')
+plt.title("DAX Open vs ARIMA(3,1,2) Prediction")
+plt.xlabel("Date")
+plt.ylabel("Price")
+plt.legend()
+plt.show()
+```
+
+
+The AIC values for the ARIMA models of different number of parameters (ex, ARIMA(1,0,1), ARIMA(2,0,2), etc.) are in the tables below.
+
+\begin{table}[ht]
+\centering
+\caption{AIC for ARIMA(p,d,q) Model Comparison, as calculated from arma\_aic\_run.py}
+\label{tab:arma_all}
+
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & 10629.7 & 7529.3 & 5005.4 & 3147.4 & 1892.3 \\
+1 & -3897.5 & -3895.6 & -3893.6 & -3893.5 & -3892.2 \\
+2 & -3895.6 & -3894.0 & -3892.1 & -3891.9 & -3891.6 \\
+3 & -3893.6 & -3892.4 & -3891.1 & -3898.6 & -3896.7 \\
+4 & -3893.6 & -3891.3 &  -3889.2 & -3896.6 & -3895.1 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 0$}
+\end{subtable}
+\hfill
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & -3905.2 & -3903.3 & -3901.3 & -3901.2 & -3899.9 \\
+1 & -3903.3 & -3901.3 & -3899.3 & -3899.3 & -3901.8 \\
+2 & -3901.3 & -3899.8 & -3916.6 & -3906 & -3903.5 \\
+3 & -3901.3 & -3899.3 & -3916.7 & -3904.1 & -3903.7 \\
+4 & -3899.8 & -3901.5 & -3903.9 & -3902.4 & -3915.5 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 1$}
+\end{subtable}
+\hfill
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & -2267.9 & -3893.6 & -3891.6 & -3889.7 & -3889.5 \\
+1 & -2939.6 & -3891.6 & -3889.6 & -3887.7 & -3885.7 \\
+2 & -3253.7 & -3889.7 & -3887.6 & -3887.4 & -3904.9 \\
+3 & -3378.4 & -3889.6 & -3885.7 & -3885.2 & -3888.2 \\
+4 & -3432 & -3888.1 & -3885.7 & -3883.3 & -3898.7 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 2$}
+\end{subtable}
+\hfill
+\end{table}
+
+
+#####  Model Diagnosis
+We check causality and invertibility in this section. Causality is when the AR process has all roots that lie outside the unit circle [@shumway2000]. Invertability is when the MA process has all roots that lie outside the unit circle. We diagnose our best solution, ARIMA (3,1,2) below - it is both causal and invertible. 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+
+model = ARIMA(data['Open'], order=(3,1,2))
+result = model.fit()
+
+ar_roots = result.arroots
+# print("AR roots:", ar_roots)
+
+# MA roots
+ma_roots = result.maroots
+# print("MA roots:", ma_roots)
+
+# We remove outliers in the AR solutions so that our visualization does not suffer.
+ar_roots_plot = ar_roots[np.abs(ar_roots) < 10]
+
+def plot_roots_ax(ax, roots, title):
+    theta = np.linspace(0, 2*np.pi, 100)
+    x = np.cos(theta)
+    y = np.sin(theta)
+    
+    ax.plot(x, y, 'k--', label='Unit Circle')  # unit circle
+    ax.scatter(roots.real, roots.imag, color='red', s=100, label='Roots')
+    ax.axhline(0, color='grey', lw=1)
+    ax.axvline(0, color='grey', lw=1)
+    ax.set_xlabel('Real')
+    ax.set_ylabel('Imag')
+    ax.set_title(title)
+    ax.grid(True)
+    ax.set_aspect('equal', adjustable='datalim')
+    # ax.set_xlim(-1.5, 1.5)  # zoom to unit circle
+    # ax.set_ylim(-1.5, 1.5)
+    ax.legend()
+
+# Create side-by-side plots
+fig, axs = plt.subplots(1, 2, figsize=(10,2))
+
+plot_roots_ax(axs[0], ar_roots_plot, 'AR Roots (Zoomed)')
+plot_roots_ax(axs[1], ma_roots, 'MA Roots')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+##### Residual Analysis
+We look at the residuals. Both the qq plot and the histogram indicate that the residuals are normally distributed $\epsilon$ $\approx$ $N(0, \sigma^2)$. This indicates that the ARIMA(3,1,2) is a good fit.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+
+model = ARIMA(data['Open'], order=(3,1,2))
+result = model.fit()
+
+# Get residuals
+residuals = result.resid
+
+fig, axs = plt.subplots(1, 2, figsize=(10,2))
+
+# Histogram
+axs[0].hist(residuals, bins=30, edgecolor='k')
+axs[0].set_title('Histogram of Residuals')
+axs[0].set_xlabel('Residual')
+axs[0].set_ylabel('Frequency')
+
+# QQ plot
+sm.qqplot(residuals, line='45', ax=axs[1])
+axs[1].set_title('QQ Plot of Residuals')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+#### DAX Returns
+Let's run the same procedure for the returns. The best model is ARIMA(3, 0, 4). The empirical and visual data shows that the returns are stationary, so, having do differencing component $(d = 0)$ makes sense for this data.
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+returns = data['returns'].dropna()
+
+model = ARIMA(returns, order=(3,0,4))
+result = model.fit()
+
+# In-sample prediction
+pred = result.predict(start=0, end=len(returns)-1, typ='levels')
+
+plt.figure(figsize=(10,2))
+plt.plot(returns.index, returns, label='Returns', color='yellow')
+plt.plot(returns.index, pred, label='ARIMA Predicted', color='blue')
+plt.title("DAX Open vs ARIMA(3,0,4) Prediction")
+plt.xlabel("Date")
+plt.ylabel("Returns")
+plt.legend()
+plt.show()
+
+```
+
+Now, we look at AIC for every combination of parameters in ARIMA(p,d,q) for DAX returns.
+
+\begin{table}[ht]
+\centering
+\caption{AIC for ARIMA(p,d,q) Model Comparison, as calculated from arma\_aic\_run.py}
+\label{tab:arma_all}
+
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & -14028.1 & -14026.4 & -14024.4 & -14022.6 & -14024.4 \\
+1 & -14026.4 & -14024.4 & -14022.1 & -14019.3 & -14025.4 \\
+2 & -14024.4 & -14022.1 & -14020.1 & -14020.4 & -14025.2 \\
+3 & -14022.7 & -14020.6 & -14018.1 &  -14019.7 & -14029.4 \\
+4 & -14024 & -14022.1 & -14020.1 & -14017.4 & -14026 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 0$}
+\end{subtable}
+\hfill
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & -12372.7 & -14012.7 & -14011.1 & -14009.1 & -14007.2 \\
+1 & -13058.6 & -14011.1 & -14009.6 & -14005.9 & -14005.6 \\
+2 & -13350.5 & -14008.8 & -14007.2 & -14007.9 &  -14000.3 \\
+3 & -13464.5 & -14006.6 & -14004.7 & -14006.4 & -14004.5 \\
+4 & -13530.4 & -14007.8 & -13995.3 & -13982 & -13995.4 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 1$}
+\end{subtable}
+\hfill
+\begin{subtable}{0.32\textwidth}
+\centering
+\small
+\resizebox{\linewidth}{!}{
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{5}{c}{MA Order} \\
+\cmidrule(lr){2-6}
+AR Order & 0 & 1 & 2 & 3 & 4 \\
+\midrule
+0 & -9787.3 & -12356.1 & -1398 & -13976.2 & -13974.3 \\
+1 & -11163.8 & -13040.6 & -13981.9 & -13979.5 & -13978.2 \\
+2 & -11898.1 & -13327.1 & -13115.6 & -13972.6 & -13931.5 \\
+3 & -12303.4 & -13441.1 & -13333.5 &  -13173.1 & -13058.8 \\
+4 & -12519.4 & -13393.4 & -13370.9 & -13340.9 & -13269.3 \\
+\bottomrule
+\end{tabular}
+}
+\caption{AIC for $d = 2$}
+\end{subtable}
+\hfill
+\end{table}
+
+
+
+
+
+
+
+##### Model Diagnosis
+We assess causality and invertability. All solutions lie outside the unit circle. Therefore, our model is causal and invertible. 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+returns = data['returns'].dropna()
+
+
+model = ARIMA(returns, order=(3,0,4))
+result = model.fit()
+
+ar_roots = result.arroots
+# print("AR roots:", ar_roots)
+
+# MA roots
+ma_roots = result.maroots
+# print("MA roots:", ma_roots)
+
+# We remove outliers in the AR solutions so that our visualization does not suffer.
+ar_roots_plot = ar_roots[np.abs(ar_roots) < 10]
+
+def plot_roots_ax(ax, roots, title):
+    theta = np.linspace(0, 2*np.pi, 100)
+    x = np.cos(theta)
+    y = np.sin(theta)
+    
+    ax.plot(x, y, 'k--', label='Unit Circle')  # unit circle
+    ax.scatter(roots.real, roots.imag, color='red', s=100, label='Roots')
+    ax.axhline(0, color='grey', lw=1)
+    ax.axvline(0, color='grey', lw=1)
+    ax.set_xlabel('Real')
+    ax.set_ylabel('Imag')
+    ax.set_title(title)
+    ax.grid(True)
+    ax.set_aspect('equal', adjustable='datalim')
+    # ax.set_xlim(-1.5, 1.5)  # zoom to unit circle
+    # ax.set_ylim(-1.5, 1.5)
+    ax.legend()
+
+# Create side-by-side plots
+fig, axs = plt.subplots(1, 2, figsize=(10,2))
+
+plot_roots_ax(axs[0], ar_roots_plot, 'AR Roots (Zoomed)')
+plot_roots_ax(axs[1], ma_roots, 'MA Roots')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+##### Residual Analysis
+We look at the residuals. Both the qq plot and the histogram indicate that the residuals are normally distributed $\epsilon$ $\approx$ $N(0, \sigma^2)$. This indicates that the ARIMA(3,0,4) is a good fit.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+# Clean column names
+data.columns = data.columns.str.strip()
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+
+# Deal with Warnings
+data = data.asfreq('B')
+data['Open'] = data['Open'].ffill()
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+returns = data['returns'].dropna()
+
+
+model = ARIMA(returns, order=(3,0,4))
+result = model.fit()
+
+# Get residuals
+residuals = result.resid
+
+fig, axs = plt.subplots(1, 2, figsize=(10,2))
+
+# Histogram
+axs[0].hist(residuals, bins=30, edgecolor='k')
+axs[0].set_title('Histogram of Residuals')
+axs[0].set_xlabel('Residual')
+axs[0].set_ylabel('Frequency')
+
+# QQ plot
+sm.qqplot(residuals, line='45', ax=axs[1])
+axs[1].set_title('QQ Plot of Residuals')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+### SARMA and SARIMA
+The Seasonal Autoregressive Moving Average Model (SARMA) adds a seasonal component to the ARMA and ARIMA Models. Instead of considering every lag from 1 to 35, for example, we can take lags 1, 12, and 13, repeatedly [@shumway2000]. This allows for monthly and yearly coefficients in our model, as one would expect with stock. We show a representation of SARIMAX(2,0,2)(1,0,0,12), and how well it performs below.
+
+$$ By_n = y_{n-1}; B^2 y_n = y_{n-2}; B^{12} y_n = y_{n-12}  $$
+$$ y_t - \phi_1 y_{t-1} - \phi_2 y_{t-2} - \Phi_1 y_{t-12} + \Phi_1 \phi_1 y_{t-13} + \Phi_1 \phi_2 y_{t-14} = \epsilon_t + \theta_1 \epsilon_{t-1} + \theta_2 \epsilon_{t-2} $$
+$$ (1 - \Phi_1 B^{12}) (1 - \phi_1 B - \phi_2 B^2) \, y_t = (1 + \theta_1 B + \theta_2 B^2) \, \epsilon_t $$
+$$ \Phi(B^{12}) \, \phi(B) \, y_t = \theta(B) \, \Theta(B^{12}) \, \epsilon_t$$
+
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# TODO: look into warning
+
+import warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+
+# Suppress all warnings (careful!)
+warnings.filterwarnings("ignore")
+
+# Or suppress just SARIMAX starting parameter warnings
+warnings.filterwarnings("ignore", message="Non-stationary starting seasonal autoregressive")
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+
+data.set_index('Date', inplace=True)
+data = data.loc[:'2018-12-31']
+data = data.asfreq('B')  # Business day frequency
+data['Open'] = data['Open'].ffill()
+
+
+# Returns Model
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+returns = data['returns'].dropna()
+model_returns = SARIMAX(data['Open'],order=(2, 0, 2), trend='c', seasonal_order=(1, 0, 0, 12), enforce_stationarity=True)
+results_returns = model.fit()
+sim_returns = result.simulate(nsimulations=len(returns))
+
+# Open Model
+model_open = SARIMAX(data['Open'],
+                     order=(2, 0, 2),
+                     seasonal_order=(1, 0, 0, 12),
+                     trend='c',
+                     enforce_stationarity=True)
+results_open = model_open.fit()
+sim_open = results_open.simulate(nsimulations=len(data))
+
+fig, axs = plt.subplots(1, 2, figsize=(10, 2))
+
+# Open prices vs SARIMA
+axs[0].plot(data.index, data['Open'], label='Open', color='blue')
+axs[0].plot(data.index, sim_open, label='SARIMA Open', color='red')
+axs[0].set_title('Open Prices vs SARIMA Simulation')
+axs[0].legend()
+
+# Returns vs SARIMA
+axs[1].plot(returns.index, returns, label='Returns', color='yellow')
+axs[1].plot(returns.index, sim_returns, label='SARIMA Returns', color='green')
+axs[1].set_title('Log Returns vs SARIMA Simulation')
+axs[1].legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+The SARIMA models for DAX Open prices and returns have AIC values of -3897.6 and -14029.4.
+
+
+### GARCH
+
+
+
+The model selection above did not sufficiently rule out ARMA(0, 0) for the mean of the returns data. AIC favored ARMA(0, 0) as the model with the second best AIC, with the exception of ARMA(3, 4) discussed above which was found to have roots very close to the unit circle and thus may not be a reliable solution. Checking the acf of the squared returns data, however, as in @fig-acf-return2 shows consistent significant autocorrelation, suggesting a pattern in the variance of the data, known as volatility clustering, in which variability can, e.g. remain high then swing low and remain low. A GARCH model can often serve as a good model [@wiki]. The GARCH(1, 1) is shown below. We adopt the following notation from [@arch]:
+$$
+r_t = \mu_t + \varepsilon_t ; \qquad  \varepsilon_t = \sigma_t e_t; \qquad \sigma_t^2  = \omega + \alpha  \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2
+$$
+
+where $r_t$ are the returns, $\mu_t$ is the mean function, $\varepsilon_t$ is the residual at time $t$, $\sigma^2_t$ is the volatility at time $t$, and $e_t$ is some white noise process with variance 1 (say, $e_t \sim N(0, 1)$ for simplicity). Thus, GARCH models essentially fit an ARMA model to $\sigma^2_t$, thus allowing estimates of $\sigma^2_t$. However, as we cannot observe volatility directly, we need a point of comparison for our GARCH estimate of $\sigma_t^2$. We use $r_t^2$ here, as that seems to be favored in the literature and among practitioners for daily data [@springer], [@quantinsti]. In the supplmentary material, we show that it is conditionally unbiased for $\sigma_t^2$. Smoother estimates, which are the variance of log returns over the past several days (here, we also use the past 5 days, as was suggested in [@quantinsti]) are biased but have less variability.
+
+#### Model Fitting
+
+
+We found that GARCH(1, 1) minimized AIC across all four error distributions we attempted. We found that the Skew-$t$ distribution had the best QQ plot of standardized residuals after model fitting, shown in @fig-qq-plot-garch, indicating that the error terms $e_t$ most resembled the skew-$t$ distribution for our dataset, and @fig-acf-resid showed that the standardized residuals did not show significant autocorrelation. @fig-garch-smoothed-training-comparison compares the GARCH estimate of volatility to the smoothed estimate. Thus, we see that the model was generally able to adapt to the volatility, following the highs and lows, though its estimates were a more tamed version of the realized proxy. However, using the unbiased realized volatility in @fig-garch-training-comparison shows how large errors can dominate the dataset and skew model performance. 
+
+
+To better assess the performance of this model, we used a rolling window forecast as suggested in [@brownlee], [@quantinsti], in which we used the previous 2000 days to forecast the volatility of the next day, and repeat for each day in 2019. Comparison with the smoothed estimate is shown in @fig-garch-smoothed-forecast-comparison. As said above, the model responds to volatility changes but less so to the magnitude of changes. Metrics from the 2010-2018 in-sample performance and for the 2019 rolling window forecast are shown below (estimated volatility and proxies are for variance, not SD). The in-sample performance was much worse, likely as the numerous outliers in the volatility series accumulated over years and blew up the MAE and MSE.
+
+```{python}
+#| echo: false
+import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import numpy as np
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.stattools import acf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, mean_squared_error
+from arch import arch_model
+import statsmodels.api as sm
+from scipy.stats.distributions import norm, t, jf_skew_t
+from arch.univariate.distribution import SkewStudent, StudentsT, Normal, GeneralizedError
+
+
+```
+
+```{python}
+#| echo: false
+data = pd.read_csv("data/DAX_2010-2020.csv") # replace with path when working locally
+# Clean date
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+data = data[data['Date'] < '2020-01-01']
+
+
+data.set_index('Date', inplace=True)
+data = data.asfreq('B')  # Business day frequency
+data['Open'] = data['Open'].ffill()
+
+df = data.copy()
+df = df[['Open']]
+df = df[df.index < '2019-01-01']
+df["Open"] = df["Open"].str.replace(",", "", regex=False).astype(float) # remove undesirable comma formatting in the price
+
+df2 = df.copy()
+df2 = np.log(df['Open'])
+df2 = df2.diff().dropna()
+df2 = df2 * 100
+
+df3 = df.copy()
+df3 = np.log(df['Open'])
+df3 = df3.diff().dropna() # this time, do not rescale, check how that goes
+
+
+df_test = data.copy()
+df_test = df_test[['Open']]
+df_test = df_test[df_test.index >= '2019-01-01']
+df_test = df_test['Open'].str.replace(",", "", regex=False).astype(float) # remove undesirable comma formatting in the price
+df_test = np.log(df_test)
+df_test = df_test.diff().dropna()
+df_test = df_test * 100
+
+df_full = pd.concat([df2, df_test])
+```
+
+```{python}
+#| echo: false
+# this code is adapted and expanded on from Lecture 5 https://ionides.github.io/531w26/05/slides.pdf
+def aic_table(data, P, Q, d=0, model_type='sarimax', dist='normal', trend='c', mean = 'zero'):
+    table = np.zeros((P+1, Q+1))
+    model_type = model_type.strip().lower()
+    for p in range(P+1):
+        for q in range(Q+1):
+            try:
+                if model_type == 'sarimax':
+                    model = SARIMAX(data, 
+                                    trend = trend, 
+                                    order=(p, d, q))
+                elif model_type == 'garch':
+                    # if p == 0:
+                    #     continue # NaNs only for ARCH(0)
+                    model = arch_model(data,
+                                       vol='GARCH',
+                                       p=p,
+                                       q=q,
+                                       mean=mean,
+                                       dist=dist)
+                else:
+                    raise ValueError
+                results = model.fit()
+                table[p, q] = results.aic # sarimax, garch have aic attribute
+            except:
+                table[p, q] = np.nan
+    if model_type == 'sarimax':
+        df = pd.DataFrame(table,
+            index=[f'AR{p}' for p in range(P+1)],
+            columns=[f'MA{q}' for q in range(Q+1)])
+    elif model_type == 'garch':
+        df = pd.DataFrame(table,
+            index=[f'ARCH{p}' for p in range(P+1)], # by this, I mean there are is dependence on the p previous epsilon values
+            columns=[f'GARCH{q}' for q in range(Q+1)]) # by this, I mean there are q "GARCH" terms in that there is dependence on the q previous sigma^2 values
+    else:
+        raise ValueError
+    return df
+  
+def get_metrics(y_true, y_pred):
+    metrics = {'Mean Absolute Percentage Error': mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred), # MAPE probably not very helpful for this scenario
+               'Mean Absolute Error': mean_absolute_error(y_true=y_true, y_pred=y_pred),
+               'Mean Squared Error': mean_squared_error(y_true=y_true, y_pred=y_pred)}
+    return metrics
+```
+
+
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| output: false
+model_g11_skewt = arch_model(df2,
+                        vol='GARCH',
+                        p=1,
+                        q=1,
+                             mean = 'zero',
+                        dist = 'skewt').fit()
+```
+
+
+
+```{python}
+#| echo: false
+
+
+rolling_window = 2000
+forecast_horizon = 1
+target_mask = (df_full.index >= "2019-01-01") & (df_full.index <= "2019-12-31")
+target_dates = df_full.index[target_mask]
+
+forecast_vol = []
+forecast_idx = []
+
+for t in target_dates:
+    i = df_full.index.get_loc(t)
+
+    # Train on the prior 1500 points (strictly before t)
+    if i < rolling_window:
+        continue
+
+    train_data = df_full.iloc[(i - rolling_window):i]
+
+    model = arch_model(
+        train_data,
+        mean="zero",      
+        vol="GARCH",
+        p=1, q=1,
+        dist="skewt"
+    )
+
+    fit = model.fit(disp="off")
+
+    # 1-step ahead variance forecast (for t, conditional on info up to t-1)
+    fcst = fit.forecast(horizon=forecast_horizon, reindex=False)
+    var_1 = fcst.variance.values[-1, 0]
+    #vol_1 = float(np.sqrt(var_1))  
+
+    forecast_vol.append(var_1)
+    forecast_idx.append(t)
+
+# Series of 2019 forecasts
+garch_vol_forecast_2019 = pd.Series(
+    forecast_vol,
+    index=pd.DatetimeIndex(forecast_idx),
+    name="vol_forecast"
+)
+
+# ChatGPT helped adapt this code from https://blog.quantinsti.com/garch-gjr-garch-volatility-forecasting-python/ , as listed in sources
+```
+
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| fig-pos: "H"
+#| label: fig-garch-smoothed-forecast-comparison
+#| fig-cap: "Comparison of Volatility to Estimated Volatility"
+
+
+
+realized_vol_2019_smooth = df_test.rolling(window=5).std()
+realized_vol_v2_test = df_test**2
+
+fig, ax = plt.subplots(figsize=(7, 2.2))
+
+ax.plot(
+    df_test.index[4:],
+    (realized_vol_2019_smooth.iloc[4:] ** 2),
+    label="Realized Volatility (Smooth Proxy)",
+    color='red',
+    alpha = 0.8
+)
+ax.plot(
+    df_test.index[4:],
+    garch_vol_forecast_2019.iloc[4:],
+    label="1-Step Forecasted Volatility"
+)
+
+ax.plot(
+    df_test.index[4:],
+    realized_vol_v2_test.iloc[4:],
+    label="Realized Volatlility (Unbiased Proxy)",
+    color = 'black',
+    alpha=0.4
+)
+
+
+
+
+ax.set_xlabel("Date")
+ax.set_ylabel("Volatility")
+ax.set_title("Realized vs Forecasted Volatility")
+ax.legend(fontsize=8)
+
+fig.tight_layout()
+plt.show()
+plt.close(fig)
+```
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+#| results: asis
+
+library(knitr)
+library(kableExtra)
+
+t1 <- data.frame(
+  `Metric (In-Sample)` = c("Mean Absolute Error", "Mean Squared Error"),
+  `Unbiased Proxy` = round(c(1.628690482414545, 12.420352672464782), 3),
+  `Smoothed Proxy` = round(c(0.7840203821620355, 2.266474358678069), 3),
+  check.names = FALSE
+)
+
+t2 <- data.frame(
+  `Metric (Forecast)` = c("Mean Absolute Error", "Mean Squared Error"),
+  `Unbiased Proxy` = round(c(0.873723151248085, 1.5215074444097652), 3),
+  `Smoothed Proxy` = round(c(0.43236182639335796, 0.2526159248436562), 3),
+  check.names = FALSE
+)
+
+make_tab <- function(df) {
+  tab <- kbl(df, format = "latex", booktabs = TRUE, align = c("l","r","r"), caption = NULL) |>
+    kable_styling(full_width = FALSE, position = "center") |>
+    column_spec(1, width = "3.2cm")
+  # strip any float wrapper just in case
+  tab <- gsub("\\\\begin\\{table\\}.*?\\n", "", tab)
+  tab <- gsub("\\\\end\\{table\\}\\s*", "", tab)
+  tab
+}
+
+tab1 <- make_tab(t1)
+tab2 <- make_tab(t2)
+
+knitr::asis_output(paste0(
+  "\\noindent\n",
+  "\\begin{minipage}[t]{0.495\\linewidth}\\centering\\scriptsize\n",
+  "\\setlength{\\tabcolsep}{3pt}\n",
+  tab1, "\n\\end{minipage}\\hfill\n",
+  "\\begin{minipage}[t]{0.495\\linewidth}\\centering\\scriptsize\n",
+  "\\setlength{\\tabcolsep}{3pt}\n",
+  tab2, "\n\\end{minipage}\n"
+))
+
+# ChatGPT provided the code to make this table fit in the quarto document
+```
+
+
+
+
+# Connection to Previous Projects
+
+As with several other previous STATS 531 projects such as [@gold25], [@spvol25], and [@apple24], we wanted to study financial time series data while including volatility forecasting using models such as GARCH. We also wanted to build upon [@spvol25] by forecasting volatility separately, not forecasting log returns themselves with ARMA-GARCH as in [@gold25] or [@apple24]. We wanted to overcome the heavy tail misspecification in the residual plots of [@spvol25] by using appropriate error distributions in our volatility forecasting, which we seem to have been more successful in, as their heavy tail issue was never quite resolved whereas our skew-$t$ distribution provided a more appropriate standardized residual plot.
+
+# Conclusion
+
+In conclusion, we show that modeling changes in the DAX Stock Open and Returns can be achieved through ARMA models with low AIC and mean zero residuals - these metrics indicate low complexity, goodness of fit, and low errors. We therefore solve the problem of forecasting DAX Stock prices. We expand upon it by giving insights into causality and invertibility, and we demonstrate modeling volatility with GARCH.
+
+
+# Supplementary Material
+
+## ADF Test Details
+
+The ADF test results were as follows:
+
+
+
+$$
+\begin{aligned}
+H_0 &: \text{The process } \{x_t\} \text{ is nonstationary} \\
+&\exists\, t, h, k \text{ such that } 
+(x_t, x_{t+1}, \dots, x_{t+k}) 
+\overset{d}{\neq} 
+(x_{t+h}, x_{t+1+h}, \dots, x_{t+k+h}) \\[6pt]
+H_A &: \text{The process } \{x_t\} \text{ is stationary} \\
+&\forall\, t, h, k,\;
+(x_t, x_{t+1}, \dots, x_{t+k})
+\overset{d}{=}
+(x_{t+h}, x_{t+1+h}, \dots, x_{t+k+h})
+\end{aligned}
+$$
+
+```{python}
+#| echo: false
+import pandas as pd
+from statsmodels.tsa.stattools import adfuller
+from scipy.stats import norm
+
+def adf_summary(series, name):
+    result = adfuller(series.dropna())
+    
+    output = {
+        "Series": name,
+        "ADF Statistic": result[0],
+        "p-value": result[1],
+        "Lags Used": result[2],
+        "Observations": result[3],
+        "Critical Value (5%)": result[4]['5%'],
+        "Reject the H0?": "Yes" if result[1] <= 0.05 else "No"
+    }
+    
+    return pd.Series(output)
+
+data = pd.read_csv("data/DAX_2010-2020.csv")
+
+data['Date'] = pd.to_datetime(data['Date'], format='%m/%d/%Y')
+data = data.sort_values('Date')
+data['Open'] = (
+    data['Open']
+    .str.replace('.', '', regex=False)
+    .str.replace(',', '.', regex=False)
+    .astype(float)
+)
+data.set_index('Date', inplace=True)
+
+data['returns'] = np.log(data['Open']) - np.log(data['Open'].shift(1))
+
+log_returns = np.log(data['Open'] / data['Open'].shift(1)).dropna()
+
+
+summary_table = pd.concat([
+    adf_summary(data['Open'], "DAX Open"),
+    adf_summary(data['returns'], "DAX Returns")
+], axis=1)
+
+summary_table
+```
+
+
+## Proof that $\sigma_t^2 = Var(r_t - \mu_t \mid \mathcal{F}_{t-1})$
+
+Assume $\mu_t = 0$ for each $t$. This is reasonable becuase $\bar{x} \approx 0.02$ for our data and seems to have a constant zero trend line throughout. If we denote $\mathcal{F}_{t-1}$ as the $\sigma$-algebra (intuitively, information) generated by $\varepsilon_t, \sigma_{t-1}^2$ then we have 
+$$
+\begin{aligned}
+Var(r_t - \mu_t \mid \mathcal{F}_{t-1}) = Var(\varepsilon_t \mid \mathcal{F}_{t-1}) & = Var(\sigma_t e_t \mid \mathcal{F}_{t-1}) \\
+& = \sigma^2_t Var(e_t \mid \mathcal{F}_{t-1}) \qquad (\sigma_t \text{ is } \mathcal{F}_{t-1} \text{ measurable}) \\
+& = \sigma^2_t Var(e_t) = \sigma^2_t \qquad (e_t \text{ is independent of } \mathcal{F}_{t-1})
+\end{aligned}
+$$
+
+## Proof that squared returns are conditionally unbiased
+
+We have
+
+$$
+E(r_t^2 \mid \mathcal{F}_{t-1}) = Var(r_t \mid \mathcal{F}_{t-1}) = \sigma_t^2,
+$$
+and hence
+$$
+E(r_t^2) = E(E(r_t^2 \mid \mathcal{F}_{t-1})) = E(\sigma_t^2),
+$$
+
+
+
+## Supplementary GARCH plots
+
+```{python}
+#| echo: false
+#| label: fig-qq-plot-garch
+#| fig-cap: "QQ Plot of Standardized Residuals"
+z = model_g11_skewt.std_resid
+eta = model_g11_skewt.params["eta"]
+lam = model_g11_skewt.params["lambda"]
+
+dist = SkewStudent()
+
+p = (np.arange(1, len(z) + 1) - 0.5) / len(z)
+theoretical = dist.ppf(p, np.array([eta, lam]))
+sample = np.sort(z)
+
+plt.clf()
+plt.scatter(theoretical, sample)
+plt.plot(theoretical, theoretical, "r--")
+plt.title("Q-Q Plot Using Skew-t Distributed Errors")
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| label: fig-garch-smoothed-training-comparison
+#| fig-pos: "H"
+#| fig-cap: "Comparison of Smoothed Volatility to Estimated Volatility"
+estimated_vol_skewt = model_g11_skewt.conditional_volatility
+# credit to https://blog.quantinsti.com/garch-gjr-garch-volatility-forecasting-python/ for this suggestion
+realized_vol_smooth = df2.rolling(window=5).std()  # 5-day window for smoothing. Includes data from time t
+
+
+fig, ax = plt.subplots(figsize=(10, 5))
+
+ax.plot(df2.index, realized_vol_smooth, label='Realized Volatility (Smoothed Estimate)')
+ax.plot(df2.index, estimated_vol_skewt**2, label='Model Estimated Volatility')
+
+ax.set_xlabel('Date')
+ax.set_ylabel('Volatility')
+ax.set_title('Realized vs Estimated Volatility')
+ax.legend()
+
+fig
+```
+
+
+
+```{python}
+#| echo: false
+#| label: fig-garch-training-comparison
+#| fig-pos: "H"
+#| fig-cap: "Comparison of Unbiased Volatility Proxy to Estimated Volatility"
+realized_vol_v2 = df2**2
+
+fig, ax = plt.subplots(figsize=(10, 5))
+
+ax.plot(df2.index, realized_vol_v2, label='Realized Volatility (Squared Log Return)')
+ax.plot(df2.index, estimated_vol_skewt**2, label='Model Estimated Volatility')
+
+ax.set_xlabel('Date')
+ax.set_ylabel('Volatility')
+ax.set_title('Realized vs Estimated Volatility')
+ax.legend()
+
+fig
+```
+
+
+
+```{python}
+#| echo: false
+#| label: fig-acf-resid
+#| fig-pos: "H"
+#| fig-cap: "ACF Plot for Standardized Residuals from the GARCH model"
+# autocorrelation of standardized residuals for GARCH(1, 1) with skew t errors
+fig, ax = plt.subplots()
+plot_acf(model_g11_skewt.std_resid, ax=ax)
+
+plt.show()
+plt.close(fig)
+```
+
+
+
+
+```{python}
+#| echo: false
+#| output: false
+
+realized_vol_2019 = df_test**2
+# metrics from unbiased proxy
+get_metrics(y_true=realized_vol_v2, y_pred=estimated_vol_skewt**2)
+# metrics for smooth proxy
+get_metrics(y_true=realized_vol_smooth[4:]**2, y_pred=estimated_vol_skewt[4:]**2)
+get_metrics(y_true=realized_vol_2019, y_pred=garch_vol_forecast_2019)
+# metrics for smooth proxy
+get_metrics(y_true=realized_vol_2019_smooth.iloc[4:]**2, y_pred=garch_vol_forecast_2019.iloc[4:])
+```
+
+```{python}
+#| echo: false
+#| label: fig-acf-return2
+#| fig-pos: "H"
+#| fig-cap: "ACF Plot for Standardized Residuals from the GARCH model"
+# autocorrelation of standardized residuals for GARCH(1, 1) with skew t errors
+fig, ax = plt.subplots()
+plot_acf(df2**2, ax=ax)
+
+plt.show()
+plt.close(fig)
+```
+
+
+
+# References 

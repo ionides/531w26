@@ -1,0 +1,373 @@
+---
+title: "STATS 531 midterm project"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+execute:
+  echo: FALSE
+  warning: false
+  message: false
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+from pathlib import Path
+import matplotlib.pyplot as plt
+import warnings
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import adfuller, kpss
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from statsmodels.tools.sm_exceptions import ConvergenceWarning, ValueWarning, InterpolationWarning
+from IPython.display import HTML
+
+warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+warnings.filterwarnings("ignore", category=ValueWarning)
+warnings.filterwarnings("ignore", category=InterpolationWarning)
+
+pd.set_option("display.max_rows", 6)
+```
+
+## Abstract {.unnumbered}
+This study examines monthly electricity load data from the Electric Reliability Council of Texas (ERCOT) from 2002–2025 to understand long-term demand trends and seasonal patterns. Hourly observations were aggregated to a monthly frequency to highlight dominant seasonal structure. Visual inspection and formal stationarity tests indicated that the series is non-stationary, motivating first-order and seasonal differencing.
+
+Using an AIC model selection procedure, a SARIMA(0,1,3)×(2,1,2$)_{12}$ model was identified as the best specification among candidate models. Parameter estimates suggest both short-term shocks and strong seasonal dependence. Residual diagnostics indicate that the model captures the primary dynamics of the series, with approximately mean-zero and stationary residuals, though minor short-lag dependence and heavy-tailed behavior remain.
+
+Overall, the analysis reveals sustained growth and pronounced seasonality in ERCOT electricity demand, providing a useful framework for forecasting while highlighting the potential benefits of incorporating climate and demographic drivers in future work.
+
+# Introduction
+Texas has experienced substantial population growth over the past several decades, making it one of the fastest-growing states in the United States. This growth has been accompanied by increased electricity consumption. The changing climate is also having an impact on the demand for electricity [@dessler2024climate].
+
+Given that Texas is a rapidly growing state being faced with changing climate conditions, understanding how demographic and climatic factors interact to shape electricity load is important for managing energy resources efficiently.
+
+Insights gained from modeling electricity load can inform interested parties by improving demand forecasting, supporting climate adaptation strategies, and guiding investments in energy capacity and resilience of the power grid.
+
+# Data
+
+## Overview
+The data used in this analysis is from the Electric Reliability Council of Texas (ERCOT) [@ercot_hourly_load_data_archives]. The dataset consists of hourly electricity load measurements beginning in 1995 and covers multiple zones across the state of Texas. These data provide a comprehensive view of electricity demand patterns over time and across regions with differing climatic and demographic characteristics.
+
+We restrict attention to observations from 2002 onward. This subset provides a perspective on long-term electricity load trends, reflecting the more recent population growth and climatic changes.
+
+## Aggregation
+To examine seasonal effects more clearly, the hourly load data are aggregated to a monthly time scale. Monthly aggregation smooths high-frequency variability while preserving the dominant seasonal cycle, allowing for clearer visualization and modeling of recurring annual patterns and long-term trends. The data are shown below.
+
+```{python}
+base_path = Path("raw data")
+data_2002 = pd.read_excel(base_path / "2002_ercot_hourly_load_data.xls")
+data_2003 = pd.read_excel(base_path / "2003_ercot_hourly_load_data.xls")
+data_2004 = pd.read_excel(base_path / "2004_ercot_hourly_load_data.xls")
+data_2005 = pd.read_excel(base_path / "2005_ercot_hourly_load_data.xls")
+data_2006 = pd.read_excel(base_path / "2006_ercot_hourly_load_data.xls")
+data_2007 = pd.read_excel(base_path / "2007_ercot_hourly_load_data.xls")
+data_2008 = pd.read_excel(base_path / "2008_ercot_hourly_load_data.xls")
+data_2009 = pd.read_excel(base_path / "2009_ercot_hourly_load_data.xls")
+data_2010 = pd.read_excel(base_path / "2010_ercot_hourly_load_data.xls")
+data_2011 = pd.read_excel(base_path / "2011_ercot_hourly_load_data.xls")
+data_2012 = pd.read_excel(base_path / "2012_ercot_hourly_load_data.xls")
+data_2013 = pd.read_excel(base_path / "2013_ercot_hourly_load_data.xls")
+data_2014 = pd.read_excel(base_path / "2014_ercot_hourly_load_data.xls")
+data_2015 = pd.read_excel(base_path / "native_load_2015.xls")
+data_2016 = pd.read_excel(base_path / "native_Load_2016.xlsx")
+data_2017 = pd.read_excel(base_path / "native_Load_2017.xlsx")
+data_2018 = pd.read_excel(base_path / "Native_Load_2018.xlsx")
+data_2019 = pd.read_excel(base_path / "Native_Load_2019.xlsx")
+data_2020 = pd.read_excel(base_path / "Native_Load_2020.xlsx")
+data_2021 = pd.read_excel(base_path / "Native_Load_2021.xlsx")
+data_2022 = pd.read_excel(base_path / "Native_Load_2022.xlsx")
+data_2023 = pd.read_excel(base_path / "Native_Load_2023.xlsx")
+data_2024 = pd.read_excel(base_path / "Native_Load_2024.xlsx")
+data_2025 = pd.read_excel(base_path / "Native_Load_2025.xlsx")
+
+monthly_list = []
+
+for year in range(2002, 2026):
+    df = globals()[f"data_{year}"].copy()
+    dates = pd.to_datetime(df.iloc[:, 0].astype(str).str.split().str[0],format="mixed",errors="coerce",)
+    df["YearMonth"] = dates.dt.to_period("M").dt.to_timestamp()
+    monthly_list.append(df[["YearMonth", "ERCOT"]])
+
+ercot_monthly = pd.concat(monthly_list, ignore_index=True)
+ercot_monthly = (ercot_monthly.groupby("YearMonth", as_index=False)["ERCOT"].sum().sort_values("YearMonth").reset_index(drop=True))
+ercot_monthly
+```
+
+# Methodology
+
+## Visual inspection
+First we plot our aggregated time series to inspect the trend and seasonality.
+
+```{python}
+plt.figure(figsize=(10, 5))
+plt.plot(ercot_monthly["YearMonth"], ercot_monthly["ERCOT"])
+plt.title("ERCOT Monthly Load (Time Series)")
+plt.xlabel("YearMonth")
+plt.ylabel("ERCOT")
+plt.tight_layout()
+plt.show()
+```
+
+The series appears to be non-stationary from the plot. The mean increases with time, and the variance is all of equal scale. Visually we conclude that the series is covariance stationary, but not mean stationary. This motivates us to use more statistical tests to determine stationarity.
+
+## Stationarity tests
+We now use the Augmented Dickey–Fuller (ADF) test and Kwiatkowski-Phillips-Schmidt-Shin (KPSS) test to determine if the time series is stationary.
+
+The ADF test tests the following hypotheses:
+
+\begin{align*}
+H_0 &: \text{The time series has a unit root (is nonstationary).} \\
+H_1 &: \text{The time series is stationary.}
+\end{align*}
+
+while KPSS tests the following hypotheses:
+
+\begin{align*}
+H_0 &: \text{The time series is stationary (level or trend stationary).} \\
+H_1 &: \text{The time series is nonstationary.}
+\end{align*}
+
+```{python}
+def adf_test(series, name="series"):
+    res = adfuller(series, autolag="AIC")
+    return {
+        "test": "ADF",
+        "series": name,
+        "stat": float(res[0]),
+        "pvalue": float(res[1]),
+        "lags": int(res[2]),
+        "nobs": int(res[3]),}
+
+def kpss_test(series, name="series", regression="c"):
+    stat, pval, lags, crit = kpss(series, regression=regression, nlags="auto")
+    return {
+        "test": f"KPSS(reg={regression})",
+        "series": name,
+        "stat": float(stat),
+        "pvalue": float(pval),
+        "lags": int(lags),}
+
+def stationarity_table(series, name="series"):
+    series = series.dropna()
+    out = []
+    out.append(adf_test(series, name))
+    out.append(kpss_test(series, name, regression="c"))   # level stationarity
+    out.append(kpss_test(series, name, regression="ct"))  # trend stationarity
+    return pd.DataFrame(out)
+
+stationarity_table(ercot_monthly["ERCOT"], "ERCOT")
+```
+
+Our ADF test has a p-value of 1, and both KPSS tests have p-values of 0.01. The ADF test as well as both the level and trend KPSS tests indicate that the series is non-stationary and requires extra manipulation.
+
+## Differencing
+For monthly data, a natural period for seasonal differencing is 12. Meanwhile, we also implement a non-seasonal first order differencing which makes the data more stationary while having minimal data loss.
+
+```{python}
+# seasonal differencing (lag 12)
+ercot = ercot_monthly["ERCOT"].diff(12)
+# non-seasonal differencing (lag 1)
+ercot = ercot.diff(1)
+
+plt.figure(figsize=(10, 5))
+plt.plot(ercot)
+plt.title("Differenced Series: (1 - B)(1 - B^12) ercot")
+plt.xlabel("YearMonth")
+plt.ylabel("Differenced ERCOT")
+plt.tight_layout()
+plt.show()
+```
+
+We again apply ADF and KPSS tests on the differenced series.
+
+```{python}
+stationarity_table(ercot, "Differenced ERCOT")
+```
+
+The ADF test on the differenced series gives a p-value of $8.737(10^{-12})$, indicating stationarity. Both KPSS tests have p-values of 1, also suggesting that the differenced data is stationary. 
+
+## ACF and PACF
+We further measure the stationarity of the differenced series using ACF and PACF plots.
+
+```{python}
+ercot = ercot.dropna()
+
+plt.figure(figsize=(10, 4))
+plot_acf(ercot, lags=60)
+plt.title("ACF of Differenced Series")
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(10, 4))
+plot_pacf(ercot, lags=60, method="ywm")
+plt.title("PACF of Differenced Series")
+plt.tight_layout()
+plt.show()
+```
+
+The ACF of the differenced series exhibits rapid decay with most autocorrelations lying within the confidence bounds, indicating the absence of long-memory behavior. The PACF similarly shows only short-lag dependence, suggesting that the differencing strategy successfully achieved stationarity. Residual dependence at lag 12 indicates the presence of stationary seasonal dynamics which justifies a SARIMA specification.
+
+# Results
+
+## AIC for SARIMA model specification
+As suggested by the PACF plot, we choose to use a SARIMA model for our series. To select our parameters, we use Akaike information criterion (AIC), defined as
+$$\text{AIC} = -2 \ell(\hat{\theta}) + 2D$$ 
+
+where $\ell(\hat{\theta})$ is the maximized log likelihood and $D$ is the number of parameters. We will choose the set of parameters for our SARIMA model that minimizes this value.
+
+```{python}
+# fix (d=1, D=1, s=12)
+# Search over small p,q,P,Q grids.
+results = []
+p_list = range(0, 4)
+q_list = range(0, 4)
+P_list = range(0, 3)
+Q_list = range(0, 3)
+d = 1
+D = 1
+s = 12
+
+for p in p_list:
+    for q in q_list:
+        for P in P_list:
+            for Q in Q_list:
+                try:
+                    model = SARIMAX(
+                        ercot_monthly["ERCOT"],
+                        order=(p, d, q),
+                        seasonal_order=(P, D, Q, s),
+                        enforce_stationarity=False,
+                        enforce_invertibility=False
+                    )
+                    res = model.fit(disp=False)
+
+                    results.append({
+                        "p": p, "d": d, "q": q,
+                        "P": P, "D": D, "Q": Q,
+                        "AIC": res.aic
+                    })
+
+                except Exception:
+                    continue
+```
+
+```{python}
+aic_table = pd.DataFrame(results)
+aic_table = aic_table.sort_values("AIC").reset_index(drop=True)
+aic_table
+```
+
+## Parameter estimates
+Our AIC process chooses a SARIMA(0,1,3)×(2,1,2$)_{12}$ model with an AIC value of 7719.317. So our model takes the form
+
+$$
+(1 - \Phi_1 B^{12} - \Phi_2 B^{24})(1 - B)(1 - B^{12}) y_t = (1 + \theta_1 B + \theta_2 B^2 + \theta_3 B^3)(1 + \Theta_1 B^{12} + \Theta_2 B^{24}) \varepsilon_t
+$$
+
+```{python}
+best = aic_table.iloc[0]
+best_order = (int(best["p"]), int(best["d"]), int(best["q"]))
+best_seasonal = (int(best["P"]), int(best["D"]), int(best["Q"]), s)
+
+final_model = SARIMAX(
+    ercot_monthly["ERCOT"],
+    order=best_order,
+    seasonal_order=best_seasonal,
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+
+html = final_model.summary().as_html()
+html = html.replace("SARIMAX Results", "")
+HTML(html)
+```
+
+The summary indicates the presence of both short-term and seasonal dynamics in ERCOT monthly electricity load. Parameter estimates reveal a significant nonseasonal MA component and a seasonal AR effect at lag 24, suggesting persistence of shocks across multiple seasonal cycles. Several additional parameters are statistically insignificant, including higher order MA terms.
+
+Overall, the model captures the dominant seasonal structure but may benefit from simplification due to some insignificant parameters. Some coefficient estimates should be interpreted cautiously due to potential near-singularity of the covariance matrix.
+
+## Residual diagnostics
+We now proceed to diagnose mean, independence, stationarity, and normality of the residuals.
+
+```{python}
+resid = final_model.resid.dropna()
+
+# Residual time series plot
+plt.figure(figsize=(10, 4))
+plt.plot(resid)
+plt.title("Residuals from Selected SARIMA")
+plt.xlabel("YearMonth")
+plt.ylabel("Residual")
+plt.tight_layout()
+plt.show()
+
+# Residual ACF
+plt.figure(figsize=(10, 4))
+plot_acf(resid, lags=60)
+plt.title("ACF of Residuals")
+plt.tight_layout()
+plt.show()
+
+# QQ plot
+plt.figure(figsize=(6, 6))
+sm.qqplot(resid, line="45", fit=True)
+plt.title("QQ Plot of Residuals")
+plt.tight_layout()
+plt.show()
+```
+
+The residuals from the selected SARIMA model fluctuate around zero with no obvious trend or remaining seasonality, suggesting the model captures the systematic structure of the series well, while the QQ plot suggests approximate normality in the central region with heavier tails. There is some elevated volatility and a few large outliers in the sample, but the residual variance appears relatively stable over time. 
+
+The ACF of the residuals shows most autocorrelations lying within the 95% confidence bounds, with only small correlations at short lags, indicating little remaining dependence. The residual diagnostics are broadly consistent with white noise, supporting the adequacy of the fitted SARIMA model.
+
+```{python}
+adf_stat, adf_p, adf_lags, adf_nobs, *_ = adfuller(resid, autolag="AIC")
+
+resid_adf_table = pd.DataFrame([{
+    "ADF stat": float(adf_stat),
+    "p-value": float(adf_p),
+    "lags": int(adf_lags),
+    "nobs": int(adf_nobs)
+}])
+
+resid_adf_table
+```
+
+The ADF test applied to the SARIMA residuals strongly rejects the null hypothesis of a unit root with p-value = 0.00224. This indicates that the residuals are stationary, providing further evidence that the fitted SARIMA model adequately captures the dynamics of the data.
+
+# Conclusion
+In this study, we examined monthly ERCOT electricity load from 2002–2025 to understand long-term demand patterns and seasonal dynamics. Visual inspection and formal stationarity tests confirmed that the raw series exhibits non-stationary with an upward trend and strong annual seasonality. Applying first-order and seasonal differencing produced a stationary series suitable for modeling.
+
+Using an AIC-based model selection procedure, we identified a SARIMA(0,1,3)×(2,1,2$)_{12}$ model as the best specification. Parameter estimates suggest the presence of both short-term shocks and persistent seasonal dependence, including multi-year seasonal effects. Residual diagnostics indicate that the model captures the dominant structure of the data, with residuals centered around zero and approximately normal in the central region. Minor short-lag dependence and heavy-tailed behavior in the residuals suggest that some dynamics, particularly extreme demand fluctuations, remain unexplained.
+
+These findings highlight a sustained increase in electricity demand alongside seasonal peaks, reflecting the combined influence of population growth and climate-driven energy needs. While the SARIMA framework provides a useful representation of ERCOT load dynamics, some limitations remain. The model assumes linear relationships and does not incorporate other variables such as temperature, demographic growth, or structural changes in energy consumption.
+
+This analysis could be improved by incorporating climate variables within a SARIMAX framework, exploring nonlinear models, and addressing the heavy-tailed diagnostic problem. Overall, the SARIMA model offers a reasonable description of ERCOT monthly demand while providing a foundation for other modeling approaches that could include different perspectives on the research question.
+
+# Bibliography {.unnumbered}
+
+::: {#refs}
+:::

@@ -1,0 +1,471 @@
+---
+title: "Forecasting Air Traffic Recovery at SFO After COVID-19\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{float}
+        \floatplacement{figure}{H}
+
+number-sections: true
+jupyter: python3
+execute:
+  inline: true
+
+---
+
+## Abstract {.unnumbered}
+
+This study analyzes monthly passenger traffic at San Francisco International Airport to evaluate whether SARIMA models can forecast recovery after an unprecedented demand shock. The COVID-19 pandemic caused a near-total collapse in air travel, yet seasonal patterns proved remarkably resilient. A SARIMA(1, 1, 0)(0, 1, 1)$_{12}$ model identified via AIC minimization achieves strong short-term forecast accuracy (MAPE = 3.21%) and passes Ljung-Box diagnostics for residual autocorrelation, though non-normal residuals suggest potential underestimation of forecast uncertainty. Forecast intervals widen substantially with horizon (666% expansion over 30 months), limiting long-term predictive reliability. Extending previous STATS 531 work on pre-COVID airline traffic, we confirm that seasonal structure survived the pandemic, but trend did not. The results demonstrate that SARIMA models can provide accurate short-term forecasts after structural breaks, though expanding uncertainty limits their value for long-term planning.
+
+## Introduction 
+
+The COVID-19 pandemic brought global aviation to a near halt. San Francisco International Airport (SFO), a major international gateway, experienced the largest demand shock in its history. Understanding whether passenger traffic will recover to pre-pandemic levels, and when, is critical for airport planning, airline operations, and economic forecasting. This study addresses two central questions: First, what are the underlying temporal patterns in SFO's passenger traffic, and how did the pandemic disrupt them? Second, can seasonal ARIMA models, estimated on data spanning both pre- and post-pandemic periods, reliably forecast the recovery trajectory?
+
+Using monthly passenger data from July 1999 to November 2025, we conduct an exploratory analysis, select a parsimonious SARIMA specification, and evaluate its 30-month forecast performance. We then assess where the model succeeds, where it fails, and what these failures reveal about the limits of time series methods under structural breaks.
+
+## Data Exploration 
+
+The dataset consists of monthly passenger counts at San Francisco International Airport (SFO), obtained from the San Francisco Open Data Portal [@sf_opendata]. Each record represents the total number of arriving and departing passengers for a specific airline in a given month.
+```{python}
+#| echo: false
+#| label: data-load
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
+
+# Load and preprocess data
+raw_df = pd.read_csv(r"Air_Traffic_Passenger_Statistics_20260207.csv")
+df = raw_df.copy()
+
+# Clean Passenger Count column
+df["Passenger Count"] = pd.to_numeric(df["Passenger Count"].astype(str).str.replace(',', ''), errors='coerce')
+
+# Convert Activity Period to datetime
+df["Activity Period"] = pd.to_datetime(df["Activity Period"].astype(str), format="%Y%m")
+df["Year"] = df["Activity Period"].dt.year
+df["Month"] = df["Activity Period"].dt.month
+```
+
+The dataset spans from July 1999 to November 2025, containing over 39,000 records across 138 unique airlines. Passenger traffic at SFO is highly concentrated, with the top five airlines controlling the vast majority of the market.
+
+## Exploratory Data Analysis
+
+### Time Series Visualization
+
+```{python}
+#| echo: false
+#| label: time-series
+#| fig-cap: "Monthly passenger traffic at SFO (thousands) with annual maxima (red) and minima (green)"
+
+# Aggregate by month
+df_monthly = df.groupby("Activity Period")["Passenger Count"].sum().divide(1000)
+df_monthly = df_monthly.sort_index()
+df_monthly = df_monthly.asfreq('MS')
+
+fig, ax = plt.subplots(figsize=(15,5))
+sns.lineplot(x=df_monthly.index, y=df_monthly.values, ax=ax, linewidth=1.2)
+
+# Annual maxima/minima
+yearly_max = df_monthly.groupby(df_monthly.index.year).max()
+yearly_min = df_monthly.groupby(df_monthly.index.year).min()
+max_points = df_monthly[df_monthly.isin(yearly_max.values)]
+min_points = df_monthly[df_monthly.isin(yearly_min.values)]
+
+plt.scatter(max_points.index, max_points.values, color="red", s=30, zorder=5, label='Annual Max')
+plt.scatter(min_points.index, min_points.values, color="green", s=30, zorder=5, label='Annual Min')
+
+plt.title("San Francisco International Airport - Monthly Passenger Traffic", size=14, fontweight='bold')
+plt.xlabel("Date", size=11)
+plt.ylabel("Passengers (thousands)", size=11)
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+SFO passenger traffic exhibits three distinct regimes. Pre-2020 shows steady growth with strong yearly (12-month) seasonality, peaking in 2019. The COVID-19 collapse in March-April 2020 reduced traffic by over 95%, marking the lowest point in 26 years. Recovery began mid-2021 with rapid initial growth that has since decelerated. By mid-2023, traffic reached approximately 75% of the 2019 peak, with seasonal patterns remaining intact despite the disruption.
+
+### Seasonal Decomposition
+
+```{python}
+#| echo: false
+#| label: fig-decomposition
+#| fig-cap: "Additive decomposition of SFO passenger traffic"
+
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+decomposition = seasonal_decompose(df_monthly, model='additive', period=12)
+
+fig, axes = plt.subplots(3, 1, figsize=(13, 6))
+titles = ['Trend Component', 'Seasonal Component', 'Residual']
+
+for ax, component, title in zip(axes, [decomposition.trend, 
+                                        decomposition.seasonal, decomposition.resid], titles):
+    ax.plot(component)
+    ax.set_title(title, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+    
+plt.tight_layout()
+plt.show()
+```
+
+The additive decomposition reveals three key patterns [@statsmodels_docs]. The trend captures pre-2020 growth, the pandemic collapse, and incomplete recovery. The seasonal component remains remarkably stable with constant amplitude throughout, indicating that the pandemic did not diminish seasonal variation. The residual component shows increased volatility during recovery, suggesting post-COVID behavior is less predictable.
+
+### Stationarity Assessment
+
+```{python}
+#| echo: false
+#| label: stationarity
+from statsmodels.tsa.stattools import adfuller
+
+# Original series
+adf_original = adfuller(df_monthly.dropna())
+
+# First difference
+df_monthly_diff = df_monthly.diff().dropna()
+adf_diff = adfuller(df_monthly_diff)
+
+# Create table
+adf_results = pd.DataFrame({
+    'Series': ['Original', 'First Difference (d=1)'],
+    'ADF Statistic': [adf_original[0], adf_diff[0]],
+    'p-value': [adf_original[1], adf_diff[1]],
+    'Stationarity': ['Non-stationary', 'Stationary']
+})
+
+print(adf_results.to_string(index=False))
+```
+
+The ADF test on the original series yields p = 0.0266, marginally significant at the 5% level but borderline [@statsmodels_docs]. Combined with visual evidence of trend and structural break, first differencing is applied. The differenced series is clearly stationary with p < 0.001, confirming d = 1 is appropriate.
+
+### Autocorrelation Structure and Model Selection
+
+```{python}
+#| echo: false
+#| label: seasonal-diff
+# Apply seasonal differencing (D=1) on top of d=1
+df_monthly_diff_seasonal = df_monthly_diff.diff(12).dropna()
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+
+fig, axes = plt.subplots(2, 2, figsize=(14, 7))
+
+# d=1 plots
+plot_acf(df_monthly_diff, lags=36, ax=axes[0, 0], zero=False)
+axes[0, 0].set_title('ACF - First Differenced (d=1)', fontweight='bold')
+axes[0, 0].grid(True, alpha=0.3)
+
+plot_pacf(df_monthly_diff, lags=36, ax=axes[1, 0], zero=False, method='ywm')
+axes[1, 0].set_title('PACF - First Differenced (d=1)', fontweight='bold')
+axes[1, 0].grid(True, alpha=0.3)
+
+# d=1, D=1 plots
+plot_acf(df_monthly_diff_seasonal, lags=36, ax=axes[0, 1], zero=False)
+axes[0, 1].set_title('ACF - Seasonal Differenced (d=1, D=1)', fontweight='bold')
+axes[0, 1].grid(True, alpha=0.3)
+
+plot_pacf(df_monthly_diff_seasonal, lags=36, ax=axes[1, 1], zero=False, method='ywm')
+axes[1, 1].set_title('PACF - Seasonal Differenced (d=1, D=1)', fontweight='bold')
+axes[1, 1].grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+```
+
+After confirming stationarity with d=1, we examine autocorrelation patterns to guide model specification. The ACF of the first-differenced series shows significant spikes at lags 1 and 2, plus persistent seasonal spikes at lags 12, 24, and 36, indicating residual seasonality [@statsmodels_docs]. This motivates seasonal differencing (D=1). After applying both d=1 and D=1, the ACF exhibits reduced seasonal autocorrelation, while the PACF shows spikes at lag 1 and seasonal lag 12. These patterns suggest SARIMA(1, 1, 0)(0, 1, 1)$_{12}$, where p=1 captures short-term persistence and Q=1 models seasonal dependence.
+
+From the ADF test, we set $d=1$ to achieve stationarity. The strong seasonal patterns visible in both the time series plot and the ACF after first differencing suggest that seasonal differencing is necessary, so we set $D=1$.
+
+## Methodology
+
+### Train-Test Split
+
+To evaluate forecast performance, we partition the series into a training set and a test set. The final 30 months of observations (from June 2023 through November 2025) are reserved for testing. The remaining 287 months from July 1999 through May 2023 are used for model estimation.
+
+```{python}
+#| echo: false
+#| label: train-test
+train = df_monthly.iloc[:-30]
+test = df_monthly.iloc[-30:]
+```
+
+### Model Specification
+
+We model the series using the seasonal ARIMA (SARIMA) framework [@statsmodels_docs]. A SARIMA(p, d, q)(P, D, Q)$_{12}$ model takes the form:
+
+$$\phi(B)\Phi(B^{12})(1 - B)^d(1 - B^{12})^D Y_t = c + \theta(B)\Theta(B^{12})\varepsilon_t$$
+
+where $B$ is the backshift operator, $\phi$ and $\theta$ are non-seasonal AR and MA polynomials of orders $p$ and $q$, $\Phi$ and $\Theta$ are seasonal AR and MA polynomials of orders $P$ and $Q$, and $\varepsilon_t$ is white noise.
+
+### Information Criteria for Model Comparison
+
+We compare candidate models using the Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC):
+
+$$AIC = 2k - 2\ln(L)$$
+$$BIC = k \ln(n) - 2\ln(L)$$
+
+where $L$ is the maximized likelihood, $k$ is the number of parameters, and $n$ is the sample size. Lower values indicate a better balance of model fit and parsimony. AIC serves as our primary selection criterion [@stats531_lec-5_aic].
+
+### Model Estimation and Selection
+
+We estimate several candidate SARIMA models on the training data. Higher-order models frequently fail to converge, indicating overparameterization given the relatively short post-COVID recovery period. We therefore restrict our search to low-order, parsimonious specifications.
+
+```{python}
+#| echo: false
+#| label: model-selection
+#| tbl-cap: "Candidate SARIMA model comparison"
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import warnings
+warnings.filterwarnings('ignore')
+
+# Define candidate models - all with d=1, D=1, s=12
+candidates = [
+    SARIMAX(train, order=(1,1,0), seasonal_order=(0,1,1,12)),  # SARIMA(1,1,0)(0,1,1)12 - suggested by ACF/PACF
+    SARIMAX(train, order=(0,1,1), seasonal_order=(0,1,1,12)),  # SARIMA(0,1,1)(0,1,1)12 - MA instead of AR
+    SARIMAX(train, order=(1,1,1), seasonal_order=(0,1,1,12)),  # SARIMA(1,1,1)(0,1,1)12 - add MA term
+    SARIMAX(train, order=(2,1,0), seasonal_order=(0,1,1,12)),  # SARIMA(2,1,0)(0,1,1)12 - higher order AR
+    SARIMAX(train, order=(1,1,0), seasonal_order=(1,1,0,12))   # SARIMA(1,1,0)(1,1,0)12 - seasonal AR instead of MA
+]
+
+results_list = []
+for model in candidates:
+    try:
+        fit = model.fit(disp=False)
+        results_list.append({
+            'Model': f"SARIMA{model.order}{model.seasonal_order}",
+            'AIC': round(fit.aic, 2),
+            'BIC': round(fit.bic, 2)
+        })
+    except Exception as e:
+        results_list.append({
+            'Model': f"SARIMA{model.order}{model.seasonal_order}",
+            'AIC': np.nan,
+            'BIC': np.nan
+        })
+        continue
+
+results_df = pd.DataFrame(results_list).sort_values('AIC')
+```
+
+```{python}
+#| echo: false
+#| label: tbl-model-comparison
+#| tbl-cap: "SARIMA model comparison ranked by AIC"
+
+print(results_df.to_markdown(index=False))
+```
+
+The model minimizing AIC is selected as our final specification. We then examine its residuals to verify that they approximate white noise using the Ljung-Box test and visual inspection of the residual ACF.
+
+```{python}
+#| echo: false
+#| label: fit-best-model
+# Fit the best model
+best_model = SARIMAX(train, order=(1,1,0), seasonal_order=(0,1,1,12))
+results_best = best_model.fit(disp=False)
+```
+
+### Forecasting and Evaluation
+
+Using the selected model, we generate a 30-month ahead forecast covering the test period (June 2023 to November 2025). We report point forecasts along with 95% confidence intervals. Forecast accuracy is evaluated on the test set using:
+
+- **Mean Absolute Error (MAE):** $\frac{1}{n} \sum_{i=1}^{n} |y_i - \hat{y}_i|$
+- **Root Mean Squared Error (RMSE):** $\sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$
+- **Mean Absolute Percentage Error (MAPE):** $\frac{100}{n} \sum_{i=1}^{n} |\frac{y_i - \hat{y}_i}{y_i}|$ 
+
+## Results and Discussion
+
+### Model Selection and Parameter Estimates
+
+The candidate models ranked by AIC are shown in the table above. The SARIMA(1, 1, 0)(0, 1, 1)$_{12}$ model achieves the lowest AIC, balancing parsimony with fit quality. We select this as our final specification.
+
+
+### Residual Diagnostics
+
+```{python}
+#| echo: false
+#| label: fig-residuals
+#| fig-cap: "Diagnostic plots for SARIMA(1,1,0)(0,1,1)12 model"
+
+fig, axes = plt.subplots(2, 2, figsize=(7, 4))
+
+# Standardized residuals
+axes[0,0].plot(results_best.resid)
+axes[0,0].axhline(y=0, color='r', linestyle='--', alpha=0.5)
+axes[0,0].set_title('Standardized Residuals')
+axes[0,0].grid(True, alpha=0.3)
+
+# Histogram + KDE
+axes[0,1].hist(results_best.resid, bins=20, density=True, alpha=0.7, edgecolor='black')
+from scipy.stats import norm
+x = np.linspace(results_best.resid.min(), results_best.resid.max(), 100)
+axes[0,1].plot(x, norm.pdf(x, results_best.resid.mean(), results_best.resid.std()), 'r-')
+axes[0,1].set_title('Residual Distribution')
+
+# ACF of residuals
+plot_acf(results_best.resid, lags=36, ax=axes[1,0], zero=False)
+axes[1,0].set_title('Residual ACF')
+axes[1,0].grid(True, alpha=0.3)
+
+# Q-Q plot
+from scipy import stats
+stats.probplot(results_best.resid, dist="norm", plot=axes[1,1])
+axes[1,1].set_title('Q-Q Plot')
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| label: tbl-ljung-box
+#| tbl-cap: "Ljung-Box test for residual autocorrelation"
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+ljung_box = acorr_ljungbox(results_best.resid, lags=[12, 24], return_df=True)
+ljung_box_clean = ljung_box[['lb_stat', 'lb_pvalue']].copy()
+ljung_box_clean.columns = ['Test Statistic', 'p-value']
+ljung_box_clean.index.name = 'Lag'
+print(ljung_box_clean.to_markdown())
+```
+
+The Ljung-Box test fails to reject the white noise hypothesis at both lag 12 (p = 0.150) and lag 24 (p = 0.526), suggesting that residual autocorrelation is not statistically significant [@statsmodels_docs]. This indicates the model adequately captures the temporal dependencies in the training data. However, the residual ACF shows minor spikes at some seasonal lags, and the Q-Q plot reveals heavy-tailed, non-normal residuals driven by the asymmetric pandemic shock. While the model passes white noise diagnostics, the non-normality of residuals suggests that forecast intervals may underestimate true uncertainty, particularly in the presence of the structural break.
+
+### Forecast Performance
+
+```{python}
+#| echo: false
+#| label: fig-forecast
+#| fig-cap: "30-month ahead forecast with 95% confidence intervals"
+
+# Generate forecast
+forecast = results_best.get_forecast(steps=30)
+forecast_mean = forecast.predicted_mean
+forecast_ci = forecast.conf_int()
+
+fig, ax = plt.subplots(figsize=(16, 5))
+
+# Plot train, test, forecast
+ax.plot(train.index, train, label='Training Data', color='blue', linewidth=1.2)
+ax.plot(test.index, test, label='Test Data', color='orange', linewidth=1.2)
+ax.plot(forecast_mean.index, forecast_mean, label='Forecast', color='green', linewidth=1.5)
+
+# Confidence intervals
+ax.fill_between(forecast_ci.index, 
+                forecast_ci.iloc[:, 0], 
+                forecast_ci.iloc[:, 1], 
+                color='pink', alpha=0.3, label='95% CI')
+
+ax.set_title('SFO Passenger Traffic: 30-Month Forecast', fontweight='bold', size=14)
+ax.set_xlabel('Date')
+ax.set_ylabel('Passengers (thousands)')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| label: forecast-metrics
+#| tbl-cap: "Forecast accuracy metrics on 30-month test set"
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+mae = mean_absolute_error(test, forecast_mean)
+rmse = np.sqrt(mean_squared_error(test, forecast_mean))
+mape = np.mean(np.abs((test - forecast_mean) / test)) * 100
+
+metrics_df = pd.DataFrame({
+    'Metric': ['MAE (thousands)', 'RMSE (thousands)', 'MAPE (%)'],
+    'Value': [f'{mae:.2f}', f'{rmse:.2f}', f'{mape:.2f}']
+})
+print(metrics_df.to_string(index=False))
+```
+
+The model achieves MAPE = 3.21%, indicating strong short-term forecast accuracy. This low error rate demonstrates the model's capability to capture the post-pandemic recovery trajectory over the 30-month test horizon.
+
+```{python}
+#| echo: false
+#| label: forecast-summary
+# Pre-pandemic baseline
+pre_covid_peak = df_monthly['2019'].max()
+
+# COVID impact
+covid_low = df_monthly['2020-04':'2020-06'].min()
+
+# Current status
+latest_actual = df_monthly.iloc[-31]
+
+# Forecast values
+forecast = results_best.get_forecast(steps=30)
+forecast_mean = forecast.predicted_mean
+forecast_ci = forecast.conf_int()
+
+# Recovery at forecast horizon
+recovery_percentage = (forecast_mean.iloc[-1] / pre_covid_peak) * 100
+
+# Uncertainty quantification
+ci_width_start = forecast_ci.iloc[0, 1] - forecast_ci.iloc[0, 0]
+ci_width_end = forecast_ci.iloc[-1, 1] - forecast_ci.iloc[-1, 0]
+ci_expansion = ((ci_width_end/ci_width_start)-1)*100
+
+recovery_summary = pd.DataFrame({
+    'Metric': ['2019 Peak', 'COVID Trough', 'May 2023 (Start of Test)', 'Nov 2025 Forecast', 'Forecast Recovery %', 'CI Width Expansion'],
+    'Value': [f'{pre_covid_peak:.0f}K', f'{covid_low:.0f}K (-97.6%)', f'{latest_actual:.0f}K (76.2%)', 
+              f'{forecast_mean.iloc[-1]:.0f}K', f'{recovery_percentage:.1f}%', f'+{ci_expansion:.0f}%']
+})
+```
+
+```{python}
+#| echo: false
+#| label: tbl-recovery-summary
+#| tbl-cap: "Traffic recovery summary and forecast horizon statistics"
+
+print(recovery_summary.to_markdown(index=False))
+```
+
+By November 2025, the forecast projects traffic reaching 75.3% of 2019 levels. However, forecast uncertainty expands dramatically: the 95% confidence interval width increases by approximately 666% over the 30-month horizon. This substantial growth in uncertainty renders long-term point forecasts increasingly unreliable, reflecting the challenges of forecasting across a structural break.
+
+## Comparison with Previous Literature
+
+This analysis builds upon Project 2 from Winter 2025 [@stats531_project2_2025], which examined U.S. airline traffic from 2003 to 2019, noting its strong seasonal patterns and AR(2) signature leading to SARIMA modeling recommendations. However, Project 2 was solely descriptive without forecasting capabilities. Our study extends this work by implementing SARIMA(1, 1, 0)(0, 1, 1)$_{12}$ modeling on post-COVID data. We find that seasonal characteristics of air travel persist despite the pandemic's impact, with both first differencing (d=1) and seasonal differencing (D=1) required to achieve stationarity. 
+
+The selected model uses AR(1) for short-term persistence and seasonal MA(1) for year-over-year correlation, achieving strong point forecast accuracy with MAPE = 3.21%. The model passes Ljung-Box diagnostics for residual autocorrelation, though non-normal residuals suggest forecast intervals may underestimate uncertainty. Forecast uncertainty expands by 666% over the 30-month horizon. Addressing prior peer reviews' concerns regarding the lack of forecasting in Project 2, we demonstrate that while historical seasonal patterns endure under extreme conditions, trend dynamics do not. This indicates that SARIMA models can achieve reasonable short-term airport forecasting after structural breaks, though confidence intervals widen substantially with forecast horizon.
+
+## Conclusion
+
+This study evaluated monthly passenger traffic at SFO from July 1999 to November 2025, focusing on the forecasting capabilities of SARIMA models post-COVID-19. The pandemic drastically reduced passenger volume by 97.6%, though seasonal patterns remained resilient. The SARIMA(1, 1, 0)(0, 1, 1)$_{12}$ model exhibited strong point forecast accuracy with MAPE = 3.21% and passed Ljung-Box diagnostics for residual autocorrelation, though non-normal residuals indicate potential underestimation of forecast uncertainty.
+
+By November 2025, traffic is projected to reach 75.3% of 2019 levels, with 95% confidence intervals widening substantially (666% expansion). Extending previous STATS 531 work on pre-COVID airline traffic, we confirm that seasonal structure survived the pandemic but trend did not. While SARIMA models demonstrate good short-term forecasting performance, expanding uncertainty limits their reliability beyond one year. The study concludes that SFO is unlikely to return to 2019 traffic levels before 2027, highlighting that understanding the "new normal" requires recognizing fundamental shifts in travel patterns beyond historical trends.
+
+In answer to our original questions: SFO's passenger traffic exhibits stable seasonal patterns that survived the pandemic, but the trend regime has permanently shifted. SARIMA models provide reliable short-term forecasts (MAPE = 3.21%), but uncertainty grows substantially with forecast horizon, limiting long-term predictive value.
+
+## Acknowledgments {.unnumbered}
+
+Data obtained from the San Francisco Open Data Portal. Analysis performed using Python with statsmodels, pandas, and matplotlib. AI tools were used for code debugging. All other work was completed by the group members.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::

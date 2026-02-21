@@ -1,0 +1,395 @@
+---
+title: "STAT 531 Time Series Project: Exoplanet Transit Light Curve"
+bibliography: references.bib
+format:
+  html:
+    number-sections: true
+execute:
+  echo: false
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+
+This report analyzes a publicly available exoplanet light curve (stellar brightness versus time) to illustrate modern time series methods in a scientific setting. Using NASA TESS photometry hosted by the Mikulski Archive for Space Telescopes (MAST) [@mast], we (i) clean and detrend the light curve, (ii) identify a periodic transit signal using a box-least-squares (BLS) periodogram, and (iii) model the remaining short-range dependence in the detrended residuals using Gaussian ARMA models. The goal is to separate *deterministic periodic structure* (planet transits) from *stochastic noise* (instrumental + astrophysical variability), and to demonstrate diagnostic tools (ACF/PACF, Ljung–Box) and information-criterion model selection. Data access and processing are performed in Python using the `lightkurve` package [@lightkurve].
+
+# Introduction
+
+Space-based transit surveys such as Kepler [@borucki2010] and TESS [@ricker2015] observe stellar brightness over time to identify exoplanets. A planet crossing the stellar disk causes a small, approximately periodic dip in observed flux. Statistically, a light curve can be viewed as
+
+$$
+X_t = m(t) + s(t) + \varepsilon_t,
+$$
+
+where $m(t)$ is long-term variability (e.g., trends or stellar rotation), $s(t)$ is a periodic transit signal, and $\varepsilon_t$ is noise (measurement error and short-scale astrophysical variability).
+
+From a time-series perspective, this decomposition separates deterministic structure from stochastic variation. The component $m(t)$ captures low-frequency trends that can obscure short-duration events, $s(t)$ represents a structured, periodic signal arising from orbital motion, and the noise term $\varepsilon_t$ will be modeled as weakly stationary with short-range dependencies.
+
+This project focuses on:
+
+1. extracting the periodic transit signature (estimating the orbital period), and
+
+2. characterizing residual serial dependence via ARMA models after detrending.
+
+# Data
+
+We use a TESS light curve retrieved from MAST [@mast] via the `lightkurve` Python package [@lightkurve]. The code below downloads time (in days) and flux (relative brightness) for a target star. Specifically, our dataset will contain the time (in days) and the flux (relative brightness) for the well-known hot Jupiter host star HD208458
+
+
+```{python}
+#| label: setup
+#| warning: false
+#| message: false
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Time series + diagnostics
+import statsmodels.api as sm
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+# Astronomy data access
+HAS_LIGHTKURVE = True
+try:
+    import lightkurve as lk
+except Exception as e:
+    HAS_LIGHTKURVE = False
+    lk = None
+    _lk_import_error = str(e)
+
+TARGET = "HD 209458"   
+MISSION = "TESS"       
+```
+
+## Download and basic cleaning
+
+```{python}
+#| label: download-clean
+#| warning: false
+#| message: false
+
+def get_lightcurve(target=TARGET, mission=MISSION):
+    """
+    Download and stitch a light curve (TESS or Kepler) using lightkurve.
+    Returns a LightCurve object if available, else raises.
+    """
+    search = lk.search_lightcurve(target, mission=mission)
+    if len(search) == 0:
+        raise ValueError(f"No light curves found for target={target} mission={mission}.")
+    lcs = search.download_all()
+    lc = lcs.stitch().remove_nans().remove_outliers(sigma=7)
+    return lc
+
+if HAS_LIGHTKURVE:
+    try:
+        lc_raw = get_lightcurve()
+        # normalize to around 1.0 for interpretability
+        lc_raw = lc_raw.normalize()
+        using_real_data = True
+    except Exception as e:
+        using_real_data = False
+        _download_error = str(e)
+else:
+    using_real_data = False
+
+
+if not using_real_data:
+    n = 4000
+    t = np.arange(n) / 48.0   # ~30 min cadence in days
+    period = 3.5
+    phase = (t % period) / period
+    transit = (phase < 0.03).astype(float) * (-0.012)
+    # ARMA(1,1) noise
+    rng = np.random.default_rng(531)
+    x = sm.tsa.arma_generate_sample(
+    ar=[1, -0.6],
+    ma=[1, 0.4],
+    nsample=n, 
+    distrvs=lambda size: rng.normal(scale=0.0025, size=size))
+
+    flux = 1.0 + transit + x
+
+    lc_raw = pd.DataFrame({"time": t, "flux": flux})
+```
+
+```{python}
+#| label: plot-raw
+#| fig-cap: "Raw (or simulated) light curve."
+#| warning: false
+#| message: false
+
+if using_real_data:
+    time = lc_raw.time.value
+    flux = lc_raw.flux.value
+else:
+    time = lc_raw["time"].to_numpy()
+    flux = lc_raw["flux"].to_numpy()
+
+plt.figure()
+plt.plot(time, flux, linewidth=0.6)
+plt.xlabel("Time (days)")
+plt.ylabel("Normalized Flux")
+plt.title(f"Light curve for {TARGET} ({'real' if using_real_data else 'simulated'})")
+plt.show()
+```
+
+The raw light curve exhibits both short-duration dips and slower variations in overall brightness. Since our objective is to identify and quantify periodic structure in the series, low-frequency baseline variation can obscure the deterministic component of interest and complicate statistical modeling. Such variability may arise from instrumental systematics or intrinsic stellar activity. Removing it clarifies the underlying temporal structure and allows for more reliable estimation of periodic behavior. This highlights the importance of detrending the data prior to analysis.
+
+# Preprocessing: detrending and regularization
+
+To remove this trend, we will be applying a smoothing filter. The `lightkurve` package provides a convenient `flatten()` method for this purpose.
+
+```{python}
+#| label: detrend
+#| warning: false
+#| message: false
+
+if using_real_data:
+    # Flatten removes low-frequency trends; window_length controls smoothness
+    lc_flat = lc_raw.flatten(window_length=401, polyorder=2)
+    time = lc_flat.time.value
+    flux_flat = lc_flat.flux.value
+else:
+    # For simulated data, remove a simple rolling mean trend
+    df = pd.DataFrame({"time": time, "flux": flux}).sort_values("time")
+    flux_flat = df["flux"].to_numpy() / pd.Series(df["flux"]).rolling(401, center=True, min_periods=1).mean().to_numpy()
+    time = df["time"].to_numpy()
+
+# Residuals around 0 after centering at 1
+resid = flux_flat - 1.0
+```
+
+```{python}
+#| label: plot-detrended
+#| fig-cap: "Detrended light curve (flux centered at 1)."
+#| warning: false
+#| message: false
+
+plt.figure()
+plt.plot(time, flux_flat, linewidth=0.6)
+plt.xlabel("Time (days)")
+plt.ylabel("Detrended Flux")
+plt.title("Detrended (flattened) light curve")
+plt.show()
+```
+
+The plot reveals that after detrending, observations still occur in two separated windows, with a substantial gap between them. Such gaps are common in space-based surveys due to pointing constraints and data downlink schedules. For ARMA modeling we prefer approximately equally spaced observations. To account for the gaps, we will construct an evenly spaced series by resampling to a uniform grid and linearly interpolating across small gaps (large gaps remain a limitation).
+
+```{python}
+#| label: regularize
+#| warning: false
+#| message: false
+
+# Choose a grid step from the median cadence
+dt = np.median(np.diff(time))
+grid = np.arange(time.min(), time.max(), dt)
+
+resid_series = pd.Series(resid, index=time)
+resid_on_grid = pd.Series(index=grid, dtype=float)
+
+# Linear interpolation onto the grid
+resid_on_grid.loc[:] = np.interp(grid, time, resid)
+
+# Standardize for numerical stability in ARMA fitting
+y = (resid_on_grid - resid_on_grid.mean()) / resid_on_grid.std()
+y = y.to_numpy()
+```
+
+# Transit period estimation via BLS
+After detrending and regularizing the data, we are now ready to search for a repeating transit signal in the data. A common approach for detecting periodic box-shaped transits is the **box least squares** (BLS) periodogram. We scan candidate periods and choose the period that maximizes BLS power.
+
+```{python}
+#| label: bls
+#| warning: false
+#| message: false
+
+best_period = None
+best_t0 = None
+
+if using_real_data:
+    # Use lightkurve's wrapper around Astropy BLS
+    periods = np.linspace(0.5, 10.0, 4000)  # days
+    pg = lc_flat.to_periodogram(method="bls", period=periods, duration=0.1)
+    best_period = pg.period_at_max_power.value
+    best_t0 = pg.transit_time_at_max_power.value
+else:
+    periods = np.linspace(1.0, 7.0, 2000)
+    # score by phase-folded variance reduction (simple proxy)
+    scores = []
+    for p in periods:
+        phase = (time % p) / p
+        order = np.argsort(phase)
+        scores.append(np.var(resid[order][:len(resid)//2]) - np.var(resid[order][len(resid)//2:]))
+    best_period = periods[int(np.argmax(np.abs(scores)))]
+    best_t0 = time.min()
+
+print(best_period)
+```
+
+```{python}
+#| label: bls-plot
+#| fig-cap: "BLS periodogram (real data) or proxy score (simulated)."
+#| warning: false
+#| message: false
+
+plt.figure()
+if using_real_data:
+    plt.plot(pg.period.value, pg.power, linewidth=0.8)
+    plt.xlabel("Period (days)")
+    plt.ylabel("BLS Power")
+    plt.title(f"BLS periodogram (best period ≈ {best_period:.4f} d)")
+else:
+    plt.plot(periods, np.abs(scores), linewidth=0.8)
+    plt.xlabel("Period (days)")
+    plt.ylabel("Proxy score (|Δvariance|)")
+    plt.title(f"Proxy period scan (best period ≈ {best_period:.4f} d)")
+plt.show()
+```
+The periodogram shows several prominent peaks across the grid of candidate periods, indicating multiple candidate periodic structures in the data. The dominant peak near 7.05 days stands out clearly above the surrounding power spectrum, suggesting that this period provides the strongest box-shaped transit fit. Additional peaks at shorter periods likely represent harmonics or aliasing effects, while the gradually increasing background power at longer periods reflects increased variability and reduced sensitivity in that range. The relative height and sharpness of the maximum near 7.05 days provide strong visual evidence for a well-defined periodic component in the detrended series. Having identified this candidate period, we next verify its coherence by phase-folding the light curve at the estimated value.
+
+```{python}
+#| label: fold
+#| fig-cap: "Phase-folded light curve using the estimated period."
+#| warning: false
+#| message: false
+
+phase = ((time - (best_t0 if best_t0 is not None else time.min())) % best_period) / best_period
+order = np.argsort(phase)
+
+plt.figure()
+plt.scatter(phase[order], flux_flat[order], s=2)
+plt.xlabel("Phase (0–1)")
+plt.ylabel("Detrended Flux")
+plt.title(f"Phase-folded light curve (period ≈ {best_period:.4f} d)")
+plt.show()
+```
+The phase-folded light curve aligns observations from different cycles onto a common phase scale, making repeating structure easier to identify. A pronounced dip centered near phase ≈ 0.5, with corresponding wrap-around features near phases 0 and 1, provides clear visual evidence of a coherent periodic transit signal at the estimated period. Outside the transit region, the flux values cluster tightly around unity, indicating relatively stable baseline behavior, though some dispersion and localized outliers remain. Overall, the concentration of the dip within a narrow phase interval supports the BLS estimate and confirms the presence of a stable periodic component before proceeding to model residual stochastic dependence.
+
+## Diagnostics: ACF and PACF
+Below are the autocorrelation and partial autocorrelation of the transformed series to diagnose the presence and order of short-range serial dependence before fitting our ARMA models.
+```{python}
+#| label: acf-pacf
+#| fig-cap: "ACF and PACF of the standardized detrended residual series."
+#| warning: false
+#| message: false
+
+fig = plt.figure(figsize=(7, 5))
+ax1 = fig.add_subplot(211)
+sm.graphics.tsa.plot_acf(y, lags=60, ax=ax1)
+ax2 = fig.add_subplot(212)
+sm.graphics.tsa.plot_pacf(y, lags=60, ax=ax2, method="ywm")
+plt.tight_layout()
+plt.show()
+```
+
+# ARMA modeling of detrended residuals
+
+After removing low-frequency trends and (conceptually) the transit signal, we model remaining short-range dependence using a Gaussian ARMA\((p,q)\) model:
+
+$$
+Y_t - \mu = \sum_{i=1}^{p}\phi_i \left(Y_{t-i}-\mu\right) + \varepsilon_t + \sum_{j=1}^{q}\theta_j \varepsilon_{t-j},
+\qquad \varepsilon_t \overset{\text{i.i.d.}}{\sim} N(0,\sigma^2).
+$$
+
+We fit a small grid of candidate ARMA models and select by AIC.
+
+## Model fitting and selection
+
+```{python}
+#| label: arma-select
+#| warning: false
+#| message: false
+
+candidates = []
+for p in range(0, 4):
+    for q in range(0, 4):
+        if p == 0 and q == 0:
+            continue
+        try:
+            model = ARIMA(y, order=(p, 0, q), trend="c")
+            fit = model.fit()
+            candidates.append((p, q, fit.aic, fit.bic, fit))
+        except Exception:
+            continue
+
+try:
+    fit00 = ARIMA(y, order=(0, 0, 0), trend="c").fit()
+    candidates.append((0, 0, fit00.aic, fit00.bic, fit00))
+except Exception:
+    pass
+
+candidates_sorted = sorted(candidates, key=lambda x: x[2])
+best_p, best_q, best_aic, best_bic, best_fit = candidates_sorted[0]
+resid_fit = best_fit.resid
+pd.DataFrame(
+    [(p, q, aic, bic) for (p, q, aic, bic, _) in candidates_sorted[:10]],
+    columns=["p", "q", "AIC", "BIC"]
+)
+```
+
+```{python}
+#| label: arma-summary
+#| warning: false
+#| message: false
+
+best_fit.summary()
+```
+
+The AIC-selected model among the scanned candidates is ARMA\((\hat p,\hat q)\) with \((\hat p,\hat q) = \big({best_p},{best_q}\big)\). Above shows the summary of our selected model.
+
+## Residual checks
+These are the residuals plots of our fitted ARMA model.
+```{python}
+#| label: resid-plots
+#| fig-cap: "Diagnostics of fitted ARMA residuals."
+#| warning: false
+#| message: false
+#| 
+plt.figure()
+plt.plot(resid_fit, linewidth=0.6)
+plt.title("Fitted model residuals")
+plt.xlabel("Index (uniform grid)")
+plt.ylabel("Residual")
+plt.show()
+
+plt.figure()
+plt.hist(resid_fit, bins=40)
+plt.title("Residual histogram")
+plt.xlabel("Residual")
+plt.ylabel("Count")
+plt.show()
+
+plt.figure()
+sm.graphics.tsa.plot_acf(resid_fit, lags=60)
+plt.title("Residual ACF")
+plt.show()
+```
+
+We will utilize them to check for any remaining serial correlation using the Ljung–Box test, which evaluates whether residual autocorrelation remains up to specified lags after fitting the ARMA model. Under the null hypothesis, the residuals are independently distributed (i.e., exhibit no serial correlation). Large p-values indicate insufficient evidence to reject this null, suggesting that the fitted ARMA model has adequately accounted for short-range dependence in the series at the examined lags. Conversely, small p-values would indicate remaining autocorrelation and potential model misspecification.
+
+```{python}
+#| label: ljungbox
+#| warning: false
+#| message: false
+
+resid_fit = best_fit.resid
+lb = acorr_ljungbox(resid_fit, lags=[10, 20, 40], return_df=True)
+lb
+```
+
+
+# Conclusion
+
+This project demonstrates an end-to-end time series workflow applied to an astronomical dataset: (1) retrieving and cleaning a light curve, (2) detecting periodic transit structure using BLS, and (3) modeling short-term stochastic dependence using ARMA with diagnostic checks. The same statistical principles—stationarity, autocorrelation, model selection, and residual analysis—transfer directly from classical time-series settings (such as economics or climatology) to scientific measurement streams.
+
+At the same time, several limitations should be acknowledged. Detrending and transit removal are not perfect, and residual autocorrelation may arise from imperfect baseline correction, intrinsic stellar variability, or artifacts introduced by irregular sampling and interpolation. In particular, interpolation across extended gaps and the absence of explicit transit masking mean that the fitted ARMA model may capture both stochastic noise and residual deterministic structure. A more complete analysis would incorporate an explicit transit-shape model and mask in-transit observations prior to stochastic modeling. Despite these caveats, the analysis illustrates how principled time-series methods can provide meaningful insight into structured astronomical data.
+
+## Scholarship and Use of External Resources
+
+The structure and inspiration for this project were informed by the STATS 531 Midterm Project guidelines and example materials provided by the course (@stats531project2024), particularly in the selection of an astronomy-based time series dataset and the modeling workflow.
+
+Generative AI (ChatGPT; @openai2026) was used in a limited capacity to assist with debugging Python code, clarifying statistical concepts related to ARMA modeling, and refining the written exposition. All modeling decisions, statistical reasoning, and final interpretations were independently verified and implemented by the author.
+
+# References

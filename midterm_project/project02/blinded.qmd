@@ -1,0 +1,300 @@
+---
+title: "Modeling Seasonal Influenza-Like Illness with SARMA under a COVID-19 Structural Break"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    number-sections: true
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.formula.api import ols
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import statsmodels.api as sm
+from statsmodels.stats.diagnostic import acorr_ljungbox
+```
+
+```{python}
+df = pd.read_csv('ILINet.csv', sep=',', header=1)
+df = df[~(df["WEEK"] == 53)]
+df['ILITOTAL'] = pd.to_numeric(df['ILITOTAL'], errors='coerce')
+df = df.dropna(subset=['ILITOTAL'])
+df['time'] = df['YEAR'] + df['WEEK'] / 52
+df['time_sq'] = df['time'] ** 2
+df['covid_step'] = (df['time'] >= 2020.4)
+```
+
+## Abstract
+
+This report analyzes weekly Influenza-Like Illness (ILI) data from the CDC ILINet system. The series shows strong annual seasonality ($s = 52$), a long-term trend, and a clear structural disruption associated with the COVID-19 pandemic. A log transformation is applied to stabilize variance, and a piecewise quadratic trend with a pandemic indicator is used to capture changes in level and slope. The remaining dependence structure is modeled using a Seasonal Autoregressive Moving-Average (SARMA) model. Based on the Akaike Information Criterion (AIC) comparison, a $\text{SARMA}(2,1)\times(0,1)_{52}$ specification is selected. Residual diagnostics suggest the fitted model adequately captures the temporal dependence, with residuals behaving close to white noise, aside from one notable outlier during the COVID-19 period.
+
+## Introduction
+
+Seasonal influenza is a persistent public health concern in the United States, with annual epidemics leading to substantial morbidity. Weekly Influenza-Like Illness (ILI) activity is tracked through the CDC's ILINet surveillance system, which provides a long historical record of respiratory disease patterns. These patterns were sharply disrupted during the COVID-19 pandemic: beginning in early 2020, masking, social distancing, and changes in healthcare-seeking behavior led to a marked drop in reported ILI cases, making standard time series modeling more challenging. Using ILINet data from 2010 to 2026, this study examines the trend and seasonal structure of national ILI activity, explicitly accounts for the COVID-19-related structural break, and fits a SARMA model to the detrended series. It is worth noting that parallel trends observed in other respiratory disease studies---such as the time series analysis of COVID-19 in Ireland [@project04_531w25]---showed a primary peak of confirmed cases between 2020 and 2022. This external context aligns with the substantial fluctuations observed in the ILITOTAL data during the same period, suggesting a broader pandemic-driven impact on public health metrics.
+
+## Methods
+
+### Data Preprocessing
+
+The ILINet dataset provides weekly national ILI counts from the CDC surveillance system. Week 53 observations, which arise as an artifact of the ISO week calendar rather than reflecting a complete influenza season, are removed to maintain a consistent 52-week annual cycle. The response variable, `ILITOTAL`, shows increasing variability as the level of the series rises. A log transformation is therefore applied to stabilize the variance and simplify the seasonal structure.
+
+### Trend Removal
+
+The log-transformed series exhibits a nonlinear long-term trend and a clear structural change beginning in early 2020, coinciding with the onset of the COVID-19 pandemic. To account for this behavior, we fit a piecewise quadratic regression of the form:
+
+$$
+\log(\text{ILITOTAL}_t) = \beta_0 + \beta_1 t + \beta_2 t^2 + \beta_3 C_t + \beta_4(t \cdot C_t) + \beta_5(t^2 \cdot C_t) + \varepsilon_t,
+$$
+
+where $t$ denotes elapsed time from the start of the series and $C_t = \mathbf{1}(t \geq 2020.4)$ is an indicator equal to 1 for observations around May 2020 and 0 otherwise. The interaction terms allow both the slope and curvature of the trend to shift after the pandemic onset. The fitted values from this regression are treated as the estimated trend, and the residuals
+
+$$
+\hat{\varepsilon}_t = \log(\text{ILITOTAL}_t) - \widehat{\log(\text{ILITOTAL}_t)}
+$$
+
+are used as the detrended series in subsequent analysis. [@ionides2026notes]
+
+### SARMA Modeling
+
+The detrended residuals retain strong annual seasonality with period $s = 52$ weeks, as evidenced by a sinusoidal ACF pattern with peaks at multiples of lag 52. To achieve stationarity, a lag-52 seasonal difference is applied to the detrended series prior to model fitting. The seasonally differenced series is then modeled as $\text{SARMA}(p, q)\times(P, Q)_{52}$, defined by
+
+$$
+\phi(B)\Phi(B^{52})\,\tilde{\varepsilon}_t = \psi(B)\Psi(B^{52})\,\epsilon_t,
+$$
+
+where $B$ is the backshift operator, $\phi$ and $\psi$ are the non-seasonal AR and MA polynomials of orders $p$ and $q$, and $\Phi$ and $\Psi$ are the seasonal AR and MA polynomials of orders $P$ and $Q$. Model orders are selected by minimizing the Akaike Information Criterion [@shumway2017],
+
+$$
+\text{AIC} = -2\,\ell(\hat{\theta}) + 2D,
+$$
+
+where $\ell(\hat{\theta})$ is the maximized log-likelihood and $D$ is the number of estimated parameters. The grid search covers $p, q \in \{0, 1, 2\}$ and $P, Q \in \{0, 1, 2\}$.
+
+### Model Diagnostics
+
+Model adequacy is assessed through residual diagnostics: the residual ACF for remaining autocorrelation, a normal Q-Q plot to assess approximate normality of innovations, and the Ljung-Box test as a formal test of the white noise hypothesis. The autocorrelation function is defined as
+
+$$
+\rho(h) = \frac{\gamma(h)}{\gamma(0)},
+$$
+
+where $\gamma(h) = \text{Cov}(Y_t, Y_{t+h})$ is the autocovariance at lag $h$.
+
+## Results
+
+### Data Exploration
+
+```{python}
+#| label: fig-raw
+#| fig-cap: "Raw ILITOTAL counts (top) and first differences (bottom) over time."
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.5))
+axes[0].plot(df['time'], df['ILITOTAL'])
+axes[0].set_ylabel('ILITOTAL')
+axes[0].set_xlabel('Time')
+axes[1].plot(df['time'], df['ILITOTAL'].diff())
+axes[1].set_ylabel('First difference')
+axes[1].set_xlabel('Time')
+plt.tight_layout()
+plt.show()
+```
+
+The raw time series exhibits strong annual seasonality and growing variability over time, particularly after 2020 (@fig-raw). The first-difference plot confirms increasing variance, indicating the series is non-stationary and that a variance-stabilizing transformation is warranted. Since all values are positive, a log transformation is applied.
+
+```{python}
+#| label: fig-log
+#| fig-cap: "Log-transformed ILITOTAL (top) and log first differences (bottom)."
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.5))
+axes[0].plot(df['time'], np.log(df['ILITOTAL']))
+axes[0].set_ylabel('log(ILITOTAL)')
+axes[0].set_xlabel('Time')
+axes[1].plot(df['time'], np.log(df['ILITOTAL']).diff())
+axes[1].set_ylabel('Log first difference')
+axes[1].set_xlabel('Time')
+plt.tight_layout()
+plt.show()
+```
+
+After log transformation, the variance is substantially stabilized (@fig-log). However, a nonlinear upward trend remains, and a prominent dip is visible from 2020 to 2022, consistent with COVID-19 suppression of ILI reporting.
+
+### Trend Estimation and Detrending
+
+```{python}
+lm_fit = ols(
+    'np.log(ILITOTAL) ~ time + time_sq + time*covid_step + time_sq*covid_step',
+    data=df
+).fit()
+prediction = lm_fit.fittedvalues
+log_ILITOTAL_detrend = np.log(df['ILITOTAL']) - prediction
+```
+
+```{python}
+#| label: fig-trend
+#| fig-cap: "Log ILITOTAL with fitted piecewise quadratic trend (top) and detrended residuals (bottom)."
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.5))
+axes[0].plot(df['time'], np.log(df['ILITOTAL']), label='Observed')
+axes[0].plot(df['time'], prediction, 'r-', linewidth=2, label='Fitted trend')
+axes[0].set_ylabel('log(ILITOTAL)')
+axes[0].set_xlabel('Time')
+axes[0].legend()
+axes[1].plot(df['time'], log_ILITOTAL_detrend)
+axes[1].set_ylabel('Detrended log(ILITOTAL)')
+axes[1].set_xlabel('Time')
+plt.tight_layout()
+plt.show()
+```
+
+The piecewise quadratic regression provides a good fit to the long-term trajectory of the series (@fig-trend). All six predictors are statistically significant ($p < 0.001$), confirming that the pre- and post-COVID trend structures differ meaningfully. The detrended residuals are centered around zero, but the ACF still exhibits a sinusoidal pattern with peaks at multiples of lag 52, indicating persistent seasonal non-stationarity.
+
+```{python}
+#| label: fig-acf-detrend
+#| fig-cap: "ACF of detrended log(ILITOTAL), showing persistent seasonal autocorrelation at multiples of lag 52."
+fig, ax = plt.subplots(figsize=(6.5, 3.5))
+plot_acf(log_ILITOTAL_detrend, lags=80, ax=ax)
+plt.tight_layout()
+plt.show()
+```
+
+### Stationarity via Seasonal Differencing
+
+```{python}
+#| label: fig-seasonal-diff
+#| fig-cap: "Seasonally differenced detrended series (top) and its ACF (bottom), indicating approximate stationarity."
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.5))
+axes[0].plot(df['time'].iloc[52:], log_ILITOTAL_detrend.diff(52).dropna())
+axes[0].set_ylabel('Seasonal diff')
+axes[0].set_xlabel('Time')
+plot_acf(log_ILITOTAL_detrend.diff(52).dropna(), lags=80, ax=axes[1])
+axes[1].set_title('ACF after seasonal differencing')
+plt.tight_layout()
+plt.show()
+```
+
+After applying a lag-52 seasonal difference, both the time plot and ACF indicate a weakly stationary series (@fig-seasonal-diff). The sinusoidal pattern is eliminated, and autocorrelations decay toward zero at non-seasonal lags, justifying the application of a SARMA model.
+
+### Model Selection via AIC
+
+```{python}
+def aic_table(data, p_max, q_max, P_max=None, Q_max=None, s=52):
+    if P_max is None: P_max = p_max
+    if Q_max is None: Q_max = q_max
+    table_s = []
+    for P in range(P_max + 1):
+        for Q in range(Q_max + 1):
+            table = np.full((p_max + 1, q_max + 1), np.nan)
+            for p in range(p_max + 1):
+                for q in range(q_max + 1):
+                    try:
+                        res = SARIMAX(
+                            data,
+                            order=(p, 0, q),
+                            seasonal_order=(P, 0, Q, s),
+                            enforce_stationarity=False,
+                            enforce_invertibility=False
+                        ).fit(disp=False)
+                        table[p, q] = res.aic
+                    except Exception:
+                        table[p, q] = np.nan
+            df_table = pd.DataFrame(
+                table,
+                index=[f"AR{p}" for p in range(p_max + 1)],
+                columns=[f"MA{q}" for q in range(q_max + 1)]
+            )
+            table_s.append((P, Q, df_table))
+    return table_s
+
+data = log_ILITOTAL_detrend.diff(52).dropna()
+tables = aic_table(data, 2, 2, P_max=2, Q_max=2)
+```
+
+```{python}
+#| label: tbl-aic
+#| tbl-cap: "AIC values for SARMA(p,q)x(P,Q)_52 with seasonal (P,Q)=(0,1). The minimum AIC corresponds to SARMA(2,1)x(0,1)_52."
+for P, Q, t in tables:
+    if P == 0 and Q == 1:
+        print(f"Seasonal (P,Q)=({P},{Q})")
+        print(t.round(2))
+```
+
+The AIC grid search identifies $\text{SARMA}(2,1)\times(0,1)_{52}$ as the model with the lowest AIC. The key AIC table for seasonal $(P,Q)=(0,1)$ is shown above; full results across all seasonal orders are provided in the Supplementary Material.
+
+### Model Fitting and Diagnostics
+
+```{python}
+sarma_fit = SARIMAX(
+    log_ILITOTAL_detrend.diff(52).dropna(),
+    order=(2, 0, 1),
+    seasonal_order=(0, 0, 1, 52)
+).fit(disp=False)
+```
+
+```{python}
+#| label: fig-diagnostics
+#| fig-cap: "Residual diagnostics for the fitted SARMA(2,1)x(0,1)_52 model: ACF (left) and Q-Q plot (right)."
+fig, axes = plt.subplots(1, 2, figsize=(7, 3.5))
+plot_acf(sarma_fit.resid, lags=80, ax=axes[0])
+axes[0].set_title('Residual ACF')
+sm.qqplot(sarma_fit.resid, line='45', fit=True, ax=axes[1])
+axes[1].set_title('Q-Q Plot')
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+lb = acorr_ljungbox(sarma_fit.resid, lags=[1, 52], return_df=True)
+print(lb.round(4))
+```
+
+The residual ACF shows all autocorrelations after lag 0 within or very close to the 95% confidence bands, indicating no significant remaining serial dependence (@fig-diagnostics). The Ljung-Box test fails to reject the null hypothesis of white noise at both lag 1 and lag 52 ($p > 0.05$), supporting model adequacy. The Q-Q plot shows residuals are approximately Gaussian, with the exception of one prominent outlier at the upper tail, likely corresponding to an anomalous week during the early COVID-19 period not fully captured by the piecewise trend.
+
+## Conclusion
+
+This study analyzed weekly CDC ILINet data from 2010 to 2026 using a two-stage approach: a piecewise quadratic regression to remove the long-term trend and COVID-19-induced structural break, followed by SARMA modeling of the seasonally differenced detrended residuals. The selected $\text{SARMA}(2,1)\times(0,1)_{52}$ model provides an adequate fit, with residuals consistent with white noise as confirmed by the residual ACF and Ljung-Box test. The residuals are approximately Gaussian, with one notable outlier attributable to extreme disruption in ILI reporting during the early COVID-19 period. This suggests that while the piecewise trend effectively captures the broad structural break, a single anomalous observation persists that may warrant further investigation, such as an additional indicator variable for the most acute disruption weeks.
+
+## Acknowledgments
+
+Data were sourced from the CDC FluView ILINet surveillance system [@cdc_ilinet]. Statistical method and the some of the code pattern follow the STATS 531 course notes [@ionides2026notes]. The SARMA modeling framework references Shumway and Stoffer [@shumway2017]. AI tools (Gemini, ChatGPT) were used to assist with code debugging and discussing alternative model specifications. Final model selection, analysis, and interpretation were conducted by the authors.
+
+## References
+
+::: {#refs}
+:::
+
+## Supplementary
+
+The study is also constrained by certain limitations. The existence of week 53 indicates repetitive week counts, which could lead to range misarrangement and mismatched time series coefficients at yearly connections. Furthermore, without causal inference and introducing more confounding factors, the finite explanatory power of treating the COVID pandemic as a dummy variable---even if it matches the observed trend---also restrains the power of the time series model at its assumption of stationarity. In the future, we can look into additional factors that could explain the major dip better and explore a more efficient way of time arrangement than simply removing week 53.
+
+Full AIC tables across all seasonal $(P, Q)$ combinations are provided below for completeness.
+
+```{python}
+for P, Q, t in tables:
+    print(f"\n=== Seasonal (P,Q)=({P},{Q}) ===")
+    print(t.round(2))
+```

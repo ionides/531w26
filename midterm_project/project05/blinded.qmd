@@ -1,0 +1,735 @@
+---
+title: "Time-Series Analysis of Stock Spread Dynamics: ARIMA–GARCH Modeling and Backtesting Evidence"
+bibliography: reference.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+execute:
+    echo: false
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+This project examines whether modeling the relationship between two economically related stocks provides additional insights beyond traditional single-asset time-series analysis. Using The Coca-Cola Company and PepsiCo as an empirical example, we construct a log-price spread and analyze its dynamics within a unified time-series framework. We first fit ARIMA models to capture linear dependence and mean-reverting behavior, and further improve the fit by adopting Student-t innovations to better accommodate heavy-tailed financial data. Diagnostic analysis shows that although the conditional mean is well modeled, the residuals exhibit clear volatility clustering, motivating the use of a GARCH(1,1) specification to capture time-varying conditional variance. Based on the estimated mean and volatility dynamics, we implement a simple spread-based trading strategy and evaluate its performance through backtesting. The results show that combining ARIMA and GARCH models provides a practical framework for translating statistical structure into trading signals and for understanding relative price dynamics in financial time series.
+
+# Introduction and Motivation
+
+Most empirical time-series studies in finance focus on a *single asset*, such as modeling the return or volatility of one stock. However, this approach may overlook information contained in relationships between assets. Economically related stocks often move together, so analyzing their **relative behavior** can provide additional insights into co-movement, diversification, and risk. A common approach is **pairs trading**, which constructs a price spread between two assets and studies its dynamics. Prior work suggests that spread-based methods can reveal meaningful patterns, although these relationships may vary across time and market conditions [@Zhu2024; @Lu2021; @Ti2024].
+
+Motivated by this literature, this project models **two stocks jointly** rather than separately by focusing on the spread between their log prices. Studying the spread shifts attention from absolute price movements to relative valuation dynamics, allowing us to examine whether deviations between related firms exhibit systematic mean and volatility behavior. We select **The Coca-Cola Company** and **PepsiCo** as our research pair. Both firms operate in the global non-alcoholic beverage industry and share similar market exposures, which increases the likelihood of long-run co-movement, while differences in business structure and strategic positioning may generate temporary divergences. In addition, both stocks are large-cap, highly liquid, and have long trading histories, making them suitable for reliable estimation within a unified regression, ARIMA, and GARCH modeling framework.
+
+## Research Questions
+
+Using two selected stocks (Stock A and Stock B), we construct a spread and ask:
+
+1. Does the spread exhibit systematic time-series behavior beyond what we see from single-stock modeling?
+2. Is the relationship between the two stocks stable over time?
+3. Can the mean-reverting dynamics of the spread be effectively translated into a robust algorithmic trading strategy?
+
+# Method
+
+## Cointegration Regression Analysis
+
+To implement a pairs trading strategy, we first establish the long-term equilibrium relationship between the two securities. We assume that the log-prices of Asset A (PEP) and Asset B (KO) are cointegrated. We perform an Ordinary Least Squares (OLS) regression:
+
+$$
+\ln(P_{PEP,t}) = \beta \ln(P_{KO,t}) + \alpha + \varepsilon_t
+$$
+
+Where:
+$\beta$ is the hedge ratio (cointegration coefficient). $\alpha$ is the intercept (constant drift). $\varepsilon_t$ represents the residuals, which we define as the **Spread**.
+
+The regression results indicate a significant relationship between PEP and KO, whose coefficient equals to 1.26 with a p-value of 0.000. The price spread is shown in fig1.
+
+```{python}
+#| echo: false
+#| label: ols
+#| output: false
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+
+a = "PEP"
+b = "KO"
+
+data = yf.download([a, b],start="2015-01-01",end="2023-12-30",auto_adjust=True)
+
+clean_data = data["Close"].dropna()
+
+import numpy as np
+import statsmodels.api as sm
+from statsmodels.tsa.stattools import adfuller
+
+y = np.log(clean_data[a])
+x = np.log(clean_data[b])
+x = sm.add_constant(x)
+
+# OLS
+model = sm.OLS(y,x).fit()
+intercept, beta = model.params
+# print(model.summary())
+```
+
+```{python}
+#| echo: false
+#| label: fig1
+#| fig-cap: "Log-Price Spread (Residuals)(2015-2023)"
+# Calculate Spread of Price
+#| fig-pos: "H"
+clean_data['Spread'] = y - (beta * np.log(clean_data[b]) + intercept)
+# Graph
+clean_data['Spread'].plot(figsize=(10,3))
+plt.axhline(0,color='red',linestyle='--')
+plt.show()
+```
+
+### ACF OF OLS Model
+Following the construction of the static spread via the Ordinary Least Squares (OLS) regression, diagnostic checks of the residuals revealed a slow, gradual decay in the Autocorrelation Function (ACF). This high persistence indicates a large serial correlation, showing that the spread possesses significant historical 'memory' rather than behaving as independent white noise. To account for temporal dependence, we model the spread using ARIMA. This removes autocorrelation and helps estimate the mean-reversion half-life for trading signals.
+
+```{python}
+#| echo: false
+#| label: fig2
+#| fig-cap: "Log-Price Spread (Residuals)(2015-2023)"
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.graphics.tsaplots import plot_acf
+import warnings
+
+warnings.filterwarnings("ignore")
+
+y = np.log(clean_data[a])
+x = np.log(clean_data[b])
+x = sm.add_constant(x)
+
+model = sm.OLS(y,x).fit()
+best_residuals = model.resid
+
+fig, ax2 = plt.subplots(1, 1, figsize=(10, 3))
+
+plot_acf(best_residuals, ax=ax2, lags=20, alpha=0.05, color='royalblue', zero=True)
+
+ax2.set_title("Panel : Residual ACF of OLS", fontsize=12, fontweight='bold')
+ax2.set_xlabel("Lags")
+ax2.set_ylabel("Autocorrelation")
+ax2.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+```
+
+Following the stationarity confirmation from the ADF test, we proceed to determine the appropriate mean specification for the spread. To this end, we estimate a range of ARMA(p, q) models and compare their performance using the Akaike Information Criterion (AIC).
+
+Among the candidate specifications, the AR(1) model yields the lowest AIC value. Introducing higher-order autoregressive or moving-average terms does not lead to further improvement in the information criterion. This suggests that the first-order autoregressive structure sufficiently captures the primary linear dependence in the spread dynamics.
+
+Therefore, we adopt AR(1) as the mean specification for the subsequent analysis.
+
+```{python}
+#| output: false
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+import warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+
+warnings.simplefilter('ignore', ConvergenceWarning)
+warnings.filterwarnings("ignore") 
+
+#print("--- ARMA(p,q) Model Selection (AIC) ---")
+
+aic_df = pd.DataFrame(index=[f"AR({p})" for p in range(4)], 
+                      columns=[f"MA({q})" for q in range(4)])
+
+spread_data = clean_data['Spread'].dropna()
+
+for p in range(4):
+    for q in range(4):
+        try:
+            # 拟合 ARMA(p,q) 模型 (即 ARIMA(p,0,q))
+            model = sm.tsa.ARIMA(spread_data, order=(p, 0, q))
+            results = model.fit()
+            # 填入表格
+            aic_df.loc[f"AR({p})", f"MA({q})"] = results.aic
+        except Exception:
+            # 如果某个参数组合报错或不收敛，填入 NaN
+            aic_df.loc[f"AR({p})", f"MA({q})"] = np.nan
+
+aic_df = aic_df.astype(float).round(2)
+
+
+print(aic_df)
+print("\n")
+
+best_model_name = aic_df.stack().idxmin()
+min_aic = aic_df.stack().min()
+
+print(f"最佳模型是: {best_model_name[0]}-{best_model_name[1]} (AIC = {min_aic})")
+```
+
+
+```{python}
+#| output: false
+print(sm.tsa.ARIMA(spread_data, order=(1, 0, 0)).fit().summary())
+```
+
+The estimation results of the AR(1) model indicate that the autoregressive coefficient is highly significant and close to unity. This suggests strong persistence in the spread dynamics, implying that current deviations are largely influenced by their previous values. Although the coefficient is close to one, it remains below unity, which is consistent with the earlier ADF result indicating stationarity.
+
+The constant term is statistically insignificant and economically small, implying that the spread fluctuates around a stable long-run mean close to zero. This aligns with the theoretical expectation that the relative valuation between the two stocks does not exhibit a systematic drift over time.
+
+Residual diagnostics further indicate that the AR(1) specification adequately captures the linear dependence structure in the spread. However, subsequent diagnostic checks reveal deviations from normality, particularly in the tails of the distribution, which motivates further refinement of the innovation distribution in the next section.
+
+## Model Improvement
+```{python}
+#| output: false
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+from scipy.special import gammaln
+from scipy import stats
+
+y = np.asarray(spread_data, dtype=float)
+y = y[~np.isnan(y)]
+
+# -----------------------------
+# 1) AR(1) + Student-t (MLE)
+# -----------------------------
+def nll_ar1_student(params):
+    c, phi, log_sigma, log_nu_minus2 = params
+    sigma = np.exp(log_sigma)                 # sigma > 0
+    nu = 2.0 + np.exp(log_nu_minus2)          # nu > 2
+
+    e = y[1:] - (c + phi * y[:-1])
+    z = e / sigma
+
+    logC = gammaln((nu + 1) / 2) - gammaln(nu / 2) - 0.5 * np.log(nu * np.pi)
+    ll_z = logC - ((nu + 1) / 2) * np.log1p((z**2) / nu)
+
+    ll = np.sum(ll_z - np.log(sigma))  # scale adjustment
+    return -ll
+
+c0 = float(np.mean(y))
+phi0 = 0.9
+sigma0 = float(np.std(y[1:] - y[:-1]))
+nu0 = 8.0
+
+x0 = np.array([c0, phi0, np.log(sigma0 + 1e-8), np.log(nu0 - 2.0)])
+
+bnds = [(None, None), (-0.999, 0.999), (None, None), (None, None)]
+
+res_t = minimize(nll_ar1_student, x0, method="L-BFGS-B", bounds=bnds)
+
+c_hat, phi_hat, log_sigma_hat, log_nu_minus2_hat = res_t.x
+sigma_hat = np.exp(log_sigma_hat)
+nu_hat = 2.0 + np.exp(log_nu_minus2_hat)
+
+loglik_t = -res_t.fun
+k = 4
+aic_t = 2 * k - 2 * loglik_t
+
+print("=== AR(1) with Student-t errors (MLE) ===")
+print(f"Converged: {res_t.success} | Message: {res_t.message}")
+print(f"c     = {c_hat:.6g}")
+print(f"phi   = {phi_hat:.6g}")
+print(f"sigma = {sigma_hat:.6g}")
+print(f"nu    = {nu_hat:.6g}")
+print(f"LogLik = {loglik_t:.6f}")
+print(f"AIC    = {aic_t:.6f}")
+
+```
+
+```{python}
+#| echo: false
+#| label: fig3
+#| fig-cap: "AIC Grid(Student-t ARMA(p,q)) & QQ Plot:Normal vs Student-t"
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.optimize import minimize
+from scipy.special import gammaln
+from scipy import stats
+
+# -----------------------------
+# 0) Data
+# -----------------------------
+y = np.asarray(spread_data, dtype=float)
+y = y[~np.isnan(y)]
+
+# -----------------------------
+# 1) Student-t ARMA(p,q) MLE
+# -----------------------------
+def arma_t_nll_factory(p, q, y):
+    n = len(y)
+    m = max(p, q)
+
+    def nll(params):
+        idx = 0
+        c = params[idx]; idx += 1
+        phi = params[idx:idx+p] if p > 0 else np.array([])
+        idx += p
+        theta = params[idx:idx+q] if q > 0 else np.array([])
+        idx += q
+        log_sigma = params[idx]; idx += 1
+        log_nu_minus2 = params[idx]; idx += 1
+
+        sigma = np.exp(log_sigma)
+        nu = 2.0 + np.exp(log_nu_minus2)
+
+        e = np.zeros(n)
+        for t in range(m, n):
+            ar_part = 0.0
+            for i in range(1, p + 1):
+                ar_part += phi[i - 1] * y[t - i]
+            ma_part = 0.0
+            for j in range(1, q + 1):
+                ma_part += theta[j - 1] * e[t - j]
+            e[t] = y[t] - (c + ar_part + ma_part)
+
+        e_use = e[m:]
+        z = e_use / sigma
+
+        logC = gammaln((nu + 1) / 2) - gammaln(nu / 2) - 0.5 * np.log(nu * np.pi)
+        ll_z = logC - ((nu + 1) / 2) * np.log1p((z**2) / nu)
+        ll = np.sum(ll_z - np.log(sigma))
+        return -ll
+
+    return nll
+
+def fit_arma_t(y, p, q, bound=0.999):
+    nll = arma_t_nll_factory(p, q, y)
+
+    c0 = float(np.mean(y))
+    phi0 = np.zeros(p)
+    theta0 = np.zeros(q)
+    sigma0 = float(np.std(np.diff(y))) if len(y) > 1 else 1.0
+    nu0 = 8.0
+
+    x0 = np.concatenate([
+        np.array([c0]),
+        phi0,
+        theta0,
+        np.array([np.log(sigma0 + 1e-8), np.log(nu0 - 2.0)])
+    ])
+
+    bnds = [(None, None)] + [(-bound, bound)] * (p + q) + [(None, None), (None, None)]
+    res = minimize(nll, x0, method="L-BFGS-B", bounds=bnds)
+
+    if not res.success:
+        return {"success": False, "aic": np.nan, "loglik": np.nan, "params": None}
+
+    loglik = -res.fun
+    k = 1 + p + q + 2
+    aic = 2 * k - 2 * loglik
+    return {"success": True, "aic": aic, "loglik": loglik, "params": res.x}
+
+# -----------------------------
+# 2) AIC grid + best model
+# -----------------------------
+max_p, max_q = 3, 3
+rows = []
+fits = {}
+
+for p in range(max_p + 1):
+    for q in range(max_q + 1):
+        out = fit_arma_t(y, p, q)
+        rows.append({"p": p, "q": q, "AIC": out["aic"], "Converged": out["success"]})
+        fits[(p, q)] = out
+
+df = pd.DataFrame(rows)
+aic_grid = df.pivot(index="p", columns="q", values="AIC").round(2)
+
+df_ok = df[df["Converged"] & np.isfinite(df["AIC"])]
+best_row = df_ok.loc[df_ok["AIC"].idxmin()]
+best_p, best_q = int(best_row["p"]), int(best_row["q"])
+best_fit = fits[(best_p, best_q)]
+
+# print(f"Best Student-t ARMA(p,q) by AIC: p={best_p}, q={best_q}, AIC={best_row['AIC']:.4f}")
+
+# -----------------------------
+# 3) Residuals from best model for overlay QQ plot
+# -----------------------------
+theta_hat = best_fit["params"]
+c_hat = theta_hat[0]
+phi_hat = theta_hat[1:1+best_p] if best_p > 0 else np.array([])
+theta_ma_hat = theta_hat[1+best_p:1+best_p+best_q] if best_q > 0 else np.array([])
+log_sigma_hat = theta_hat[1+best_p+best_q]
+log_nu_minus2_hat = theta_hat[1+best_p+best_q+1]
+sigma_hat = np.exp(log_sigma_hat)
+nu_hat = 2.0 + np.exp(log_nu_minus2_hat)
+
+n = len(y)
+m = max(best_p, best_q)
+e = np.zeros(n)
+for t in range(m, n):
+    ar_part = 0.0
+    for i in range(1, best_p + 1):
+        ar_part += phi_hat[i - 1] * y[t - i]
+    ma_part = 0.0
+    for j in range(1, best_q + 1):
+        ma_part += theta_ma_hat[j - 1] * e[t - j]
+    e[t] = y[t] - (c_hat + ar_part + ma_part)
+
+z = (e[m:]) / sigma_hat
+
+z_sorted = np.sort(z)
+M = len(z_sorted)
+pvals = (np.arange(1, M + 1) - 0.5) / M
+q_t = stats.t.ppf(pvals, df=nu_hat)
+q_n = stats.norm.ppf(pvals)
+
+# -----------------------------
+# 4) Two-panel display: AIC table + overlay QQ
+# -----------------------------
+fig, (ax0, ax1) = plt.subplots(
+    1, 2, figsize=(14, 5),
+    gridspec_kw={"width_ratios": [1.2, 1]}
+)
+
+# ---------- Left: AIC table (balanced column widths) ----------
+ax0.axis("off")
+ax0.set_title("AIC Grid (Student-t ARMA(p,q))", pad=10)
+
+# Build table with AR labels as the FIRST column (instead of rowLabels)
+table_df = aic_grid.copy()
+table_df.insert(0, "", [f"AR({i})" for i in table_df.index])   # first column = row labels
+col_labels = [""] + [f"MA({j})" for j in aic_grid.columns]     # header row
+
+cell_text = table_df.fillna("").astype(str).values.tolist()
+
+tbl = ax0.table(
+    cellText=cell_text,
+    colLabels=col_labels,
+    cellLoc="center",
+    loc="center",
+    bbox=[0.02, 0.02, 0.96, 0.90]
+)
+
+tbl.auto_set_font_size(False)
+tbl.set_fontsize(10)
+
+# Optional: set uniform column widths (including first label column)
+ncols = len(col_labels)
+for c in range(ncols):
+    for r in range(len(cell_text) + 1):  # +1 includes header row
+        if (r, c) in tbl.get_celld():
+            tbl[(r, c)].set_width(0.96 / ncols)
+
+# Highlight best AIC cell
+best_val = f"{aic_grid.loc[best_p, best_q]:.2f}"
+for (r, c), cell in tbl.get_celld().items():
+    if cell.get_text().get_text() == best_val:
+        cell.set_linewidth(2.5)
+        # cell.set_facecolor("#fff2cc")  # optional
+
+# ---------- Right: QQ overlay ----------
+ax1.scatter(q_t, z_sorted, s=10, label=f"Student-t (df={nu_hat:.2f})")
+ax1.scatter(q_n, z_sorted, s=10, label="Normal")
+
+lo = min(q_t.min(), q_n.min(), z_sorted.min())
+hi = max(q_t.max(), q_n.max(), z_sorted.max())
+ax1.plot([lo, hi], [lo, hi], label="45-degree line")
+
+ax1.set_title("QQ Plot: Normal vs Student-t")
+ax1.set_xlabel("Theoretical Quantiles")
+ax1.set_ylabel("Sample Quantiles")
+ax1.legend()
+
+# Reduce extra whitespace so both panels look equally tall
+plt.subplots_adjust(top=0.88, wspace=0.25)
+plt.show()
+
+```
+
+While the AR(1) model adequately captures the linear dependence in the spread, residual diagnostics reveal significant deviations from normality. In particular, the QQ-plot under the Gaussian assumption indicates heavy-tailed behavior, suggesting that extreme deviations occur more frequently than predicted by a normal distribution.
+
+To address this issue, we retain the same mean structure but relax the Gaussian innovation assumption by allowing the residuals to follow a Student’s t distribution. We re-estimate the model and compare fit using AIC.
+
+The Student’s t specification yields a substantial improvement in fit: the AIC decreases from approximately −14648 under the Gaussian AR(1) model to about −15319 under the Student’s t specification. The estimated degrees of freedom is $\nu \approx 3.08$, indicating pronounced heavy tails. The QQ-plot comparison further confirms that Student’s t aligns more closely with the empirical residual quantiles, particularly in the tails, whereas the Gaussian assumption systematically understates extreme outcomes.
+
+Finally, we recompute the AIC grid across ARMA(p,q) candidates under the Student’s t innovation assumption. The lowest AIC still occurs at (p, q) = (1, 0), indicating that AR(1) remains the preferred mean specification even after relaxing the distributional assumption. Overall, the evidence suggests that the primary improvement comes from modeling heavy-tailed innovations rather than increasing ARMA order.
+
+## Stationarity Testing (ADF Test)
+The success of a spread-based trading framework relies on the mean-reverting property of the residual series $\varepsilon_t$. To verify this property, we conduct the Augmented Dickey–Fuller (ADF) test for unit roots. The null hypothesis states that the spread follows a random walk (non-stationary), while the alternative hypothesis implies stationarity.
+
+The test produces an ADF statistic of −4.0764 with a p-value of 0.0011, which is well below the 5% significance level. We therefore reject the null hypothesis and conclude that the spread is stationary. This justifies modeling the spread directly using an ARMA/ARIMA framework with $𝑑$ = 0.
+```{python}
+#| output: false
+# ADF Test
+clean_data['Spread'] = y - (beta * np.log(clean_data[b]) + intercept)
+result = adfuller(clean_data['Spread'].dropna(), autolag='AIC')
+
+print(f'ADF Statistic: {result[0]:.4f}')
+print(f'p-value: {result[1]:.4e}')
+print("\nResult: The p-value is less than 0.05. We reject the null hypothesis; the spread is stationary.")
+```
+
+## Conditional Heteroskedasticity and GARCH Modeling
+
+```{python}
+from statsmodels.stats.diagnostic import het_arch
+
+arch_test = het_arch(clean_data['Spread'].dropna())
+
+lm_stat = arch_test[0]
+p_value = arch_test[1]
+```
+
+After fitting the ARIMA model, we examine whether the residual variance remains constant over time. Although ARIMA captures linear dependence in the conditional mean, financial spreads often display volatility clustering, where large shocks tend to be followed by large shocks.
+
+To test for conditional heteroskedasticity, we apply the ARCH-LM test. The null hypothesis assumes constant variance (no ARCH effect). The test yields an LM statistic of about 2008.80 with a p-value close to zero, so we strongly reject the null and conclude that volatility clustering is present in the spread series.
+
+### GARCH(1,1) Model Specification
+
+To model time-varying volatility, we fit a standard GARCH(1,1) model:
+$$
+X_t = \mu + \varepsilon_t, \qquad
+\varepsilon_t = \sigma_t z_t,
+$$
+
+where $z_t$ is an i.i.d. innovation with unit variance. The conditional variance follows
+$$
+\sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2.
+$$
+
+Here, $\omega > 0$ controls the long-run variance level, $\alpha$ measures the immediate shock impact (ARCH effect), and $\beta$ captures volatility persistence (GARCH effect). The sum $\alpha + \beta$ determines how quickly volatility shocks decay; values close to one indicate highly persistent volatility, which is common in financial time series.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: garch-fit
+#| fig-cap: "Conditional Volatility of the Spread from GARCH(1,1)"
+
+
+import sys
+from arch import arch_model
+import numpy as np
+import matplotlib.pyplot as plt
+
+spread = clean_data["Spread"].dropna()
+spread_scaled = 100 * spread
+
+garch = arch_model(
+    spread_scaled,
+    mean="Constant",
+    vol="GARCH",
+    p=1, q=1,
+    dist="t"
+)
+
+garch_res = garch.fit(disp="off")
+
+plt.figure(figsize=(8,3))
+plt.plot(garch_res.conditional_volatility)
+plt.title("Conditional Volatility of Spread (GARCH(1,1))")
+plt.xlabel("Time")
+plt.ylabel("Sigma(t)")
+plt.show()
+```
+
+### Estimated Conditional Volatility
+
+The estimated conditional volatility from the fitted GARCH(1,1) model is shown below.
+
+The volatility process exhibits clear clustering, with extended periods of high and low volatility. In particular, volatility spikes are observed during market stress periods (e.g., around 2020), indicating that spread risk increases substantially during turbulent market conditions.
+
+Furthermore, the persistence measure $\alpha + \beta$ is close to one, implying that volatility shocks decay gradually rather than immediately. This confirms that the spread variance is highly persistent and time-varying, justifying the use of a GARCH framework instead of a constant-variance assumption.
+
+```{python}
+#| output: false
+resid_arch = het_arch(garch_res.std_resid)
+
+resid_lm = resid_arch[0]
+resid_p = resid_arch[1]
+print(resid_p)
+```
+
+### Diagnostic Check
+
+As a diagnostic step, we apply the ARCH-LM test to the standardized residuals from the fitted GARCH model.
+
+Applying the ARCH-LM test to the standardized residuals gives a p-value of nearly zero, showing that the heteroskedasticity is fully explained by the GARCH model.
+
+
+Overall, the model substantially improves upon the constant-variance assumption and provides an adequate description of volatility behavior for the purposes of this project.
+
+
+# Backtesting and Strategy Implementation
+
+## Signal Modeling & Beta-Neutrality
+
+We modeled the spread as a discrete Ornstein-Uhlenbeck process via an AR(1) regression. The estimated coefficient $\phi = 0.99 (p < 0.01)$ confirms strict stationarity and yields a half-life of $H = -\ln(2)/\ln(\phi) \approx 68.97$ days. Discarding heuristic lookback periods, we strictly set our rolling window to $w = 69$ days to compute the dynamic signal: $Z_t = \frac{\text{Spread}t - \mu{t,w}}{\sigma_{t,w}}$
+
+## State-Machine Trading Rules
+Based on our residual diagnostics and half-life estimates, we implemented the following bounded rules:
+
+* **Entry:** Go short the spread (short 1 unit PEP, long $\beta$ units KO) when $Z_t > 2.0$. Go long the spread (long 1 unit PEP, short $\beta$ units KO) when $Z_t < -2.0$.
+
+* **Take-Profit:** Close positions when $Z_t$ reverts to $0$.
+
+* **Stop-Loss (Tail & Time):** Liquidate unconditionally if extreme tail risks trigger $|Z_t| \ge 3.5$, or if the holding period exceeds $2H \approx 89$ days, indicating a potential cointegration breakdown.
+
+## Out-of-Sample Performance
+
+Evaluated out-of-sample from 2024 to present, the pairs strategy delivered a robust cumulative return of 36.40%, trailing the S&P 500's 48.40% amid a strong bull market. However, this performance perfectly aligns with its statistical arbitrage mandate. Crucially, the daily return correlation with the broader market is remarkably low at $inline$\rho = 0.069$inline$. This near-zero correlation validates our $inline$\beta$inline$-weighted allocation, proving the strategy successfully decoupled from systematic market risk to generate pure, uncorrelated Alpha.
+
+```{python}
+#| label: fig-backtest-performance
+#| fig-cap: "Out-of-Sample Strategy Diagnostics (2024-Present). "
+#| fig-width: 12
+#| fig-height: 8
+#| echo: false
+#| warning: false
+
+import warnings
+
+warnings.filterwarnings('ignore')
+
+data = yf.download(['PEP', 'KO', 'SPY'], start='2023-01-01', end='2026-12-31', progress=False)
+
+df = pd.DataFrame(index=data.index)
+df['PEP'] = data['Close']['PEP']
+df['KO']  = data['Close']['KO']
+df['SPY'] = data['Close']['SPY']
+df = df.dropna()
+
+df['PEP_log'] = np.log(df['PEP'])
+df['KO_log']  = np.log(df['KO'])
+
+window_ols = 252 
+
+rolling_cov = df['PEP_log'].rolling(window=window_ols).cov(df['KO_log'])
+rolling_var = df['KO_log'].rolling(window=window_ols).var()
+df['Rolling_Beta'] = (rolling_cov / rolling_var).shift(1)
+
+rolling_mean_pep = df['PEP_log'].rolling(window=window_ols).mean().shift(1)
+rolling_mean_ko  = df['KO_log'].rolling(window=window_ols).mean().shift(1)
+df['Rolling_Alpha'] = rolling_mean_pep - df['Rolling_Beta'] * rolling_mean_ko
+
+df['Spread'] = df['PEP_log'] - (df['Rolling_Beta'] * df['KO_log'] + df['Rolling_Alpha'])
+
+phi = 0.99
+half_life = int(-np.log(2) / np.log(phi))
+df['Spread_Mean'] = df['Spread'].rolling(window=half_life).mean()
+df['Spread_Std']  = df['Spread'].rolling(window=half_life).std()
+df['Z-Score'] = ((df['Spread'] - df['Spread_Mean']) / df['Spread_Std']).fillna(0)
+
+oos_df = df.loc['2024-01-01':].copy()
+
+z_scores = oos_df['Z-Score'].values
+positions = np.zeros(len(oos_df))
+current_pos = 0
+days_held = 0 
+
+for i in range(len(oos_df)):
+    z = z_scores[i]
+    
+    if current_pos != 0:
+        days_held += 1
+    else:
+        days_held = 0
+        
+    if current_pos == 1:
+        if z >= 0.0 or z <= -3.5 or days_held > half_life:
+            current_pos = 0
+    elif current_pos == -1:
+        if z <= 0.0 or z >= 3.5 or days_held > half_life:
+            current_pos = 0
+
+    if current_pos == 0:
+        if -3.0 <= z <= -2.0:
+            current_pos = 1
+            days_held = 1
+        elif 2.0 <= z <= 3.0:
+            current_pos = -1
+            days_held = 1
+            
+    positions[i] = current_pos
+
+oos_df['Position'] = positions
+
+oos_df['Spread_Diff'] = oos_df['Spread'].diff()
+oos_df['Strategy_Log_Ret'] = oos_df['Position'].shift(1) * oos_df['Spread_Diff']
+oos_df['Strategy_Cum_Ret'] = oos_df['Strategy_Log_Ret'].cumsum().fillna(0)
+
+oos_df['SPY_Log_Ret'] = np.log(oos_df['SPY'] / oos_df['SPY'].shift(1))
+oos_df['SPY_Cum_Ret'] = oos_df['SPY_Log_Ret'].cumsum().fillna(0)
+
+oos_df['Strategy_Pct'] = (np.exp(oos_df['Strategy_Cum_Ret']) - 1) * 100
+oos_df['SPY_Pct']      = (np.exp(oos_df['SPY_Cum_Ret']) - 1) * 100
+
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(14, 12), gridspec_kw={'height_ratios': [1.5, 2, 1]}, sharex=True)
+
+ax1.plot(oos_df.index, oos_df['Z-Score'], color='royalblue', label=f'Dynamic Z-Score ({half_life}-day)')
+ax1.axhline(0, color='black', linestyle='-', alpha=0.6)
+ax1.axhline(2, color='red', linestyle='--', alpha=0.8, label='+2 (Short Spread)')
+ax1.axhline(-2, color='green', linestyle='--', alpha=0.8, label='-2 (Long Spread)')
+ax1.axhline(3.5, color='darkred', linestyle=':', alpha=0.9, label='+3.5 (Stop Loss)')
+ax1.axhline(-3.5, color='darkgreen', linestyle=':', alpha=0.9, label='-3.5 (Stop Loss)')
+ax1.fill_between(oos_df.index, oos_df['Z-Score'], 2, where=(oos_df['Z-Score'] >= 2), color='red', alpha=0.2)
+ax1.fill_between(oos_df.index, oos_df['Z-Score'], -2, where=(oos_df['Z-Score'] <= -2), color='green', alpha=0.2)
+ax1.set_title("Panel A: Dynamic Z-Score Trading Signals", fontsize=12, fontweight='bold')
+ax1.set_ylabel("Z-Score")
+ax1.legend(loc='upper right', ncol=2)
+ax1.grid(True, alpha=0.3)
+
+ax2.plot(oos_df.index, oos_df['Strategy_Pct'], color='purple', linewidth=2.5, label='Pairs Trading Strategy (Market Neutral)')
+ax2.plot(oos_df.index, oos_df['SPY_Pct'], color='gray', linestyle='--', linewidth=2, label='S&P 500 Benchmark (SPY)')
+ax2.set_title("Panel B: Cumulative Return (%) - Strategy vs Benchmark (2024-2026)", fontsize=12, fontweight='bold')
+ax2.set_ylabel("Cumulative Return (%)")
+ax2.legend(loc='upper left')
+ax2.grid(True, alpha=0.3)
+
+ax3.plot(oos_df.index, oos_df['Position'], color='darkorange', drawstyle='steps-post', linewidth=2, label='Market Position')
+ax3.set_title("Panel C: Market Position", fontsize=12, fontweight='bold')
+ax3.set_yticks([-1, 0, 1])
+ax3.set_yticklabels(['Short Spread (-1)', 'Flat (0)', 'Long Spread (1)'])
+ax3.set_xlabel("Date")
+ax3.legend(loc='upper right')
+ax3.grid(True, alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+final_strategy_ret = float(oos_df['Strategy_Pct'].iloc[-1])
+final_spy_ret      = float(oos_df['SPY_Pct'].iloc[-1])
+
+active_days = oos_df[oos_df['Position'] != 0]
+if len(active_days) > 1:
+    correlation = active_days['Strategy_Log_Ret'].corr(active_days['SPY_Log_Ret'])
+else:
+    correlation = 0.0
+```
+
+# Conclusion
+
+This project examines the dynamics of a stock spread to evaluate whether a two-asset framework provides richer insights than traditional single-stock modeling. Using Coca-Cola and PepsiCo as a representative pair, we analyze the spread through a sequential ARIMA–GARCH approach, allowing us to study both the conditional mean and conditional volatility.
+
+The ARIMA model captures the linear dependence and mean-reverting behavior of the spread, suggesting that relative price movements contain structured time-series information. However, residual diagnostics reveal significant conditional heteroskedasticity, indicating that volatility changes over time. Incorporating a GARCH(1,1) model addresses this issue by capturing volatility clustering and persistence, producing a more realistic description of the spread dynamics.
+
+Importantly, the analysis is not purely statistical. Based on the estimated mean-reversion and volatility structure, we construct a simple trading strategy and evaluate it through backtesting. The backtest demonstrates the practical value of modeling spread dynamics: statistical signals derived from ARIMA and GARCH models can be translated into economically meaningful trading rules. While the strategy remains simplified, the results highlight how time-series modeling can bridge empirical analysis and real-world decision-making. Future work may extend this framework by considering adaptive spread construction, structural breaks, or more advanced risk-adjusted trading rules.
+
+# Acknowledgements
+
+We acknowledge the use of AI-assisted tools for language polishing and debugging support in this project. The authors take full responsibility for the model design, empirical analysis, and interpretation of results.
+
+# References

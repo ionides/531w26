@@ -1,0 +1,937 @@
+---
+title: "STATS 531 Midterm Project\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    fig-pos: 'H'
+    geometry: margin=0.75in
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+
+We investigate the association between meteorological variables such as temperature, relative humidity, air pressure and wind speed in relation to fine and coarse PM in an industrial region in South Korea. We fit a linear regression model with ARMA(3,1) errors to account for temporal autocorrelation in the residuals. We further compare it to the regression model with SARIMA(3,1)(1,0,0,7) to explicitly account for weekly trends, performing a nested hypothesis test to select the better model. We conclude our model with ARMA(3,1) errors as our final model after failing to reject the null and interpret its result. Most notable of our findings is a positive association between temperature, and relative humidity, and a negative association between wind speed and fine PM with these associations growing weaker for coarse PM. We also note that relative humidity flips and shows a negative association for coarse PM. 
+
+# Introduction
+
+Particulate matter (PM) is a critical indicator of air pollution, harmful to the human body (@fuzzi15). It is not a single pollutant, but rather a complex mixture, ranging from extremely small particles and liquid droplets containing acids, organic chemicals, and metals, to soil and dust particles (@yoon22). Typically categorized into $PM_{10}$ (coarse PM), which consist of particles with diameters less than 10 $\mu m$ and $PM_{2.5}$ (fine PM), which consist of particles 2.5 $\mu m$ or less (@yoon22), these particles harm the human body upon inhalation, causing diseases such as stroke and lung cancer (@yoon22, @zhou18) with prolonged exposure even at low concentrations leading to reduced life expectancy (@pope06, @fuzzi15). Given these public health implications, studying and understanding the behavior of $\text{PM}_{2.5}$ and $\text{PM}_{10}$ is a pivotal step toward effective air quality management and public health protection. 
+
+We are interested in investigating whether there is a significant association between various meteorological variables and the concentration of $\text{PM}_{2.5}$ and $\text{PM}_{10}$. Our initial suspicion is that there may be a positive association for temperature, relative humidity, and air pressure, and a negative association for wind speed. We further hypothesize that the associations may be weaker for coarse PM as fine PM tends to remain suspended in the air longer and travel farther (@yoon22). We base our initial hypothesis on scientific literature and intuition, further explored in the Supplementary (@sec-supp).
+
+We analyze a dataset from the Asian Initiative for Clean Air Networks (AICAN), which maintains multiple air quality stations across South Korea (@korea_data_pm). In particular, we focus on the Sihwa Industrial Complex station, located near the coast in Gyeonggi Province. This station is at an industrially active region where both anthropogenic emissions and meteorological conditions are expected to significantly influence particulate matter concentrations. The dataset provides hourly measurements of $\text{PM}_{10} (\mu g/m^3)$ and $\text{PM}_{2.5} (\mu g/m^3)$, as well as meteorological variables such as $\text{Temperature} \ (^\circ C)$, $\text{Relative Humidity} \ (\%)$, $\text{Air Pressure} \ (\text{hPa})$, and $\text{Wind Speed} \ (m/s)$, spanning December 12th, 2019, to April 1st, 2024. The preprocessing steps are detailed in the Supplementary (@sec-supp).
+
+
+# Methods
+
+## Exploratory Data Analysis
+
+```{python}
+#| label: fig-temp-pm-comparison
+#| fig-cap: "Comparison of Temperature's effect on Fine PM and Coarse PM for January 2022."
+#| echo: false
+#| warning: false
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# 1. Load and prepare the data
+df = pd.read_csv("industrial_daily_average_2021_onward_interpolated.csv")
+df["Date_Only"] = pd.to_datetime(df["Date_Only"])
+
+# 2. Filter for January 2022
+target_year = 2022
+target_month = 1
+df_zoomed = df[(df["Date_Only"].dt.year == target_year) & 
+               (df["Date_Only"].dt.month == target_month)]
+
+
+fig, (ax1, ax3) = plt.subplots(1, 2, figsize=(12, 4))
+
+ax1.plot(df_zoomed["Date_Only"], df_zoomed["Temperature(℃)"], 'k-', linewidth=1.5)
+ax1.set_xlabel("Date")
+ax1.set_ylabel("Temperature (℃)", color='k', fontweight='bold')
+ax1.tick_params(axis='y', labelcolor='k')
+ax1.set_title("Temperature vs Log Fine PM", fontsize=11, pad=10)
+
+# Secondary axis for Log Fine PM
+ax2 = ax1.twinx()
+ax2.plot(df_zoomed["Date_Only"], df_zoomed["Log_PM2.5"], 'r-', linewidth=1.5)
+ax2.set_ylabel("Log Fine PM (PM2.5)", color='r', fontweight='bold')
+ax2.tick_params(axis='y', labelcolor='r')
+
+ax3.plot(df_zoomed["Date_Only"], df_zoomed["Temperature(℃)"], 'k-', linewidth=1.5)
+ax3.set_xlabel("Date")
+ax3.set_ylabel("Temperature (℃)", color='k', fontweight='bold')
+ax3.tick_params(axis='y', labelcolor='k')
+ax3.set_title("Temperature vs Log Coarse PM", fontsize=11, pad=10)
+
+# Secondary axis for Log Coarse PM 
+ax4 = ax3.twinx()
+ax4.plot(df_zoomed["Date_Only"], df_zoomed["Log_PM10_minus_PM2.5"], 'b-', linewidth=1.5)
+ax4.set_ylabel("Log Coarse PM", color='b', fontweight='bold')
+ax4.tick_params(axis='y', labelcolor='b')
+
+# 4. Formatting and layout
+fig.autofmt_xdate(rotation=45) 
+plt.tight_layout()
+
+# Display the plot
+plt.show()
+```
+
+We first examined the relationship between temperature and wind speed in relation to PM by zooming in on a particular month, visualizing their daily fluctuations. @fig-temp-pm-comparison and @fig-wind-pm-comparison are for the window of January in 2022 and they show a fairly intuitive pattern that seems to suggest some signficant associations. 
+
+```{python}
+#| label: fig-wind-pm-comparison
+#| fig-cap: "Comparison of Wind Speed's effect on Fine PM  and Coarse PM for January 2022."
+#| echo: false
+#| warning: false
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+# 1. Load and prepare the data
+df = pd.read_csv("industrial_daily_average_2021_onward_interpolated.csv")
+df["Date_Only"] = pd.to_datetime(df["Date_Only"])
+
+# 2. Filter for January 2022
+target_year = 2022
+target_month = 1
+df_zoomed = df[(df["Date_Only"].dt.year == target_year) & 
+               (df["Date_Only"].dt.month == target_month)]
+
+# 3. Create a side-by-side subplot (1 row, 2 columns)
+fig, (ax1, ax3) = plt.subplots(1, 2, figsize=(12, 4))
+
+
+ax1.plot(df_zoomed["Date_Only"], df_zoomed["Wind_Speed(m/s)"], 'k-', linewidth=1.5)
+ax1.set_xlabel("Date")
+ax1.set_ylabel("Wind Speed (m/s)", color='k', fontweight='bold')
+ax1.tick_params(axis='y', labelcolor='k')
+ax1.set_title("Wind Speed vs Log Fine PM", fontsize=11, pad=10)
+
+# Secondary axis for Log Fine PM
+ax2 = ax1.twinx()
+ax2.plot(df_zoomed["Date_Only"], df_zoomed["Log_PM2.5"], 'r-', linewidth=1.5)
+ax2.set_ylabel("Log Fine PM", color='r', fontweight='bold')
+ax2.tick_params(axis='y', labelcolor='r')
+
+ax3.plot(df_zoomed["Date_Only"], df_zoomed["Wind_Speed(m/s)"], 'k-', linewidth=1.5)
+ax3.set_xlabel("Date")
+ax3.set_ylabel("Wind Speed (m/s)", color='k', fontweight='bold')
+ax3.tick_params(axis='y', labelcolor='k')
+ax3.set_title("Wind Speed vs Log Coarse PM", fontsize=11, pad=10)
+
+# Secondary axis for Log Coarse PM
+ax4 = ax3.twinx()
+ax4.plot(df_zoomed["Date_Only"], df_zoomed["Log_PM10_minus_PM2.5"], 'b-', linewidth=1.5)
+ax4.set_ylabel("Log Coarse PM", color='b', fontweight='bold')
+ax4.tick_params(axis='y', labelcolor='b')
+
+fig.autofmt_xdate(rotation=45)
+plt.tight_layout()
+
+# Display the plot
+plt.show()
+```
+
+We also checked the correlation across different lags based on the method provided in class (@notes531). 
+
+First-differencing was applied prior to CCF analysis to account for autocorrelation that may be caused by shared seasonal trends(@rizzo02). These would inflate cross-correlations across all lags, obscuring genuine lag-specific relationships. The differening was applied specifically for this CCF analysis.
+
+```{python}
+#| label: fig-ccf-wind
+#| fig-cap: "Cross-Correlation Functions for Fine and Coarse PM against Wind Speed."
+#| echo: false
+#| warning: false
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import ccf
+
+df = pd.read_csv('industrial_daily_average_2021_onward_interpolated.csv')
+df['Date_Only'] = pd.to_datetime(df['Date_Only'])
+df.set_index('Date_Only', inplace=True)
+
+pm_fine = 'Log_PM2.5'
+pm_coarse = 'Log_PM10_minus_PM2.5'
+meteo_vars = ['Wind_Speed(m/s)']
+
+# Create differenced dataframe for stationarity
+df_diff = df[[pm_fine, pm_coarse] + meteo_vars].diff().dropna()
+
+def plot_comparative_ccf_full(df_diff, meteo_var, pm_fine, pm_coarse, max_lags=14):
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3), sharey=True)
+    conf_level = 1.96 / np.sqrt(len(df_diff))
+    
+    for i, pm_var in enumerate([pm_fine, pm_coarse]):
+        # Positive Lags
+        pos_ccf = ccf(df_diff[pm_var], df_diff[meteo_var], adjusted=False)[:max_lags+1]
+        
+        # Negative Lags
+        neg_ccf = ccf(df_diff[meteo_var], df_diff[pm_var], adjusted=False)[:max_lags+1]
+        neg_ccf = neg_ccf[1:][::-1] 
+        
+        full_ccf = np.concatenate([neg_ccf, pos_ccf])
+        lags = np.arange(-max_lags, max_lags + 1)
+        
+        ax = axes[i]
+        ax.vlines(lags, [0], full_ccf, color='blue', alpha=0.7)
+        ax.axhline(0, color='black', linewidth=1)
+        ax.axhline(conf_level, color='red', linestyle='--', alpha=0.5)
+        ax.axhline(-conf_level, color='red', linestyle='--', alpha=0.5)
+        ax.plot(lags, full_ccf, 'ro', markersize=4)
+        ax.axvline(0, color='gray', linestyle=':', alpha=0.5)
+        
+        title_pm = "Fine PM" if pm_var == pm_fine else "Coarse PM"
+        ax.set_title(f'CCF: {title_pm} & {meteo_var}')
+        ax.set_xlabel('Lag (days)')
+        if i == 0:
+            ax.set_ylabel('Cross-Correlation')
+
+    plt.tight_layout()
+    plt.show()
+
+for meteo in meteo_vars:
+    plot_comparative_ccf_full(df_diff, meteo, pm_fine, pm_coarse, max_lags=14)
+```
+
+@fig-ccf-wind reveals that cross correlation across various lags are stronger for fine PM than coarse PM. These results are encouraging because this is in line with our intuition, where fine PM is more sensitive to wind speed since it is lighter and stays in the air longer(@yoon22).
+
+Other variables show similar results and are included in @sec-supp, although we do note that the pattern is not as clear for air pressure, noting strong cross correlation for coarse PM as well. However, the overall pattern is consistent across the other variables.
+
+These preliminary studies do look promising, however, and we were encouraged to further investigate these associations.
+
+## Linear Regression
+```{python}
+#| include: false
+import pandas as pd
+
+df = pd.read_csv('industrial_daily_average_2021_onward_interpolated.csv')
+df_scaled = df.copy()
+
+met_cols = ["Temperature(℃)", "Relative_Humidity(%)", 
+            "Air_Pressure(hpa)", "Wind_Speed(m/s)"]
+
+for col in met_cols:
+    df_scaled[col] = (df[col] - df[col].mean()) / df[col].std()
+```
+
+We initialize our experiment by fitting standard linear regression models to both fine and coarse PM by taking the meteorological variables as covariates. The model specification is straightforward and detailed in (@sec-supp).
+
+
+```{python}
+#| include: false
+import statsmodels.api as sm
+import numpy as np
+
+cols = [
+    "Log_PM2.5",
+    "Log_PM10_minus_PM2.5",
+    "Temperature(℃)",
+    "Relative_Humidity(%)",
+    "Air_Pressure(hpa)",
+    "Wind_Speed(m/s)"
+]
+df_reg = df_scaled[cols].dropna()
+
+X = df_reg[["Temperature(℃)", "Relative_Humidity(%)", "Air_Pressure(hpa)", "Wind_Speed(m/s)"]]
+X = sm.add_constant(X)
+
+# Log_PM2.5 regression
+model_fine = sm.OLS(df_reg["Log_PM2.5"], X).fit()
+print("===== Log_PM2.5 (Fine PM) =====")
+print(model_fine.summary())
+
+# Log_PM10_minus_PM2.5 regression
+model_coarse = sm.OLS(df_reg["Log_PM10_minus_PM2.5"], X).fit()
+print("\n===== Log_PM10_minus_PM2.5 (Coarse PM) =====")
+print(model_coarse.summary())
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-acf-ols
+#| fig-cap: "ACF of OLS residuals for fine and coarse PM"
+
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+resid_fine = model_fine.resid
+resid_coarse = model_coarse.resid
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 2))
+
+plot_acf(resid_fine, lags=30, ax=axes[0])
+axes[0].set_title("log(PM2.5) residual ACF")
+
+plot_acf(resid_coarse, lags=30, ax=axes[1])
+axes[1].set_title("log(PM10-PM2.5) residual ACF")
+
+plt.tight_layout()
+plt.show()
+```
+
+Residual diagnostics revealed significant autocorrelation in the OLS residuals for both models, as shown in @fig-resid-ts-ols. This seems to indicate that the residual process exhibits temporal dependence that is not fully accounted for by the regression model. We conclude that our model assumptions are violated and the OLS estimates are unreliable even though the p-values appear significant. 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-resid-ts-ols
+#| fig-cap: "OLS residual time series for fine and coarse PM"
+
+import matplotlib.pyplot as plt
+
+resid_fine = model_fine.resid
+resid_coarse = model_coarse.resid
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 2))
+
+axes[0].plot(resid_fine, color="tab:blue")
+axes[0].axhline(0, color="gray", linestyle="--")
+axes[0].set_title("log(PM2.5) residuals")
+axes[0].set_xlabel("Time")
+axes[0].set_ylabel("Residual")
+
+axes[1].plot(resid_coarse, color="tab:orange")
+axes[1].axhline(0, color="gray", linestyle="--")
+axes[1].set_title("log(PM10-PM2.5) residuals")
+axes[1].set_xlabel("Time")
+axes[1].set_ylabel("Residual")
+
+plt.tight_layout()
+plt.show()
+```
+
+
+## Linear Regression with ARMA errors
+
+We now fit the model by specifying the error term as an ARMA process(via SARIMAX with exogeneous regressors)(@notes531). We hope to see an improvement in residuals by doing so, capturing the temporal dependence. 
+
+```{python}
+#| include: False
+# Final grid search for best SARIMAX (ARMA) order (p, q) for each response (p, q = 0~5), with error reporting
+# Final grid search for best SARIMAX (ARMA) order (p, q) for each response (p, q = 0~5), with error reporting
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# Define grid (p, q = 0~5)
+p_range = range(0, 4)  # AR order: 0, 1, 2, 3
+q_range = range(0, 4)  # MA order: 0, 1, 2, 3
+
+def sarimax_grid_search_verbose(y, exog, p_range, q_range):
+    results = []
+    for p in p_range:
+        for q in q_range:
+            try:
+                model = SARIMAX(y, exog=exog, order=(p,0,q), trend='n').fit(disp=False, maxiter=500)
+                converged = model.mle_retvals.get('converged', False)
+                results.append({'p': p, 'q': q, 'aic': model.aic, 'bic': model.bic, 'converged': converged, 'error': None})
+            except Exception as e:
+                results.append({'p': p, 'q': q, 'aic': np.nan, 'bic': np.nan, 'converged': False, 'error': str(e)})
+    return pd.DataFrame(results)
+
+# Log_PM2.5
+print('Grid search for Log_PM2.5 (p, q = 0~5):')
+gs_fine = sarimax_grid_search_verbose(df_reg["Log_PM2.5"], X, p_range, q_range)
+print(gs_fine.pivot(index='p', columns='q', values='aic'))
+print('\nConvergence table (Log_PM2.5):')
+print(gs_fine[['p', 'q', 'converged', 'error']])
+converged_fine = gs_fine[gs_fine['converged']]
+if not converged_fine.empty:
+    best_fine = converged_fine.loc[converged_fine['aic'].idxmin(), ['p','q']].to_dict()
+    print('\nBest (p,q) by AIC (converged only):', best_fine)
+else:
+    print('No converged models for Log_PM2.5')
+
+# Log_PM10_minus_PM2.5
+print('\nGrid search for Log_PM10_minus_PM2.5 (p, q = 0~5):')
+gs_coarse = sarimax_grid_search_verbose(df_reg["Log_PM10_minus_PM2.5"], X, p_range, q_range)
+print(gs_coarse.pivot(index='p', columns='q', values='aic'))
+print('\nConvergence table (Log_PM10_minus_PM2.5):')
+print(gs_coarse[['p', 'q', 'converged', 'error']])
+converged_coarse = gs_coarse[gs_coarse['converged']]
+if not converged_coarse.empty:
+    best_coarse = converged_coarse.loc[converged_coarse['aic'].idxmin(), ['p','q']].to_dict()
+    print('\nBest (p,q) by AIC (converged only):', best_coarse)
+else:
+    print('No converged models for Log_PM10_minus_PM2.5')
+```
+
+To select ARMA orders, we conducted an AIC-based grid search over $(p,q)\in\{0,1,2,3\}\times\{0,1,2,3\}$ (@notes531). We restricted the search to small orders to avoid unnecessary complexity and overfitting.
+@tbl-aic-grid-fine and @tbl-aic-grid-coarse summarize AIC values among converged fits and have been appended to the Supplementary section. We note that $(p,q)=(3,1)$ seems a reasonable choice with low AIC. 
+
+We proceed with an ARMA(3,1) error structure for both the fine and coarse PM regression models.
+
+```{python}
+#| include: false
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+model_fine_3_1 = SARIMAX(
+    df_reg["Log_PM2.5"],
+    exog=X,
+    order=(3, 0, 1),
+    trend="n"
+).fit(disp=False, maxiter=500)
+
+model_coarse_3_1 = SARIMAX(
+    df_reg["Log_PM10_minus_PM2.5"],
+    exog=X,
+    order=(3, 0, 1),
+    trend='n'
+).fit(disp=False, maxiter=500)
+```
+
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-resid-ts-sarimax
+#| fig-cap: "Residual time series from SARIMAX models (Fine: ARMA(3,1), Coarse: ARMA(3,1))"
+
+import matplotlib.pyplot as plt
+
+resid_fine_3_1 = model_fine_3_1.resid
+resid_coarse_3_1 = model_coarse_3_1.resid
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 2))
+
+axes[0].plot(resid_fine_3_1, color="tab:blue")
+axes[0].axhline(0, color="gray", linestyle="--")
+axes[0].set_title("log(PM2.5) + ARMA(3,1) residuals")
+axes[0].set_xlabel("Time")
+axes[0].set_ylabel("Residual")
+
+axes[1].plot(resid_coarse_3_1, color="tab:orange")
+axes[1].axhline(0, color="gray", linestyle="--")
+axes[1].set_title("log(PM10-PM2.5) + ARMA(3,1) residuals")
+axes[1].set_xlabel("Time")
+axes[1].set_ylabel("Residual")
+
+plt.tight_layout()
+plt.show()
+```
+
+An examination of the residual time series shows that, for both models, the residuals fluctuate around zero with no clear trend or persistent pattern. The dispersion also appears broadly stable over time. 
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-acf-sarimax
+#| fig-cap: "ACF of SARIMAX residuals (Fine: ARMA(3,1), Coarse: ARMA(3,1))"
+
+from statsmodels.graphics.tsaplots import plot_acf
+import matplotlib.pyplot as plt
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 2))
+
+plot_acf(model_fine_3_1.resid, lags=30, ax=axes[0])
+axes[0].set_title("log(PM2.5) + ARMA(3,1) residual ACF")
+
+plot_acf(model_coarse_3_1.resid, lags=30, ax=axes[1])
+axes[1].set_title("log(PM10-PM2.5) + ARMA(3,1) residual ACF")
+
+plt.tight_layout()
+plt.show()
+```
+
+The residual ACF plot shows no statistically significant autocorrelation as well backing our visual inspection of @fig-resid-ts-sarimax. We surmise that the ARMA(3,1) was effectively enough to absorb the remaining temporal dependence, yielding residuals as white noise. 
+
+We acknowledge that the ARMA(3,1) model may not be perfectly stable, however. It has a AR root near the unit circle boundary, too close for comfort. Assessing the roots for all combinations of ARMA orders that had decent AIC, we found that models seemed to share the same issue across the board. This suggests that an ARIMA model might be needed to difference the data. However, this is where we make our compromise. By using an ARIMA model, that would make interpreting our linear regression estimates difficult and much less intuitive to study the association between variables. 
+
+The roots are as follows:
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+print("AR roots:", np.abs(model_fine_3_1.arroots))
+print("MA roots:", np.abs(model_fine_3_1.maroots))
+print("AR roots:", np.abs(model_coarse_3_1.arroots))
+print("MA roots:", np.abs(model_coarse_3_1.maroots))
+```
+
+Acknowledging this concern, we check the estimates given by our linear regression ARMA error models. 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: tbl-both
+#| tbl-cap: "SARIMAX(3,1) results for log(PM2.5) (left) and log(PM10-PM2.5) (right)"
+
+import pandas as pd
+from IPython.display import Markdown
+
+def stars(p):
+    return "***" if p < 0.01 else ("**" if p < 0.05 else ("*" if p < 0.1 else ""))
+
+keep = [
+    "const", "Temperature(℃)", "Relative_Humidity(%)", 
+    "Air_Pressure(hpa)", "Wind_Speed(m/s)",
+    "ar.L1", "ar.L2", "ar.L3", "ma.L1", "sigma2"
+]
+
+name_map = {
+    "const": "Intercept",
+    "Temperature(℃)": "Temperature",
+    "Relative_Humidity(%)": "Rel. Humidity",
+    "Air_Pressure(hpa)": "Air Pressure",
+    "Wind_Speed(m/s)": "Wind Speed",
+    "ar.L1": "AR(1)", "ar.L2": "AR(2)", "ar.L3": "AR(3)",
+    "ma.L1": "MA(1)", "sigma2": "Sigma^2",
+}
+
+def make_table(model):
+    rows = []
+    for k in keep:
+        if k in model.params.index:
+            rows.append({
+                "Parameter": name_map.get(k, k),
+                "Est.": f"{model.params[k]:.3f}{stars(model.pvalues[k])}",
+                "SE": f"{model.bse[k]:.3f}",
+                "p": f"{model.pvalues[k]:.2g}",
+            })
+    df = pd.DataFrame(rows)
+    df.loc[len(df)] = {"Parameter": "N", "Est.": f"{int(model.nobs)}", "SE": "", "p": ""}
+    df.loc[len(df)] = {"Parameter": "AIC", "Est.": f"{model.aic:.1f}", "SE": "", "p": ""}
+    df.loc[len(df)] = {"Parameter": "BIC", "Est.": f"{model.bic:.1f}", "SE": "", "p": ""}
+    return df
+
+tbl_fine = make_table(model_fine_3_1)
+tbl_coarse = make_table(model_coarse_3_1)
+
+# Merge side by side
+tbl_combined = tbl_fine.merge(tbl_coarse, on="Parameter", suffixes=(" (Fine)", " (Coarse)"))
+Markdown(tbl_combined.to_markdown(index=False))
+```
+
+Looking at results in @tbl-both, we see some interesting results. We see that for temperature, results align with our initial hypothesis, with a coefficient of 0.4728 and a significant p-value less than 0.05. Recall predictors are standardized as stated in the preprocessing section of (@sec-supp), so one SD corresponds to one unit increase in the standardized scale. A one standard deviation increase in temperature is associated with a $(e^{0.473} -1) \times 100\% \approx 60\%$ increase in raw fine PM, holding other variables fixed. Relative humidity displays significant positive association as well with fine PM, where a one standard deviation increase is associated with approximately a 26% increase in fine PM. Air pressure displays the weakest signal, with a one standard deviation increase related to about 7% increase in fine PM. Wind speed shows a negative association with a one standard deviation increase associated with approximately a 10% decrease. We find that all results seem to align well with our initial assumptions. The AR(1), AR(2), AR(3), and MA(1) terms are significant as well, indicating a reasonable temporal dependence structure in fine PM. 
+
+For coarse PM, we also find a positive and significant association with temperature where a one standard deviation increase is associated with a 25% increase in coarse PM. To our surprise, we find that relative humidity has flipped signs with a one sd increase associated with approximately a 17% decrease. Evidence suggests that coarse particles are already relatively heavy and when the relative humidity is high, water vapor condenses on these larger particles, dragging them down to the ground (@csavina14). Air pressure does not seem significant at the 5% level, which is reasonable since heavier particles would be less sensitive to pressure changes. Wind speed is still significant, although with only a 4% decrease associated with a one sd increase. The AR and MA components remain highly significant, suggesting that substantial serial dependence is present in the coarse particulate matter series as well.
+
+We find that it is also true that the signals are generally weaker for coarse PM, which is consistent with our initial hypothesis that fine PM would be more responsive to meteorological conditions due to its smaller size and a longer airborn period. 
+
+It is strange, however, that our linear regression model with ARMA errors does so well. We initially suspected some seasonal or yearly trends and was expecting we would have to explicitly account for them in our model since it does not explicitly decompose seasonal or weekly components. However, the ARMA(3,1) error structure seems to have done a good job in absorbing the temporal dependence. We investigate deeper into why this may be so by looking at coherence and phase plots. 
+
+## Coherence and phase analysis
+We plot the coherence and phase between the PM and each meteorological variables. Codes are based on (@notes531). We list our most significant findings here and include the rest in the Supplementary (@sec-supp). 
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: fig-temp-wind-coh-phase
+#| fig-cap: "Coherence and phase plots for log(PM2.5) vs Temperature (left) and Wind Speed (right)"
+#| fig-width: 10
+#| fig-height: 4
+from scipy import signal
+
+
+def coherence_phase_axes(x, y, var_name, axes, nperseg=64):
+    freqs, Pxx = signal.welch(x, nperseg=nperseg)
+    freqs, Pyy = signal.welch(y, nperseg=nperseg)
+    freqs, Pxy = signal.csd(x, y, nperseg=nperseg)
+    
+    axes[0].plot(freqs, np.abs(Pxy)**2 / (Pxx * Pyy))
+    axes[0].set_ylabel('Squared Coherence')
+    axes[0].set_ylim(0, 1)
+    axes[0].set_title(f'Log PM2.5 vs {var_name}')
+    
+    axes[1].plot(freqs, np.angle(Pxy))
+    axes[1].axhline(y=0, color='red', linestyle='-')
+    axes[1].set_ylabel('Phase (radians)')
+    axes[1].set_xlabel('Frequency (cycles/day)')
+
+fig, axes = plt.subplots(2, 2, figsize=(10, 4))
+
+coherence_phase_axes(df_reg["Log_PM2.5"].values,
+                     df_reg["Temperature(℃)"].values,
+                     "Temperature(℃)", axes[:, 0])
+
+coherence_phase_axes(df_reg["Log_PM2.5"].values,
+                     df_reg["Wind_Speed(m/s)"].values,
+                     "Wind Speed(m/s)", axes[:, 1])
+
+plt.tight_layout()
+plt.show()
+```
+
+We note notable peaks in @fig-temp-wind-coh-phase. The strongest peak for the temperature plot is at around 0.15 corresponding to roughly a weekly cycle ($1/0.15 \approx 6.7$ days). This suggests that temperature and fine PM co-move most strongly at a weekly cycle. 
+
+We also see that wind speed and fine PM co-move across a wide range of frequencies with a notable peak at 0.2, which corresponds to a weekly cycle ($1/0.2 \approx 5$ days). The phase plot is consistently around $-\pi$ across almost all frequences where coherence is high. This further strengthens our finding that when wind speed is high, fine PM is low, and vice versa. 
+
+We suspect that some of the periodic structures are being captured by the temperature and wind_speed variables, which resulted in clean residuals without having explicitly controlled for them. However, adding explicit weekly SARIMA errors could more cleanly separate the weekly autocorrelation from the meteorological variables. We fit a new linear regression model and perform a likelihood ratio test between ARMA(3,1) and SARIMA(3,1)(1,0,0,7) to formally test whether the weekly component adds significant explanatory power.
+
+## Likelihood Ratio Test for Weekly Seasonal Components
+
+To formally evaluate this hypothesis, we compare the baseline ARMA(3,1) specification with the SARIMAX model that incorporates an explicit weekly seasonal component (s = 7) implementing a likelihood ratio test, using Wilk's Approximation (@notes531). 
+
+This test compares two nested models: a nested model $H^{(0)}$ and the more general, nesting model $H^{(1)}$, where the parameter space of the restricted model is a subset of the general one, $\Theta^{(0)} \subset \Theta^{(1)}$, with dimensions $D^{(0)} < D^{(1)} \leq D$.
+
+The maximum log-likelihood over each parameter space is notated as such.
+
+$$
+\begin{aligned}
+\ell^{(0)} &= \sup_{\theta \in \Theta^{(0)}} \ell(\theta), \qquad 
+\ell^{(1)} &= \sup_{\theta \in \Theta^{(1)}} \ell(\theta).
+\end{aligned}
+$$
+
+The difference in maximized log-likelihoods follows approximately a scaled chi-squared distribution:
+
+$$
+\ell^{(1)} - \ell^{(0)} \approx \tfrac{1}{2}\chi^2_{D^{(1)} - D^{(0)}},
+$$
+
+where the degrees of freedom equals 1 in this particular case.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: tbl-lrt-seasonal-weekly
+#| tbl-cap: "Likelihood ratio tests and AIC comparison: ARMA(3,1) vs SARIMA(3,1)(1,0,0,7)"
+
+import pandas as pd
+from scipy import stats
+
+model_sarima_fine_pm = SARIMAX(
+    df_reg["Log_PM2.5"],
+    exog=X,
+    order=(3, 0, 1),
+    seasonal_order=(1, 0, 0, 7),
+    trend="n",
+).fit(disp=False, maxiter=500)
+
+model_sarima_coarse_pm = SARIMAX(
+    df_reg["Log_PM10_minus_PM2.5"],
+    exog=X,
+    order=(3, 0, 1),
+    seasonal_order=(1, 0, 0, 7),
+    trend="n",
+).fit(disp=False, maxiter=500)
+
+lrt_fine = 2 * (model_sarima_fine_pm.llf - model_fine_3_1.llf)
+lrt_coarse = 2 * (model_sarima_coarse_pm.llf - model_coarse_3_1.llf)
+
+p_fine = stats.chi2.sf(lrt_fine, df=1)
+p_coarse = stats.chi2.sf(lrt_coarse, df=1)
+
+tbl_lrt_weekly = pd.DataFrame([
+    {
+        "Target": "Log_PM2.5",
+        "LR Statistic": round(lrt_fine, 6),
+        "df": 1,
+        "p-value": round(p_fine, 6),
+        "Significant at 0.05": "No" if p_fine >= 0.05 else "Yes",
+    },
+    {
+        "Target": "Log_PM10-PM2.5",
+        "LR Statistic": round(lrt_coarse, 6),
+        "df": 1,
+        "p-value": round(p_coarse, 6),
+        "Significant at 0.05": "No" if p_coarse >= 0.05 else "Yes",
+    },
+])
+
+tbl_lrt_weekly
+```
+
+
+
+Using a standard $\alpha=0.05$ criterion, we reject $H_0$ only if $p<0.05$ (equivalently, if $\chi^2_1>3.84$). For both fine and coarse PM, the LR test p-values are much larger than 0.05, so we fail to reject the null hypothesis that the simpler ARMA(3,1) error model is sufficient.
+
+We conclude that adding the weekly component does not significantly improve model fit. Since our residual diagnostics of the baseline model @fig-resid-ts-sarimax, also showed no clear patterns, this raises the possibility that meteorological variables already account for much of the weekly variation in fine PM.
+
+
+# Conclusions
+We find strong evidence of associations between meteorological variables and PM concentrations at the Sihwa Industrial Complex. Temperature, relative humidity, and wind speed showed significant associations with fine PM, while coarse PM showed weaker associations overall. Notably, humidity reversed sign betwen fine and coarse PM.
+Coherence analysis revealed that these associations may be driven by underlying periodic structures, motivating us to fit a linear regression model with SARIMA errors to account for the weekly cycles that seemed to be present in the data. However, we still find that the linear regression with ARMA(3,1) errors is our best model with our nested hypothesis test failing to reject the null hypothesis that the simpler model is better.
+
+One concern is that our AR roots are close to the unit circle boundary, which raises concerns for the reliability of our results. While differencing the response and fitting a linear regression model with ARIMA errors would address this, it would alter the interpretation of the regression coeffients. It would shift from associations with the level of PM to interpreting associations with their daily changes, which is much less intuitive and difficult to interpret. Since our residual diagnostics show no significant autocorrelation, we proceed with caution with our results. Future work could explore alternate approaches that resolve this non-stationarity, while preserving interpretabiility. 
+
+## Comparison with previous projects {.unnumbered}
+
+To our knowledge, there has not been a project that has investigated the relationship between meteorological variables and both fine and coarse PM in the same location. Hoewever, in carrying out this project, we were able to find steps where we could strengthen our project by learning from previous projects. 
+
+We reviewed a collection of past midterm projects and their corresponding peer reviews to guide our methodological decisions. A recurring critique in past peer reviews involves the improper handling of missing data. For instance, (@w24_proj12) heavily penalized the author for directly dropping dates with missing records.  Reviewers noted that "dropping dates disrupts the continuity of the time series" and damages the discovery of underlying autocorrelation structures and seasonal patterns. This motivated us to search for an alternative method and found inspiration from (@mendoza24). 
+
+Past projects fail to highlight the motivation behind fitting their time series model and often struggle to integrate residual diagnostics meaningfully in that context. Reviewers in (@w24_proj16) pointed out that the group wasted space by providing multiple residual plots only to write a generic sentence concluding "Gaussian white noise," lacking deeper diagnostic insight. To improve upon this, we placed a heavier emphasis on using the OLS residuals as the baseline and why this motivates us to fit a linear regression model with ARMA errors. 
+
+
+
+## Acknowledgments {.unnumbered}
+
+We acknowledge that any and all methods used in this project are based on materials provided by (@notes531). However, we do acknowledge the use of AI in designing the aesthetic of our plots to make them more visually appealing. 
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+## Preprocessing
+
+We take daily averages of the hourly measurements to reduce noise and take into account weekly and seasonal trends. We also handle missing data, which is common in environmental datasets due to sensor malfunctions or maintenance. In particular, there is a huge missing gap between 2020-10-14 and 2020-12-30. We truncated the dataset to exclude this gap and worked with the dataset spanning 2021-01-01 and onward. The rest of the missing data in that time frame amounted to around 100 points, however, the longest consecutive missing period was only 8 days, which we imputed using linear interpolation, noting the procedures in (@mendoza24). Note that analyzing diurnal patterns with hourly measurements seemed infeasible as the 8 consecutive missing points would blow up to 192 missing points, which would be too much to impute reliably.
+
+We also log-transformed the PM measurements to stabilize the variance and make the data more normally distributed (@notes531). Since $\text{PM}_{10}$ includes all particles with diameter $\leq 10\ \mu m$, and therefore already contains the $\text{PM}_{2.5}$ fraction, any variation in $\text{PM}_{2.5}$ would automatically appear in $\text{PM}_{10}$ as well. To get rid of this dependence, we construct a new variable $\text{PM}_{10} - \text{PM}_{2.5}$, which represents the coarse particle fraction with diameter between $2.5\ \mu m$ and $10\ \mu m$. By using $\text{PM}_{10} - \text{PM}_{2.5}$ as our coarse particle measure instead, we obtain two independent response variables, allowing for a cleaner comparison between coarse and fine particles. From henceforth, we will refer to $\text{PM}_{2.5}$ as fine PM and $\text{PM}_{10} - \text{PM}_{2.5}$ as coarse PM for simplicity.
+
+For the meteorological variables, we experienced numerical issues in optimization since there was a significant difference in numbers due to varying units. We standardizd them to have mean 0 and standard deviation 1 to put them on the same scale to resolve this issue.
+
+
+## CCF plots
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+pm_fine = 'Log_PM2.5'
+pm_coarse = 'Log_PM10_minus_PM2.5'
+
+meteo_vars = [
+    'Temperature(℃)', 
+    'Relative_Humidity(%)', 
+    'Air_Pressure(hpa)'
+]
+def plot_comparative_ccf_full(df_diff, meteo_var, pm_fine, pm_coarse, max_lags=14):
+    fig, axes = plt.subplots(1, 2, figsize=(15, 4), sharey=True)
+    conf_level = 1.96 / np.sqrt(len(df_diff))
+    
+    for i, pm_var in enumerate([pm_fine, pm_coarse]):
+        # 1. Positive Lags: Corr(PM[t+k], Meteo[t])
+        # This shows how PAST weather correlates with CURRENT PM.
+        pos_ccf = ccf(df_diff[pm_var], df_diff[meteo_var], adjusted=False)[:max_lags+1]
+        
+        # 2. Negative Lags: Corr(PM[t], Meteo[t+k]) 
+        # By swapping the order, we get the relationship where PM is in the "past".
+        # We take the values, flip them, and exclude lag 0 (which is in pos_ccf).
+        neg_ccf = ccf(df_diff[meteo_var], df_diff[pm_var], adjusted=False)[:max_lags+1]
+        neg_ccf = neg_ccf[1:][::-1] # Reverse them
+        
+        # 3. Combine
+        full_ccf = np.concatenate([neg_ccf, pos_ccf])
+        lags = np.arange(-max_lags, max_lags + 1)
+        
+        ax = axes[i]
+        ax.vlines(lags, [0], full_ccf, color='blue', alpha=0.7)
+        ax.axhline(0, color='black', linewidth=1)
+        ax.axhline(conf_level, color='red', linestyle='--', alpha=0.5)
+        ax.axhline(-conf_level, color='red', linestyle='--', alpha=0.5)
+        ax.plot(lags, full_ccf, 'ro', markersize=4)
+        
+        # Visual markers
+        ax.axvline(0, color='gray', linestyle=':', alpha=0.5)
+        
+        title_pm = "Fine PM (PM2.5)" if pm_var == pm_fine else "Coarse PM"
+        ax.set_title(f'CCF: {title_pm} & {meteo_var}')
+        ax.set_xlabel('Lag (Days) \n [Negative = Future Weather | Positive = Past Weather]')
+        if i == 0:
+            ax.set_ylabel('Cross-Correlation')
+
+    plt.tight_layout()
+    plt.show()
+
+# Ensure df_diff is defined first
+df_diff = df[[pm_fine, pm_coarse] + meteo_vars].diff().dropna()
+
+for meteo in meteo_vars:
+    plot_comparative_ccf_full(df_diff, meteo, pm_fine, pm_coarse, max_lags=10)
+```
+
+## Linear Regression Model
+The linear regression model is specified as follows:
+$$
+y_t^{(k)}
+= \beta_0^{(k)}
++ \beta_1^{(k)}\,\mathrm{Temp}_t
++ \beta_2^{(k)}\,\mathrm{RH}_t
++ \beta_3^{(k)}\,\mathrm{Pressure}_t
++ \beta_4^{(k)}\,\mathrm{Wind}_t
++ \varepsilon_t^{(k)},
+\quad k \in \{\text{fine},\text{coarse}\}
+$$
+
+$$
+\begin{aligned}
+y_t^{(\text{fine})} &= \log(\mathrm{PM2.5})_t,\\
+y_t^{(\text{coarse})} &= \log(\mathrm{PM10}-\mathrm{PM2.5})_t.
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+\mathrm{Temp}_t &: \text{temperature},\\
+\mathrm{RH}_t &: \text{relative humidity},\\
+\mathrm{Pressure}_t &: \text{air pressure},\\
+\mathrm{Wind}_t &: \text{wind speed}
+\end{aligned}
+$$
+
+
+## Model Selection
+
+```{python}
+#| label: tbl-aic-grid-fine
+#| tbl-cap: "AIC grid search results for log(PM2.5)"
+#| echo: false
+#| warning: false
+#| message: false
+
+aic_fine = gs_fine.pivot(index="p", columns="q", values="aic").round(3)
+aic_fine
+```
+
+```{python}
+#| label: tbl-aic-grid-coarse
+#| tbl-cap: "AIC grid search results for log(PM10-PM2.5)"
+#| echo: false
+#| warning: false
+#| message: false
+
+aic_coarse = gs_coarse.pivot(index="p", columns="q", values="aic").round(3)
+aic_coarse
+```
+
+## Roots 
+Below are a couple of other ARMA models we fitted in the hopes of avoiding the borderline non-causality issue. All models with decent AIC seem to share this issue, however. 
+```{python}
+#| include: false
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+model_fine_2_2 = SARIMAX(
+    df_reg["Log_PM2.5"],
+    exog=X,
+    order=(2, 0, 2),
+    trend="n"
+).fit(disp=False, maxiter=500)
+
+model_fine_2_1 = SARIMAX(
+    df_reg["Log_PM2.5"],
+    exog=X,
+    order=(2, 0, 1),
+    trend="n"
+).fit(disp=False, maxiter=500)
+
+model_coarse_2_1 = SARIMAX(
+    df_reg["Log_PM2.5"],
+    exog=X,
+    order=(2, 0, 1),
+    trend="n"
+).fit(disp=False, maxiter=500)
+
+model_coarse_2_2 = SARIMAX(
+    df_reg["Log_PM10_minus_PM2.5"],
+    exog=X,
+    order=(2, 0, 2),
+    trend='n'
+).fit(disp=False, maxiter=500)
+
+
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+
+print("ARMA(2,1)")
+print("AR roots:", np.abs(model_fine_2_1.arroots))
+print("MA roots:", np.abs(model_fine_2_1.maroots))
+print("AR roots:", np.abs(model_coarse_2_1.arroots))
+print("MA roots:", np.abs(model_coarse_2_1.maroots))
+
+print("ARMA(2,2)")
+print("AR roots:", np.abs(model_fine_2_2.arroots))
+print("MA roots:", np.abs(model_fine_2_2.maroots))
+print("AR roots:", np.abs(model_coarse_2_2.arroots))
+print("MA roots:", np.abs(model_coarse_2_2.maroots))
+
+
+```
+
+## Coherence and phase plots
+```{python}
+#| label: coh-phase
+#| tbl-cap: "Coherence and phase plot for log(PM2.5) and log(PM10-PM2.5)"
+#| echo: false
+#| warning: false
+#| message: false
+def coherence_phase_plot1(x, y, var_name, nperseg=64):
+    freqs, Pxx = signal.welch(x, nperseg=nperseg)
+    freqs, Pyy = signal.welch(y, nperseg=nperseg)
+    freqs, Pxy = signal.csd(x, y, nperseg=nperseg)
+    
+    fig, axes = plt.subplots(2, 1, figsize=(11, 6))
+    
+    axes[0].plot(freqs, np.abs(Pxy)**2 / (Pxx * Pyy))
+    axes[0].set_ylabel('Squared Coherence')
+    axes[0].set_ylim(0, 1)
+    axes[0].set_title(f'Log Fine PM vs {var_name}')
+    
+    axes[1].plot(freqs, np.angle(Pxy))
+    axes[1].axhline(y=0, color='red', linestyle='-')
+    axes[1].set_ylabel('Phase (radians)')
+    axes[1].set_xlabel('Frequency (cycles/day)')
+    
+    plt.tight_layout()
+    plt.show()
+
+def coherence_phase_plot2(x, y, var_name, nperseg=64):
+    freqs, Pxx = signal.welch(x, nperseg=nperseg)
+    freqs, Pyy = signal.welch(y, nperseg=nperseg)
+    freqs, Pxy = signal.csd(x, y, nperseg=nperseg)
+    
+    fig, axes = plt.subplots(2, 1, figsize=(11, 6))
+    
+    axes[0].plot(freqs, np.abs(Pxy)**2 / (Pxx * Pyy))
+    axes[0].set_ylabel('Squared Coherence')
+    axes[0].set_ylim(0, 1)
+    axes[0].set_title(f'Log Coarse PM vs {var_name}')
+    
+    axes[1].plot(freqs, np.angle(Pxy))
+    axes[1].axhline(y=0, color='red', linestyle='-')
+    axes[1].set_ylabel('Phase (radians)')
+    axes[1].set_xlabel('Frequency (cycles/day)')
+    
+    plt.tight_layout()
+    plt.show()
+
+for var in ["Relative_Humidity(%)", "Air_Pressure(hpa)"]:
+    coherence_phase_plot1(df_reg["Log_PM2.5"].values, 
+                         df_reg[var].values, var)
+
+
+```
+
+
+
+
+
+

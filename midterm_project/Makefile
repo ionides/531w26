@@ -7,7 +7,7 @@ html-docs: midterm_project_info.html midterm_review.html
 	Rscript --vanilla -e "rmarkdown::render(\"$*.Rmd\",output_format=\"html_document\")"
 
 %.html: %.md
-	Rscript --vanilla -e "rmarkdown::render(\"$*.md\",output_format=\"html_document\")"
+	quarto render "$*.md" --to html
 
 %.R: %.Rmd
 	Rscript --vanilla -e "library(knitr); purl(\"$*.Rmd\",output=\"$*.R\")"

@@ -1,0 +1,1562 @@
+---
+title: "Monetary Policy Independence\\vspace{-2cm}"
+bibliography: references.bib
+nocite: "@*"
+csl: ieee.csl
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[beforeskip=0.5em, runin=false, afterskip=0em]{section}
+        \usepackage{fullpage}
+        \usepackage{wrapfig}
+number-sections: true
+jupyter: python3
+---
+```{python}
+#| label: setup
+#| echo: false
+from pathlib import Path
+import hashlib
+import pickle
+import shelve
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+import numpy as np
+import pandas as pd
+from scipy.stats import norm
+from statsmodels.graphics.gofplots import qqplot
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import warnings
+
+plt.style.use("seaborn-v0_8-whitegrid")
+
+def resolve_project_root(start: Path | None = None) -> Path:
+    here = (start or Path.cwd()).resolve()
+    for candidate in [here, *here.parents]:
+        if (candidate / "datasets").exists():
+            return candidate
+    return here
+
+
+def resolve_report_dir(project_root: Path, start: Path | None = None) -> Path:
+    here = (start or Path.cwd()).resolve()
+    for candidate in [here, *here.parents]:
+        if (candidate / "blinded.qmd").exists() or (candidate / "report.qmd").exists():
+            return candidate
+    fallback = project_root / "Report"
+    if fallback.exists():
+        return fallback
+    return here
+
+PROJECT_ROOT = resolve_project_root()
+DATA_DIR = PROJECT_ROOT / "datasets"
+REPORT_DIR = resolve_report_dir(PROJECT_ROOT)
+REPORT_CACHE_DIR = REPORT_DIR / "cache"
+REPORT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+CACHE_DIR = PROJECT_ROOT / ".cache"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+REPORT_SHELVE_CACHE_PATH = str(CACHE_DIR / "report_cache")
+REPORT_SHELVE_CACHE_VERSION = "2026-02-20-v1"
+
+
+def make_shelve_cache_key(name: str, payload) -> str:
+    blob = pickle.dumps((REPORT_SHELVE_CACHE_VERSION, name, payload), protocol=pickle.HIGHEST_PROTOCOL)
+    return hashlib.sha256(blob).hexdigest()
+
+
+def shelve_cached_compute(cache_key: str, compute_fn):
+    try:
+        with shelve.open(REPORT_SHELVE_CACHE_PATH) as db:
+            if cache_key in db:
+                return db[cache_key]
+    except Exception:
+        pass
+
+    result = compute_fn()
+    try:
+        with shelve.open(REPORT_SHELVE_CACHE_PATH) as db:
+            db[cache_key] = result
+    except Exception:
+        pass
+    return result
+
+def load_series(filename: str, value_col: str, time_col: str = "month") -> pd.DataFrame:
+    df = pd.read_csv(DATA_DIR / filename)
+    df[time_col] = pd.to_datetime(df[time_col])
+    return df.sort_values(time_col)[[time_col, value_col]].copy()
+
+def plot_time_series(
+    df: pd.DataFrame,
+    value_col: str,
+    ax=None,
+    color: str = "tab:blue",
+    time_col: str = "month",
+) -> None:
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 3.5))
+    else:
+        fig = ax.figure
+    ax.plot(df[time_col], df[value_col], color=color, linewidth=1.6)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(value_col)
+    if ax is None:
+        fig.tight_layout()
+        plt.show()
+
+
+def eda_stats(df: pd.DataFrame, value_col: str, earliest_n: int = 5, time_col: str = "month"):
+    s = pd.to_numeric(df[value_col], errors="coerce")
+    stats = pd.DataFrame(
+        {
+            "Metric": [
+                "Min",
+                "Max",
+                "Range",
+                "Average",
+                "Std Deviation",
+                "Num Values",
+                "Missing data",
+            ],
+            "Value": [
+                s.min(),
+                s.max(),
+                s.max() - s.min(),
+                s.mean(),
+                s.std(),
+                int(s.notna().sum()),
+                int(s.isna().sum()),
+            ],
+        }
+    )
+    earliest = (
+        df.loc[s.notna(), [time_col, value_col]]
+        .head(earliest_n)
+        .reset_index(drop=True)
+        .rename(columns={time_col: "Date", value_col: "Value"})
+    )
+    earliest["Date"] = earliest["Date"].dt.date
+    missing_dates = (
+        df.loc[s.isna(), [time_col]]
+        .rename(columns={time_col: "Date"})
+        .reset_index(drop=True)
+    )
+    if not missing_dates.empty:
+        missing_dates["Date"] = missing_dates["Date"].dt.date
+    return stats, earliest, missing_dates
+
+def classify_aic_inconsistency_cells(
+    aic_grid: pd.DataFrame, max_allowed_increase: float = 2.0
+) -> tuple[set[tuple[int, int]], set[tuple[int, int]]]:
+    rows = list(aic_grid.index)
+    cols = list(aic_grid.columns)
+    predecessor_cells: set[tuple[int, int]] = set()
+    worse_cells: set[tuple[int, int]] = set()
+
+    for i, p in enumerate(rows):
+        for j, q in enumerate(cols):
+            current = aic_grid.loc[p, q]
+            if pd.isna(current):
+                continue
+
+            if i + 1 < len(rows):
+                p_next = rows[i + 1]
+                next_p = aic_grid.loc[p_next, q]
+                if pd.notna(next_p) and float(next_p) - float(current) > max_allowed_increase:
+                    predecessor_cells.add((int(p), int(q)))
+                    worse_cells.add((int(p_next), int(q)))
+
+            if j + 1 < len(cols):
+                q_next = cols[j + 1]
+                next_q = aic_grid.loc[p, q_next]
+                if pd.notna(next_q) and float(next_q) - float(current) > max_allowed_increase:
+                    predecessor_cells.add((int(p), int(q)))
+                    worse_cells.add((int(p), int(q_next)))
+
+    return predecessor_cells, worse_cells
+
+def plot_colored_aic_grid(
+    aic_grid: pd.DataFrame,
+    predecessor_cells: set[tuple[int, int]],
+    worse_cells: set[tuple[int, int]],
+    title: str = "AIC grid",
+    figsize=(6, 5),
+    show: bool = True,
+):
+    n_rows, n_cols = aic_grid.shape
+    status = np.zeros((n_rows, n_cols), dtype=int)
+
+    for p, q in predecessor_cells:
+        if p in aic_grid.index and q in aic_grid.columns:
+            status[aic_grid.index.get_loc(p), aic_grid.columns.get_loc(q)] = 1
+
+    for p, q in worse_cells:
+        if p in aic_grid.index and q in aic_grid.columns:
+            status[aic_grid.index.get_loc(p), aic_grid.columns.get_loc(q)] = 2
+
+    valid_cells = aic_grid.stack()
+    valid_cells = valid_cells[pd.notna(valid_cells)]
+    if not valid_cells.empty:
+        min_aic = float(valid_cells.min())
+        min_cells = valid_cells[np.isclose(valid_cells.values.astype(float), min_aic)].index.tolist()
+        for p, q in min_cells:
+            if p in aic_grid.index and q in aic_grid.columns:
+                status[aic_grid.index.get_loc(p), aic_grid.columns.get_loc(q)] = 3
+
+    cmap = ListedColormap(["#ffffff", "#fff3cd", "#f8d7da", "#d4edda"])
+    fig, ax = plt.subplots(figsize=(6, 4))
+    ax.imshow(status, cmap=cmap, vmin=0, vmax=3, aspect="auto")
+    ax.set_xticks(np.arange(n_cols))
+    ax.set_yticks(np.arange(n_rows))
+    ax.set_xticklabels(aic_grid.columns)
+    ax.set_yticklabels(aic_grid.index)
+    ax.set_xlabel("q", fontsize=12)
+    ax.set_ylabel("p", fontsize=12)
+    ax.set_title(title, fontsize = 14)
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            val = aic_grid.iloc[i, j]
+            label = "" if pd.isna(val) else f"{val:.2f}"
+            ax.text(j, i, label, ha="center", va="center", fontsize=12, color="black")
+
+    ax.set_xticks(np.arange(-0.5, n_cols, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, n_rows, 1), minor=True)
+    ax.grid(which="minor", color="black", linestyle="-", linewidth=0.5, alpha=0.4)
+    ax.tick_params(which="minor", bottom=False, left=False, labelsize=12)
+    fig.tight_layout()
+    if show:
+        plt.show()
+        return None
+    return fig, ax
+
+def plot_inverse_roots(roots: np.ndarray, title: str, marker_color: str, ax=None):
+    # If no axis provided, create standalone figure
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(5, 5))
+    else:
+        fig = ax.figure
+    theta = np.linspace(0, 2 * np.pi, 400)
+    ax.plot(np.cos(theta), np.sin(theta), color="black", linestyle="--", linewidth=1.0)
+    ax.axhline(0, color="gray", linewidth=0.8)
+    ax.axvline(0, color="gray", linewidth=0.8)
+
+    if roots.size > 0:
+        inverse_roots = 1 / roots
+        ax.scatter(inverse_roots.real, inverse_roots.imag, s=55, c=marker_color)
+    else:
+        ax.text(0.0, 0.0, "No roots", ha="center", va="center", fontsize=12)
+
+    ax.set_xlabel("Real", fontsize=12)
+    ax.set_ylabel("Imaginary", fontsize=12)
+    ax.set_title(title, fontsize=14)
+    ax.set_aspect("equal", adjustable="box")
+    ax.tick_params(axis="both", labelsize=12)
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    fig.tight_layout()
+    return fig
+
+def standardized_residual_series(result) -> pd.Series:
+    sfe = getattr(getattr(result, "filter_results", None), "standardized_forecasts_error", None)
+    if sfe is not None:
+        arr = np.asarray(sfe, dtype=float)
+        if arr.ndim == 2:
+            arr = arr[0]
+        s = pd.Series(arr).replace([np.inf, -np.inf], np.nan).dropna()
+        if not s.empty:
+            return s.reset_index(drop=True)
+
+    resid = pd.Series(getattr(result, "resid", []), dtype=float).replace([np.inf, -np.inf], np.nan).dropna()
+    std = float(resid.std(ddof=1)) if len(resid) > 1 else np.nan
+    if np.isfinite(std) and std > 0:
+        resid = (resid - float(resid.mean())) / std
+    return resid.reset_index(drop=True)
+```
+
+## Abstract {.unnumbered}
+The Federal Reserve Reform Act of 1977 mandates that the Fed pursue low unemployment, price stability, and moderate long-term interest rates while maintaining political independence. This study examines whether the federal funds rate responds to political conditions, in addition to exogenous macro-economic conditions such as inflation and unemployment. We estimate a regression with SARIMA errors using differences in log interest rates as the response and inflation, unemployment, partisan alignment between the Fed chair and the President as predictors. Results indicate responsiveness to inflation and unemployment with some evidence consistent with political influence.
+
+# Introduction
+
+## Background Information
+
+The Federal Reserve (Fed) was created in 1913 and serves as the U.S. central bank [@federalreserve_about]. Its mandate is straightforward: maintain price stability and support maximum employment. Although established by Congress, it makes monetary policy decisions independently.
+
+Inflation, commonly measured by the Consumer Price Index, captures sustained increases in prices [@bls_cpi]. Unemployment measures the share of the labor force that is jobless but actively seeking work [@bls_unemployment_definition]. Maximum employment refers to a sustainable unemployment rate consistent with stable inflation, typically estimated around 4-5 percent [@federalreserve_maximum_employment].
+
+The Fed's main policy instrument is the federal funds rate, the overnight rate at which banks lend reserves to one another [@federalreserve_federal_funds_rate]. Adjusting this rate affects borrowing, spending, and investment across the economy. Raising rates slows activity and pressures inflation downward but weakens employment. Lowering rates does the opposite. When inflation remains high while labor markets weaken, policy trade-offs become unavoidable [@FedReserve2025MPR].
+
+## Project Motivation
+
+This project is primarily motivated by questions surrounding the Federal Reserve's political independence. Although the Fed is designed to operate independently, recent public and political debates have raised concerns about potential pressure on monetary policy decisions [@CRS2026FedIndep]. Rather than treating independence as an assumption, this study evaluates it empirically. Specifically, we examine whether changes in the federal funds rate are systematically explained by inflation and unemployment, or whether political variables help explain policy movements.
+
+## Past Project Study
+
+This project builds directly on Winter 2024 Project 3, [Unemployment and Federal Interest Rate](https://ionides.github.io/531w24/midterm_project/project03/blinded.html), where they modeled unemployment and the federal funds rate using ARIMA methods, cross correlation, and regression with SARIMA errors. In that project, unemployment was treated as the main macroeconomic signal related to interest rate movements.
+
+In this study, we extend that framework by adding the CPI measure of inflation as an additional predictor. Our treatment of inflation builds on Winter 2025 Project 10, [Consumer Price Index](https://ionides.github.io/531w25/midterm_project/project10/blinded.html), and Winter 2022 Project 23, [US CPI Average Price Gasoline Data](https://ionides.github.io/531w22/midterm_project/project23/blinded.html). Including inflation allows us to examine both parts of the Federal Reserve's dual mandate --- price stability and maximum employment --- within a single unified model instead of focusing only on labor market conditions. We also introduce a political alignment indicator, `SameParty`, to examine whether rate adjustments are associated with partisan alignment in addition to macroeconomic fundamentals.
+
+Based on peer review feedbacks, we are more careful in this report about model selection, diagnostics, and interpretation. We compare alternative transformations of the response variable, address heavy tailed residual behavior, and avoid causal language or direct comparison of coefficients on different scales. Overall, this project reflects a more cohesive approach to time series modeling while building directly on earlier work.
+
+## Research Question
+
+The central question of this study is whether the Federal Reserve adjusts the federal funds rate in response to macroeconomic conditions independently of political influence. Low interest rates are considered politically good for the President [@drechsel2025immune];  we aim to test whether the Federal Reserve is more likely to lower interest rates if the President and Fed chair are politically aligned.
+
+<!-- ## Background Information (might need to cite some articles)
+  - prose introduction paragraph 1
+
+  - What is the Federal Reserve? (provided in EDA and Citations)
+    - central bank of the US established in 1913
+    - conduct's monetary policy to reduce unemployment, stablize prices (inflation), and moderate long-term interest rates
+    - independent from the government because monetary policy decisions don't need approval from the president or congress
+  - What is unemployment? (provided in EDA and Citations)
+    - official definition: People who are jobless, actively seeking work, and available to take a job. The official unemployment rate for the nation is the number of unemployed as a percentage of the labor force (the sum of the employed and unemployed).
+    - Maximum unemployment definition: The highest level of employment that the economy can sustain in a context of price stability changes over time as the jobs market changes.
+  - What is inflation? (citation)
+
+  - What is the federal funds rate? (provided in EDA and Citations)
+    - definition: The federal funds rate is the interest rate charged by banks to borrow from each other overnight. The Federal Reserve influences this rate through monetary policy decisions.
+    - target range: 3.5\% to 3.75\% (from january 29, 2026)
+  - How do interest rates affect unemployment and inflation? (citation)
+    - Interest rate up makes inflation go down, unemployment up
+    - Interest rate down makes inflation go up, unemployment down
+  - Fed has dual mandate to keep unemployment and inflation stable
+  - High inflation high unemployment is called "stagflation"
+  - in stagflation, fed doesn't have a clear option to satisfy dual mandate
+  - [Relationship between inflation and unemployment](https://www.investopedia.com/articles/markets/081515/how-inflation-and-unemployment-are-related.asp)
+    - Short Term (Phillips Curve): negative relationship between unemployment and inflation
+      - When unemployment is low, employers pay higher wages to attract employees. Companies push increasing labor costs to consumers. More people working means more disposable outcome which drives up prices (lowers inflation).
+      - When unemployment is high, people have less money to spend on goods. Companies don't raise prices in order to attract consumers. 
+    - Long Term: relationship weakens as economy reverts to the natural rate of unemployment as it adjusts to any rate of inflation
+      - Congressional Budget Office has frequently estimated the natural rate of unemployment to be around 4% and 5% (citation in EDA and Citations)
+
+## Project Motivation
+  - Emphasize political independence foremost motivation. (this is topical, cite an article or two about current concerns around political independence)
+  - Understand how Fed responds
+    - determine whether the Fed responds systematically to inflation and unemployment
+    - identify the lag structure of the Fed's response (delay in policy response based on past info about inflation and unemployment)
+
+## Past Projects Study
+- describe how we will build off from these projects and what our findings will contribute
+\begin{itemize}
+    \item Federal Funds Rate \& Unemployment: used cross-correlation to look at correlation between FFR and unemployment
+    \item CPI Inflation: consumer price index is a key indicator for measuring inflation
+    \item CPI Gasoline: consumer price index is a key indicator for measuring inflations
+\end{itemize}
+
+## Research Question
+  - Political Independence
+    - party indicator variable
+    - check for p-value significance for inflation and unemployment variables
+    - check for lag structure (inflation happens first and then Fed responds)
+    - potentially check election years? -->
+
+# Data Overview
+
+## Data Description and Preprocessing
+
+The data are monthly U.S. macroeconomic series obtained from the Federal Reserve Economic Data (FRED) database. We use the federal funds rate [@federal_funds_effective_rate], the Consumer Price Index (CPI) [@cpaltt01usm657n_fred], and the civilian unemployment rate [@unratensa_fred]. The federal funds data and unemployment data are not seasonally adjusted, while we constructed inflation as the year-over-year percentage point change in CPI.
+
+The sample period runs from 1977 to 2025. The starting date is chosen to align with the Federal Reserve Reform Act of 1977, which formally clarified the Fed's dual mandate to balance unemployment and price levels, and strengthened congressional oversight. Beginning in 1977 allows the analysis to focus on monetary policy behavior under a clearly defined institutional framework. 
+
+```{python}
+#| label: plot-macro-one-row-export
+#| echo: false
+#| include: false
+
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+
+fedfunds = load_series("FedFundsMonthly.csv", "FedFundsRateMonthly")
+inflation_yoy = load_series("CPIMonthlyPercentage.csv", "YoYCPI")
+unemployment = load_series("UnemploymentMonthly.csv", "UnemploymentRateMonthly")
+party_gov = pd.read_csv(DATA_DIR / "PartyGovernment.csv")
+fed_chair_monthly = pd.read_csv(
+    DATA_DIR / "FedChairMonthly.csv",
+    usecols=["month", "FedChair", "AppointingParty"],
+)
+
+sample_start = pd.Timestamp("1977-01-01")
+sample_end = pd.Timestamp("2025-12-31")
+
+fedfunds = fedfunds.loc[
+    (fedfunds["month"] >= sample_start) & (fedfunds["month"] <= sample_end)
+].copy()
+inflation_yoy = inflation_yoy.loc[
+    (inflation_yoy["month"] >= sample_start) & (inflation_yoy["month"] <= sample_end)
+].copy()
+unemployment = unemployment.loc[
+    (unemployment["month"] >= sample_start) & (unemployment["month"] <= sample_end)
+].copy()
+
+party_gov["Year"] = pd.to_numeric(party_gov["Year"], errors="coerce")
+party_gov = party_gov.dropna(subset=["Year"]).copy()
+party_gov["Year"] = party_gov["Year"].astype(int)
+party_gov["Start"] = pd.to_datetime(party_gov["Year"].astype(str) + "-01-01")
+party_gov["End"] = party_gov["Start"] + pd.DateOffset(years=2)
+party_gov = party_gov.loc[
+    (party_gov["End"] >= sample_start) & (party_gov["Start"] <= sample_end)
+].copy()
+
+fed_chair_monthly["month"] = pd.to_datetime(fed_chair_monthly["month"], errors="coerce")
+fed_chair_monthly = fed_chair_monthly.dropna(subset=["month"]).sort_values("month")
+fed_chair_monthly = fed_chair_monthly.loc[
+    (fed_chair_monthly["month"] >= sample_start) & (fed_chair_monthly["month"] <= sample_end)
+].copy()
+
+fed_chair_monthly["ChairBlock"] = fed_chair_monthly["FedChair"].ne(
+    fed_chair_monthly["FedChair"].shift(1)
+).cumsum()
+chair_blocks = (
+    fed_chair_monthly.groupby("ChairBlock", as_index=False)
+    .agg(
+        Chair=("FedChair", "first"),
+        ChairParty=("AppointingParty", "first"),
+        Start=("month", "min"),
+        End=("month", "max"),
+    )
+)
+chair_blocks["End"] = chair_blocks["End"] + pd.offsets.MonthEnd(1)
+
+fig, ax = plt.subplots(figsize=(8, 4.5))
+import matplotlib.dates as mdates
+
+party_colors = {"D": "tab:blue", "R": "tab:red"}
+for _, row in party_gov.iterrows():
+    party = str(row.get("Presidency", "")).strip()
+    shade_color = party_colors.get(party, "lightgray")
+    span_start = max(row["Start"], sample_start)
+    span_end = min(row["End"], sample_end)
+    ax.axvspan(span_start, span_end, color=shade_color, alpha=0.12, lw=0, zorder=0)
+
+plot_time_series(fedfunds, "FedFundsRateMonthly", ax=ax, color="tab:green")
+ax.set_title("Fed Funds Rate, Presidential Party, and Fed Chair Party")
+ax.set_xlim(sample_start, sample_end)
+
+for _, row in chair_blocks.iterrows():
+    chair_party = str(row.get("ChairParty", "")).strip()
+    chair_color = party_colors.get(chair_party, "gray")
+    ax.hlines(
+        y=0.0,
+        xmin=row["Start"],
+        xmax=row["End"],
+        colors=chair_color,
+        linewidth=2.8,
+        alpha=0.95,
+        zorder=2,
+    )
+
+legend_handles = [
+    Patch(facecolor="tab:blue", edgecolor="none", alpha=0.12, label="Presidency period: D"),
+    Patch(facecolor="tab:red", edgecolor="none", alpha=0.12, label="Presidency period: R"),
+    plt.Line2D([0], [0], color="tab:blue", lw=2.8, label="Fed Chair party at y=0: D"),
+    plt.Line2D([0], [0], color="tab:red", lw=2.8, label="Fed Chair party at y=0: R"),
+    plt.Line2D([0], [0], color="tab:green", lw=1.8, label="FedFundsRateMonthly"),
+]
+ax.legend(handles=legend_handles, loc="upper right", framealpha=0.95, fontsize=8)
+
+plt.tight_layout()
+macro_plot_path_abs = REPORT_CACHE_DIR / "fedfunds_party_plot.png"
+fig.savefig(macro_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig)
+
+```
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.33\textwidth}
+\vspace{0pt}
+\raggedright
+To the right, we see the federal funds rate plotted, with the political affiliations of the President and fed chair denoted. From this information, we build the "SameParty" indicator: If the current fed chair is from the same party as the President, then "SameParty" = 1, and 0 otherwise. Associations between decreases in the interest rate and SameParty would potentially be evidence against the independence of the Fed.
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.64\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/fedfunds_party_plot.png}
+\end{minipage}
+\par\medskip
+```
+
+```{python}
+#| label: plot-cpi-unemployment-overlay-export
+#| echo: false
+#| include: false
+
+fig, ax = plt.subplots(figsize=(10, 5))
+import matplotlib.dates as mdates
+font_scale = 1.5
+title_fs = 12 * font_scale
+axis_label_fs = 10 * font_scale
+tick_fs = 9 * font_scale
+legend_fs = 8 * font_scale
+
+highlight_periods = [
+    ("Volcker Era", pd.Timestamp("1979-08-01"), pd.Timestamp("1983-06-30"), "#f4ae4b"),
+    ("Great Recession", pd.Timestamp("2007-12-01"), pd.Timestamp("2010-03-31"), "#999696"),
+    ("Covid", pd.Timestamp("2020-02-01"), pd.Timestamp("2023-07-31"), "#75b4d6"),
+]
+
+for label, start, end, color in highlight_periods:
+    ax.axvspan(start, end, color=color, alpha=0.22, lw=0, zorder=0, label=label)
+
+ax.plot(inflation_yoy["month"], inflation_yoy["YoYCPI"], color="tab:red", linewidth=1.6, label="YoY CPI Inflation")
+ax.plot(
+    unemployment["month"],
+    unemployment["UnemploymentRateMonthly"],
+    color="tab:purple",
+    linewidth=1.6,
+    label="Unemployment Rate",
+)
+ax.set_title("YoY CPI Inflation and Unemployment Rate", fontsize=title_fs)
+ax.set_xlabel("Date", fontsize=axis_label_fs)
+ax.set_ylabel("Percent", fontsize=axis_label_fs)
+ax.tick_params(axis="both", labelsize=tick_fs)
+legend_x = pd.Timestamp("2022-01-01")
+x_min, x_max = ax.get_xlim()
+legend_x_num = mdates.date2num(legend_x)
+legend_x_frac = (legend_x_num - x_min) / (x_max - x_min) if x_max != x_min else 1.0
+legend_x_frac = float(np.clip(legend_x_frac, 0.0, 1.0))
+ax.legend(
+    loc="upper left",
+    bbox_to_anchor=(legend_x_frac, 1.0),
+    bbox_transform=ax.transAxes,
+    fontsize=legend_fs,
+)
+
+plt.tight_layout()
+cpi_plot_path_abs = REPORT_CACHE_DIR / "cpi_unemployment_periods_plot.png"
+fig.savefig(cpi_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig)
+```
+
+<!-- - Fed Funds by month
+- Inflation YoY
+- Unemployment rate by month
+- diff log fed feds by month (not using this) -->
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.60\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/cpi_unemployment_periods_plot.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.37\textwidth}
+\vspace{0pt}
+\raggedright
+To the left is the YoY CPI and unemployment rate plotted, alongside the three most significant economic events in this time period: The Volcker Era, named after the fed chair Paul Volcker[12], who held interest rates extremely high until persistent inflation fell; the Great Recession; and the Covid Crisis, characterized by large unemployment during social distancing, followed by high inflation in its aftermath.
+\end{minipage}
+\par\medskip
+```
+
+<!-- ## Description
+- where was data collected from (provide links)
+  - using non-seasonally adjusted data
+  - frequency
+- explanation of why we are selecting 1977 - 2025 (Federal Reserve Act)
+  - [Federal Reserve Reform Act of 1977](https://www.federalreservehistory.org/essays/fed-reform-act-of-1977#:~:text=The%20Federal%20Reserve%20Reform%20Act,for%20Federal%20Reserve%20Bank%20directors.)
+    - Congress increased the role and accountability of the Federal Reserve during the 70s to deal with high inflation and unemployment
+    - Made the Fed's goals explicit: promote the goals of max employment, stable prices (low inflation), moderate long-term interest rates
+      - dual mandate: long-term interest rates is a byproduct of achieving the first two goals of max employment and pricing stability
+    - increased congressional oversight of the Federal Reserve (monetary policy reporting system)
+    - limited Board of Governors' chairman and vice chairman positions to four-year renewable terms
+- explanation of the variables (include explanation of data transformations such as log)
+- summary statistics and initial time plots of the different variables -->
+
+We work with two transformations of the Fed Funds Rate to improve stationarity: FedFundsDifference ($\Delta Y = Y_t - Y_{t - 1}$), and DiffLogs ($\Delta \log(1 + Y) = \log(1 + Y_t) - \log(1 + Y_{t-1})$). From their sample ACF plots below, they appear consistent with stationarity. Additionally, they're conceptually preferable to the absolute Fed Funds Rate, as each time point represents a decision to increase or decrease the rate. 
+
+```{python}
+#| label: plot-acf-macro
+#| echo: false
+#| fig-width: 4
+#| fig-height: 2
+#| fig-pos: "H"
+
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+fedfunds_diff = load_series("FedFundsMonthly.csv", "FedFundsDifference")
+fedfunds_difflog = load_series("FedFundsMonthly.csv", "DiffLog")
+fedfunds_diff = fedfunds_diff.loc[fedfunds_diff["month"] >= pd.Timestamp("1977-01-01")].copy()
+fedfunds_difflog = fedfunds_difflog.loc[fedfunds_difflog["month"] >= pd.Timestamp("1977-01-01")].copy()
+
+fig, axes = plt.subplots(1, 2, figsize=(6, 2))
+
+plot_acf(fedfunds_diff["FedFundsDifference"].dropna(), lags=40, ax=axes[0], alpha=0.05)
+axes[0].set_title("ACF: FedFundsDifference")
+
+plot_acf(fedfunds_difflog["DiffLog"].dropna(), lags=40, ax=axes[1], alpha=0.05)
+axes[1].set_title("ACF: DiffLog")
+
+plt.tight_layout()
+plt.show()
+```
+
+Mathematically, the FedFundsDifference is easier to interpret: it's the difference in the Fed Funds Rate between each month, while DiffLogs is harder to interpret. However, DiffLogs tracks changes in the interest rate as a ratio, which is potentially preferable. This advantage is visible in its plot as seen below: The four largest spikes correspond to highly volatile economic periods, in chronological order: the Volcker Era in the early '80s; the 2008 recession; beginning of covid in March 2020; and post covid inflation beginning in 2022. Since the '90s, interest rates have been persistently low in level, but _relative_ to their level, changes in the FedFunds rate have been more consistent.
+
+```{python}
+#| label: plot-fedfunds-transformations
+#| echo: false
+#| fig-pos: "H"
+
+fedfunds_diff = load_series("FedFundsMonthly.csv", "FedFundsDifference")
+fedfunds_difflog = load_series("FedFundsMonthly.csv", "DiffLog")
+fedfunds_diff = fedfunds_diff.loc[fedfunds_diff["month"] >= pd.Timestamp("1977-01-01")].copy()
+fedfunds_difflog = fedfunds_difflog.loc[fedfunds_difflog["month"] >= pd.Timestamp("1977-01-01")].copy()
+
+fig, axes = plt.subplots(1, 2, figsize=(14, 4))
+
+plot_time_series(fedfunds_diff, "FedFundsDifference", ax=axes[0], color="tab:blue")
+axes[0].set_title("FedFundsDifference")
+
+plot_time_series(fedfunds_difflog, "DiffLog", ax=axes[1], color="tab:red")
+axes[1].set_title("DiffLog")
+
+plt.tight_layout()
+plt.show()
+```
+
+
+```{python}
+#| label: plot-hp-detrended-series
+#| echo: false
+#| include: false
+
+from statsmodels.tsa.filters.hp_filter import hpfilter
+
+_hp_lag_payload = (
+    ("FedFundsMonthly.csv", int((DATA_DIR / "FedFundsMonthly.csv").stat().st_mtime_ns)),
+    ("CPIMonthlyPercentage.csv", int((DATA_DIR / "CPIMonthlyPercentage.csv").stat().st_mtime_ns)),
+    ("UnemploymentMonthly.csv", int((DATA_DIR / "UnemploymentMonthly.csv").stat().st_mtime_ns)),
+    ("lambda", 129600),
+    ("start", "1977-01-01"),
+)
+_hp_lag_cache_key = make_shelve_cache_key("hp_lag_cycles_df", _hp_lag_payload)
+
+def _compute_hp_lag_cycles_df():
+    fed = pd.read_csv(DATA_DIR / "FedFundsMonthly.csv")[["month", "FedFundsRateMonthly"]].copy()
+    cpi = pd.read_csv(DATA_DIR / "CPIMonthlyPercentage.csv")[["month", "YoYCPI"]].copy()
+    unemp = pd.read_csv(DATA_DIR / "UnemploymentMonthly.csv")[["month", "UnemploymentRateMonthly"]].copy()
+
+    for _df in [fed, cpi, unemp]:
+        _df["month"] = pd.to_datetime(_df["month"], errors="coerce")
+
+    df = (
+        fed.merge(cpi, on="month", how="inner")
+        .merge(unemp, on="month", how="inner")
+        .dropna()
+        .sort_values("month")
+        .loc[lambda d: d["month"] >= pd.Timestamp("1977-01-01")]
+        .reset_index(drop=True)
+    )
+
+    fed_cycle, _ = hpfilter(pd.to_numeric(df["FedFundsRateMonthly"], errors="coerce"), lamb=129600)
+    cpi_cycle, _ = hpfilter(pd.to_numeric(df["YoYCPI"], errors="coerce"), lamb=129600)
+    unemp_cycle, _ = hpfilter(pd.to_numeric(df["UnemploymentRateMonthly"], errors="coerce"), lamb=129600)
+
+    out = pd.DataFrame(
+        {
+            "month": df["month"],
+            "FedFundsCycle": pd.to_numeric(fed_cycle, errors="coerce"),
+            "YoYCPI_Cycle": pd.to_numeric(cpi_cycle, errors="coerce"),
+            "UnemploymentCycle": pd.to_numeric(unemp_cycle, errors="coerce"),
+        }
+    ).dropna()
+    return out.reset_index(drop=True)
+
+hp_lag_df = shelve_cached_compute(_hp_lag_cache_key, _compute_hp_lag_cycles_df)
+
+fig, ax = plt.subplots(figsize=(6, 4))
+
+ax.plot(
+    hp_lag_df["month"],
+    hp_lag_df["FedFundsCycle"],
+    color="tab:green",
+    linewidth=1.4,
+    label="FedFundsRateMonthly (detrended)",
+)
+ax.plot(
+    hp_lag_df["month"],
+    hp_lag_df["YoYCPI_Cycle"],
+    color="tab:red",
+    linewidth=1.4,
+    label="YoYCPI (detrended)",
+)
+ax.plot(
+    hp_lag_df["month"],
+    hp_lag_df["UnemploymentCycle"],
+    color="tab:purple",
+    linewidth=1.4,
+    label="UnemploymentRateMonthly (detrended)",
+)
+ax.axhline(0.0, color="black", linewidth=0.8)
+ax.set_title("HP Detrended Series")
+ax.set_xlabel("Month")
+ax.set_ylabel("Cycle value")
+ax.legend(loc="upper right", fontsize=8)
+
+plt.tight_layout()
+hp_plot_path_abs = REPORT_CACHE_DIR / "hp_detrended_series_plot.png"
+fig.savefig(hp_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig)
+```
+
+
+
+<!-- - smoothing and detrending of data (if we get to it)
+- stationarity
+  - ACF plots
+  - unit roots
+  - need to difference the data
+- cross correlation function (fed interest rate vs inflation + unemployment + party indicator)
+  - similar to previous midterm project (federal funds rate & unemployment)
+  - [example](https://atsa-es.github.io/atsa-labs/sec-tslab-correlation-within-and-among-time-series.html) -->
+
+# Methodology and Results
+
+## Model 1: FedFundsDiff
+
+We use Regression with SARIMA errors, predicting the federal funds rate using YoYCPI, Monthly Unemployment Rate, and the SameParty indicator, with Seasonal coefficents with period 12 because the Unemployment data is not seasonally adjusted. We pick the model which performs best according to AIC, view the significance and values for the predictor coefficients, and display model diagnostics such as the QQPlot. 
+
+```{python}
+#| label: calc-fedfundsdiff-regarma
+#| echo: false
+#| fig-width: 6
+#| fig-height: 4
+#| fig-pos: "H"
+
+fed_diff_regarma_payload = (
+    ("FedFundsMonthly.csv", int((DATA_DIR / "FedFundsMonthly.csv").stat().st_mtime_ns)),
+    ("CPIMonthlyPercentage.csv", int((DATA_DIR / "CPIMonthlyPercentage.csv").stat().st_mtime_ns)),
+    ("UnemploymentMonthly.csv", int((DATA_DIR / "UnemploymentMonthly.csv").stat().st_mtime_ns)),
+    ("FedChairMonthly.csv", int((DATA_DIR / "FedChairMonthly.csv").stat().st_mtime_ns)),
+    ("start", "1977-01-01"),
+    ("end", "2026-12-31"),
+    ("y", "FedFundsDifference"),
+    ("x", ("YoYCPI", "UnemploymentRateMonthly", "SameParty")),
+    ("max_order", 5),
+    ("seasonal_order", (1, 0, 1, 12)),
+)
+fed_diff_regarma_cache_key = make_shelve_cache_key("fedfundsdiff_regarma_aic_grid_bundle", fed_diff_regarma_payload)
+
+def _compute_fed_diff_regarma_bundle():
+    fed = pd.read_csv(DATA_DIR / "FedFundsMonthly.csv")[["month", "FedFundsDifference"]].copy()
+    cpi = pd.read_csv(DATA_DIR / "CPIMonthlyPercentage.csv")[["month", "YoYCPI"]].copy()
+    unemp = pd.read_csv(DATA_DIR / "UnemploymentMonthly.csv")[["month", "UnemploymentRateMonthly"]].copy()
+    party = pd.read_csv(DATA_DIR / "FedChairMonthly.csv")[["month", "SameParty"]].copy()
+
+    for _df in [fed, cpi, unemp, party]:
+        _df["month"] = pd.to_datetime(_df["month"], errors="coerce")
+
+    model_df = (
+        fed.merge(cpi, on="month", how="inner")
+        .merge(unemp, on="month", how="inner")
+        .merge(party, on="month", how="inner")
+        .dropna()
+        .sort_values("month")
+        .loc[lambda d: (d["month"] >= pd.Timestamp("1977-01-01")) & (d["month"] <= pd.Timestamp("2026-12-31"))]
+        .reset_index(drop=True)
+    )
+    model_df["FedFundsDifference"] = pd.to_numeric(model_df["FedFundsDifference"], errors="coerce")
+    model_df["YoYCPI"] = pd.to_numeric(model_df["YoYCPI"], errors="coerce")
+    model_df["UnemploymentRateMonthly"] = pd.to_numeric(model_df["UnemploymentRateMonthly"], errors="coerce")
+    model_df["SameParty"] = pd.to_numeric(model_df["SameParty"], errors="coerce")
+    model_df = model_df.dropna().reset_index(drop=True)
+
+    y = model_df["FedFundsDifference"].astype(float)
+    X = model_df[["YoYCPI", "UnemploymentRateMonthly", "SameParty"]].astype(float)
+
+    aic_grid = pd.DataFrame(index=range(6), columns=range(6), dtype=float)
+    for p in range(6):
+        for q in range(6):
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    _model = SARIMAX(
+                        endog=y,
+                        exog=X,
+                        order=(p, 0, q),
+                        seasonal_order=(1, 0, 1, 12),
+                        trend="c",
+                        enforce_stationarity=False,
+                        enforce_invertibility=False,
+                    )
+                    _res = _model.fit(disp=False)
+                aic_grid.loc[p, q] = _res.aic
+            except Exception:
+                aic_grid.loc[p, q] = np.nan
+
+    valid_cells = aic_grid.stack()
+    valid_cells = valid_cells[pd.notna(valid_cells)]
+    if valid_cells.empty:
+        raise ValueError("No valid ARMA fits were found in the 0..5 AIC grid.")
+    best_p, best_q = valid_cells.idxmin()
+    best_aic = float(valid_cells.min())
+
+    return {
+        "model_df": model_df,
+        "aic_grid": aic_grid,
+        "best_p": int(best_p),
+        "best_q": int(best_q),
+        "best_aic": best_aic,
+    }
+
+fed_diff_regarma_bundle = shelve_cached_compute(
+    fed_diff_regarma_cache_key, _compute_fed_diff_regarma_bundle
+)
+
+fed_diff_model_df = fed_diff_regarma_bundle["model_df"].copy()
+aic_grid_fed_diff = fed_diff_regarma_bundle["aic_grid"].copy()
+aic_grid_fed_diff.index.name = "p"
+aic_grid_fed_diff.columns.name = "q"
+best_p_fed_diff = int(fed_diff_regarma_bundle["best_p"])
+best_q_fed_diff = int(fed_diff_regarma_bundle["best_q"])
+best_aic_fed_diff = float(fed_diff_regarma_bundle["best_aic"])
+
+y_fed_diff = fed_diff_model_df["FedFundsDifference"].astype(float)
+X_fed_diff = fed_diff_model_df[["YoYCPI", "UnemploymentRateMonthly", "SameParty"]].astype(float)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fed_diff_best_model = SARIMAX(
+        endog=y_fed_diff,
+        exog=X_fed_diff,
+        order=(best_p_fed_diff, 0, best_q_fed_diff),
+        seasonal_order=(1, 0, 1, 12),
+        trend="c",
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
+    fed_diff_best_result = fed_diff_best_model.fit(disp=False)
+```
+
+```{python}
+#| label: plot-fedfundsdiff-regarma-aic-grid
+#| echo: false
+#| include: false
+predecessor_cells_fed_diff, worse_cells_fed_diff = classify_aic_inconsistency_cells(aic_grid_fed_diff)
+fig_aic_fed_diff, _ = plot_colored_aic_grid(
+    aic_grid_fed_diff,
+    predecessor_cells_fed_diff,
+    worse_cells_fed_diff,
+    title="FedFundsDifference regression + ARMA errors AIC grid (seasonal s=12)",
+    show=False,
+)
+fed_diff_aic_plot_path_abs = REPORT_CACHE_DIR / "fedfundsdiff_aic_grid.png"
+fig_aic_fed_diff.savefig(fed_diff_aic_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig_aic_fed_diff)
+```
+
+```{python}
+#| label: block-fedfundsdiff-aic-and-coefs
+#| echo: false
+#| output: asis
+params = pd.Series(fed_diff_best_result.params)
+pvals = pd.Series(fed_diff_best_result.pvalues).reindex(params.index)
+coef_names = ["YoYCPI", "UnemploymentRateMonthly", "SameParty"]
+
+def _fmt(v):
+    if pd.isna(v):
+        return "NA"
+    return f"{float(v):.6g}"
+
+coef_vals = [_fmt(params.reindex(coef_names).get(k)) for k in coef_names]
+pval_vals = [_fmt(pvals.reindex(coef_names).get(k)) for k in coef_names]
+
+latex_block = f"""
+\\noindent
+\\begin{{minipage}}[t]{{0.36\\textwidth}}
+\\vspace{{0pt}}
+\\raggedright
+We begin by using FedFundsDifference as our dependent variable. The AIC grid for model selection is visible to the right; some values are mathematically inconsistent and displayed in red. Below is a table of the main predictors, their coefficients, and their p-values.
+
+\\vspace{{0.5em}}
+\\resizebox{{\\linewidth}}{{!}}{{%
+\\begin{{tabular}}{{lccc}}
+\\hline
+ & CPI & UR & SP \\\\
+\\hline
+Coef & {coef_vals[0]} & {coef_vals[1]} & {coef_vals[2]} \\\\
+Pval & {pval_vals[0]} & {pval_vals[1]} & {pval_vals[2]} \\\\
+\\hline
+\\end{{tabular}}
+}}
+\\end{{minipage}}
+\\hfill
+\\begin{{minipage}}[t]{{0.61\\textwidth}}
+\\vspace{{0pt}}
+\\centering
+\\includegraphics[width=\\linewidth]{{cache/fedfundsdiff_aic_grid.png}}
+\\end{{minipage}}
+\\par\\medskip
+"""
+print(latex_block)
+```
+
+```{python}
+#| label: plot-fedfundsdiff-regarma-diagnostics
+#| echo: false
+#| include: false
+
+resid_std = standardized_residual_series(fed_diff_best_result)
+fig, ax = plt.subplots(figsize=(5, 4))
+
+# ----- Q-Q plot -----
+qqplot(resid_std, line="45", ax=ax)
+ax.set_title("Q-Q plot")
+ax.set_xlim(-3, 3)
+
+fig.tight_layout()
+fed_diff_qq_plot_path_abs = REPORT_CACHE_DIR / "fedfundsdiff_qq_plot.png"
+fig.savefig(fed_diff_qq_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig)
+```
+
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.52\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/fedfundsdiff_qq_plot.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+\vspace{0pt}
+\raggedright
+Using FedFundsDiff as the response, we see that the Q-Q plot exhibits heavy tails, which indicates that the model's residuals are non-normal. Most importantly, the summary table shows that inflation and unemployment are statistically insignificant as indicated by their large p-values. This finding does not align with the conventional view that the Federal Reserve responds to inflation and unemployment when setting interest rates and provokes our skepticism.
+\end{minipage}
+\par\medskip
+```
+
+
+## Lag and Cross-Correlation
+
+It's possible that this unintuitive result is due to lag correlations in the Fed's response. That is, unemployment and inflation could be cyclical, and the Fed could be acting out of phase in such a way that lag-0 inflation and unemployment appear statistically insignificant as predictors of interest rates. We investigate this possibility using cross-correlation analysis to examine potential lag structures in the Fed's response.
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.37\textwidth}
+\vspace{0pt}
+\raggedright
+To prepare for this analysis, we used the Hodrick-Prescott (HP) filter to detrend our datasets with respect to business cycles. We used Lambda = 129600, as it's the recommended setting for detrending monthly-level data [13]. The detrended data can be seen to the right, and correlations in the motion of these variables is visually evident.
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.60\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/hp_detrended_series_plot.png}
+\end{minipage}
+\par\medskip
+```
+
+Below, viewing the cross-correlation of FedFunds vs YoYCPI and FedFunds vs Unemployment, see that the cross correlation is highest around lag 0, suggesting that the Fed is in phase with inflation and unemployment. That is, if we tried to use prior lags of Unemployment to predict the Fed Funds rate, going back 40 months, we'd reach at best a correlation of 0.1, or in the case of inflation predicting fed funds, we'd get a correlation of just 0.2. It doesn't provide much signal.
+
+
+```{python}
+#| label: plot-welch-cross-correlation-hp
+#| echo: false
+#| fig-width: 6
+#| fig-height: 4
+#| fig-pos: "H"
+
+from scipy import signal
+
+def welch_cross_correlation(x, y, max_lag: int = 60, nperseg: int = 128, overlap_frac: float = 0.5):
+    x = pd.to_numeric(pd.Series(x), errors="coerce").to_numpy(dtype=float)
+    y = pd.to_numeric(pd.Series(y), errors="coerce").to_numpy(dtype=float)
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+
+    n = min(len(x), len(y))
+    if n < 16:
+        return pd.DataFrame(columns=["lag", "corr"])
+    x = x[:n] - np.mean(x[:n])
+    y = y[:n] - np.mean(y[:n])
+
+    nperseg_eff = int(min(max(16, nperseg), n))
+    noverlap = int(np.floor(overlap_frac * nperseg_eff))
+    noverlap = min(noverlap, nperseg_eff - 1)
+
+    _, pxy = signal.csd(
+        x,
+        y,
+        fs=12.0,
+        nperseg=nperseg_eff,
+        noverlap=noverlap,
+        detrend="constant",
+        scaling="density",
+        return_onesided=False,
+    )
+
+    ccov = np.fft.ifft(np.asarray(pxy, dtype=complex)).real * 12.0
+    ccov = np.fft.fftshift(ccov)
+    lags = np.arange(-(len(ccov) // 2), len(ccov) - (len(ccov) // 2), dtype=int)
+
+    denom = float(np.std(x, ddof=0) * np.std(y, ddof=0))
+    if not np.isfinite(denom) or denom <= 0:
+        corr = np.full_like(ccov, np.nan, dtype=float)
+    else:
+        corr = np.clip(ccov / denom, -1.0, 1.0)
+
+    max_lag_eff = int(min(max_lag, np.max(np.abs(lags))))
+    keep = (lags >= -max_lag_eff) & (lags <= max_lag_eff)
+    return pd.DataFrame({"lag": lags[keep], "corr": corr[keep]}).sort_values("lag")
+
+ccf_fed_cpi = welch_cross_correlation(
+    hp_lag_df["FedFundsCycle"],
+    hp_lag_df["YoYCPI_Cycle"],
+    max_lag=60,
+    nperseg=128,
+)
+ccf_fed_unemp = welch_cross_correlation(
+    hp_lag_df["FedFundsCycle"],
+    hp_lag_df["UnemploymentCycle"],
+    max_lag=60,
+    nperseg=128,
+)
+
+fig, axes = plt.subplots(1, 2, figsize=(8, 3), sharey=True)
+
+axes[0].bar(ccf_fed_cpi["lag"], ccf_fed_cpi["corr"], width=0.9, color="tab:blue")
+axes[0].axhline(0.0, color="black", linewidth=0.8)
+axes[0].axvline(0.0, color="gray", linewidth=0.8)
+axes[0].set_xlim(-60, 60)
+axes[0].set_title("FedFunds detrended vs YoYCPI detrended")
+axes[0].set_xlabel("Lag (months)")
+axes[0].set_ylabel("Cross-correlation")
+
+axes[1].bar(ccf_fed_unemp["lag"], ccf_fed_unemp["corr"], width=0.9, color="tab:orange")
+axes[1].axhline(0.0, color="black", linewidth=0.8)
+axes[1].axvline(0.0, color="gray", linewidth=0.8)
+axes[1].set_xlim(-60, 60)
+axes[1].set_title("FedFunds detrended vs Unemployment detrended")
+axes[1].set_xlabel("Lag (months)")
+
+plt.tight_layout()
+plt.show()
+```
+
+
+```{python}
+#| label: calc-lag-pvalues-arma11
+#| echo: false
+_lag_pval_payload = (
+    ("FedFundsMonthly.csv", int((DATA_DIR / "FedFundsMonthly.csv").stat().st_mtime_ns)),
+    ("CPIMonthlyPercentage.csv", int((DATA_DIR / "CPIMonthlyPercentage.csv").stat().st_mtime_ns)),
+    ("UnemploymentMonthly.csv", int((DATA_DIR / "UnemploymentMonthly.csv").stat().st_mtime_ns)),
+    ("start", "1977-01-01"),
+    ("order", (1, 0, 5)),
+    ("trend", "c"),
+    ("y_var", "FedFundsDifference"),
+    ("x1_var", "YoYCPI_lag36"),
+    ("x2_var", "UnemploymentRateMonthly_lag39"),
+)
+_lag_pval_cache_key = make_shelve_cache_key("lag_pvalues_arma11_single_predictor", _lag_pval_payload)
+
+def _compute_lag_pvalues_arma11_single_predictor():
+    fed = pd.read_csv(DATA_DIR / "FedFundsMonthly.csv")[["month", "FedFundsDifference"]].copy()
+    cpi = pd.read_csv(DATA_DIR / "CPIMonthlyPercentage.csv")[["month", "YoYCPI"]].copy()
+    unemp = pd.read_csv(DATA_DIR / "UnemploymentMonthly.csv")[["month", "UnemploymentRateMonthly"]].copy()
+    for _df in [fed, cpi, unemp]:
+        _df["month"] = pd.to_datetime(_df["month"], errors="coerce")
+
+    m1 = fed.merge(cpi, on="month", how="inner").sort_values("month")
+    m1 = m1.loc[m1["month"] >= pd.Timestamp("1977-01-01")].copy().reset_index(drop=True)
+    m1["FedFundsDifference"] = pd.to_numeric(m1["FedFundsDifference"], errors="coerce")
+    m1["YoYCPI_lag36"] = pd.to_numeric(m1["YoYCPI"], errors="coerce").shift(36)
+    m1 = m1[["month", "FedFundsDifference", "YoYCPI_lag36"]].dropna().reset_index(drop=True)
+
+    m2 = fed.merge(unemp, on="month", how="inner").sort_values("month")
+    m2 = m2.loc[m2["month"] >= pd.Timestamp("1977-01-01")].copy().reset_index(drop=True)
+    m2["FedFundsDifference"] = pd.to_numeric(m2["FedFundsDifference"], errors="coerce")
+    m2["UnemploymentRateMonthly_lag39"] = (
+        pd.to_numeric(m2["UnemploymentRateMonthly"], errors="coerce").shift(39)
+    )
+    m2 = m2[["month", "FedFundsDifference", "UnemploymentRateMonthly_lag39"]].dropna().reset_index(drop=True)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        r1 = SARIMAX(
+            endog=m1["FedFundsDifference"].astype(float),
+            exog=m1[["YoYCPI_lag36"]].astype(float),
+            order=(1, 0, 5),
+            seasonal_order=(0, 0, 0, 0),
+            trend="c",
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        ).fit(disp=False)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        r2 = SARIMAX(
+            endog=m2["FedFundsDifference"].astype(float),
+            exog=m2[["UnemploymentRateMonthly_lag39"]].astype(float),
+            order=(1, 0, 5),
+            seasonal_order=(0, 0, 0, 0),
+            trend="c",
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        ).fit(disp=False)
+
+    p1 = float(pd.Series(r1.pvalues).get("YoYCPI_lag36", np.nan))
+    p2 = float(pd.Series(r2.pvalues).get("UnemploymentRateMonthly_lag39", np.nan))
+    return p1, p2
+
+pval_yoy_lag36, pval_unemp_lag39 = shelve_cached_compute(
+    _lag_pval_cache_key, _compute_lag_pvalues_arma11_single_predictor
+)
+```
+
+Though it's not exhaustive, some additional evidence against the use of these lags is to fit our regression with ARMA(1, 5) errors with the YoYCPI at lag 36 as a variable, and we see its coefficient has a p value of: `{python} f"{pval_yoy_lag36:.4f}"`, which is not statistically significant. The same holds true for unemployment rate monthly at lag 39, with its p-value of: `{python} f"{pval_unemp_lag39:.4f}"`
+
+## Model 2: DiffLogs
+
+```{python}
+#| label: calc-difflog-regarma
+#| echo: false
+difflog_regarma_payload = (
+    ("FedFundsMonthly.csv", int((DATA_DIR / "FedFundsMonthly.csv").stat().st_mtime_ns)),
+    ("CPIMonthlyPercentage.csv", int((DATA_DIR / "CPIMonthlyPercentage.csv").stat().st_mtime_ns)),
+    ("UnemploymentMonthly.csv", int((DATA_DIR / "UnemploymentMonthly.csv").stat().st_mtime_ns)),
+    ("FedChairMonthly.csv", int((DATA_DIR / "FedChairMonthly.csv").stat().st_mtime_ns)),
+    ("start", "1977-01-01"),
+    ("end", "2026-12-31"),
+    ("y", "DiffLog"),
+    ("x", ("YoYCPI", "UnemploymentRateMonthly", "SameParty")),
+    ("max_order", 5),
+    ("seasonal_order", (1, 0, 1, 12)),
+)
+difflog_regarma_cache_key = make_shelve_cache_key("difflog_regarma_aic_grid_bundle", difflog_regarma_payload)
+
+def _compute_difflog_regarma_bundle():
+    fed = pd.read_csv(DATA_DIR / "FedFundsMonthly.csv")[["month", "DiffLog"]].copy()
+    cpi = pd.read_csv(DATA_DIR / "CPIMonthlyPercentage.csv")[["month", "YoYCPI"]].copy()
+    unemp = pd.read_csv(DATA_DIR / "UnemploymentMonthly.csv")[["month", "UnemploymentRateMonthly"]].copy()
+    party = pd.read_csv(DATA_DIR / "FedChairMonthly.csv")[["month", "SameParty"]].copy()
+
+    for _df in [fed, cpi, unemp, party]:
+        _df["month"] = pd.to_datetime(_df["month"], errors="coerce")
+
+    model_df = (
+        fed.merge(cpi, on="month", how="inner")
+        .merge(unemp, on="month", how="inner")
+        .merge(party, on="month", how="inner")
+        .dropna()
+        .sort_values("month")
+        .loc[lambda d: (d["month"] >= pd.Timestamp("1977-01-01")) & (d["month"] <= pd.Timestamp("2026-12-31"))]
+        .reset_index(drop=True)
+    )
+    model_df["DiffLog"] = pd.to_numeric(model_df["DiffLog"], errors="coerce")
+    model_df["YoYCPI"] = pd.to_numeric(model_df["YoYCPI"], errors="coerce")
+    model_df["UnemploymentRateMonthly"] = pd.to_numeric(model_df["UnemploymentRateMonthly"], errors="coerce")
+    model_df["SameParty"] = pd.to_numeric(model_df["SameParty"], errors="coerce")
+    model_df = model_df.dropna().reset_index(drop=True)
+
+    y = model_df["DiffLog"].astype(float)
+    X = model_df[["YoYCPI", "UnemploymentRateMonthly", "SameParty"]].astype(float)
+
+    aic_grid = pd.DataFrame(index=range(6), columns=range(6), dtype=float)
+    for p in range(6):
+        for q in range(6):
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    _model = SARIMAX(
+                        endog=y,
+                        exog=X,
+                        order=(p, 0, q),
+                        seasonal_order=(1, 0, 1, 12),
+                        trend="c",
+                        enforce_stationarity=False,
+                        enforce_invertibility=False,
+                    )
+                    _res = _model.fit(disp=False)
+                aic_grid.loc[p, q] = _res.aic
+            except Exception:
+                aic_grid.loc[p, q] = np.nan
+
+    valid_cells = aic_grid.stack()
+    valid_cells = valid_cells[pd.notna(valid_cells)]
+    if valid_cells.empty:
+        raise ValueError("No valid ARMA fits were found in the 0..5 AIC grid for DiffLog model.")
+    best_p, best_q = valid_cells.idxmin()
+    best_aic = float(valid_cells.min())
+
+    return {
+        "model_df": model_df,
+        "aic_grid": aic_grid,
+        "best_p": int(best_p),
+        "best_q": int(best_q),
+        "best_aic": best_aic,
+    }
+
+difflog_regarma_bundle = shelve_cached_compute(
+    difflog_regarma_cache_key, _compute_difflog_regarma_bundle
+)
+
+difflog_model_df = difflog_regarma_bundle["model_df"].copy()
+aic_grid_difflog = difflog_regarma_bundle["aic_grid"].copy()
+aic_grid_difflog.index.name = "p"
+aic_grid_difflog.columns.name = "q"
+best_p_difflog = int(difflog_regarma_bundle["best_p"])
+best_q_difflog = int(difflog_regarma_bundle["best_q"])
+best_aic_difflog = float(difflog_regarma_bundle["best_aic"])
+
+y_difflog = difflog_model_df["DiffLog"].astype(float)
+X_difflog = difflog_model_df[["YoYCPI", "UnemploymentRateMonthly", "SameParty"]].astype(float)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    difflog_best_model = SARIMAX(
+        endog=y_difflog,
+        exog=X_difflog,
+        order=(best_p_difflog, 0, best_q_difflog),
+        seasonal_order=(1, 0, 1, 12),
+        trend="c",
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
+    difflog_best_result = difflog_best_model.fit(disp=False)
+```
+
+```{python}
+#| label: plot-difflog-regarma-aic-grid
+#| echo: false
+#| include: false
+predecessor_cells_difflog, worse_cells_difflog = classify_aic_inconsistency_cells(aic_grid_difflog)
+fig_aic_difflog, _ = plot_colored_aic_grid(
+    aic_grid_difflog,
+    predecessor_cells_difflog,
+    worse_cells_difflog,
+    title="DiffLog regression + ARMA errors AIC grid (seasonal s=12)",
+    show=False,
+)
+difflog_aic_plot_path_abs = REPORT_CACHE_DIR / "difflog_aic_grid.png"
+fig_aic_difflog.savefig(difflog_aic_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig_aic_difflog)
+```
+
+```{python}
+#| label: block-difflog-aic-and-coefs
+#| echo: false
+#| output: asis
+params = pd.Series(difflog_best_result.params)
+pvals = pd.Series(difflog_best_result.pvalues).reindex(params.index)
+coef_names = ["YoYCPI", "UnemploymentRateMonthly", "SameParty"]
+
+def _fmt(v):
+    if pd.isna(v):
+        return "NA"
+    return f"{float(v):.6g}"
+
+coef_vals = [_fmt(params.reindex(coef_names).get(k)) for k in coef_names]
+pval_vals = [_fmt(pvals.reindex(coef_names).get(k)) for k in coef_names]
+
+latex_block = f"""
+\\noindent
+\\begin{{minipage}}[t]{{0.36\\textwidth}}
+\\vspace{{0pt}}
+\\raggedright
+It seems implausible that inflation and unemployment don't carry a significant effect on the federal funds rate; this motivates us to fit a new model using DiffLogs as our predictor. The AIC grid can be seen at right, with the table of coefficients p-values again below.
+
+\\vspace{{0.5em}}
+\\resizebox{{\\linewidth}}{{!}}{{%
+\\begin{{tabular}}{{lccc}}
+\\hline
+ & CPI & UR & SP \\\\
+\\hline
+Coef & {coef_vals[0]} & {coef_vals[1]} & {coef_vals[2]} \\\\
+Pval & {pval_vals[0]} & {pval_vals[1]} & {pval_vals[2]} \\\\
+\\hline
+\\end{{tabular}}
+}}
+\\end{{minipage}}
+\\hfill
+\\begin{{minipage}}[t]{{0.61\\textwidth}}
+\\vspace{{0pt}}
+\\centering
+\\includegraphics[width=\\linewidth]{{cache/difflog_aic_grid.png}}
+\\end{{minipage}}
+\\par\\medskip
+"""
+print(latex_block)
+```
+
+
+```{python}
+#| label: plot-difflog-regarma-diagnostics
+#| echo: false
+#| include: false
+
+# Standardized residuals for Q-Q
+resid_std = standardized_residual_series(difflog_best_result).astype(float)
+n_std = int(min(len(resid_std), len(difflog_model_df)))
+resid_std = resid_std.iloc[-n_std:].reset_index(drop=True)
+month_std = (
+    pd.to_datetime(difflog_model_df["month"], errors="coerce")
+    .iloc[-n_std:]
+    .reset_index(drop=True)
+)
+
+qq_df = pd.DataFrame(
+    {
+        "Time": month_std,
+        "ZScore": resid_std,
+    }
+).dropna()
+qq_df = qq_df.sort_values("ZScore").reset_index(drop=True)
+n_qq = len(qq_df)
+ppoints = (np.arange(1, n_qq + 1) - 0.5) / n_qq
+qq_df["Theoretical"] = norm.ppf(ppoints)
+
+fig, ax = plt.subplots(figsize=(5, 4))
+ax.scatter(
+    qq_df["Theoretical"],
+    qq_df["ZScore"],
+    s=12,
+    color="tab:blue",
+    alpha=0.9,
+)
+
+line_x = np.array([-3.0, 3.0], dtype=float)
+ax.plot(line_x, line_x, color="red", linewidth=1.2)
+
+highlight = qq_df[qq_df["ZScore"] < -6.0].copy()
+highlight = highlight.sort_values("ZScore")
+highlight_colors = ["#8b0000", "#c83f49", "#ff7f7f", "#ffb3b3", "#ffd1d1"]
+for i, (_, row) in enumerate(highlight.iterrows()):
+    date_label = pd.Timestamp(row["Time"]).strftime("%Y-%m")
+    ax.scatter(
+        float(row["Theoretical"]),
+        float(row["ZScore"]),
+        s=26,
+        color=highlight_colors[i % len(highlight_colors)],
+        label=date_label,
+        zorder=3,
+    )
+
+if not highlight.empty:
+    ax.legend(loc="lower right", title="Outlier dates", fontsize=8, title_fontsize=8)
+
+ax.set_title("Q-Q plot")
+ax.set_xlabel("Theoretical Quantiles")
+ax.set_ylabel("Sample Quantiles")
+left_lim = -3.0
+if not highlight.empty:
+    left_lim = min(left_lim, float(highlight["Theoretical"].min()) - 0.05)
+ax.set_xlim(left_lim, 3)
+
+difflog_qq_plot_path_abs = REPORT_CACHE_DIR / "difflog_qq_plot.png"
+fig.tight_layout()
+fig.savefig(difflog_qq_plot_path_abs, dpi=220, bbox_inches="tight")
+plt.close(fig)
+```
+
+Each of the predictors now reaches a p-value $< 0.05$. While this is expected for CPI and unemployment, it may be a surprise that SameParty reaches statistical significance. Under this model, we can reject the null hypothesis, "The political party of the Fed chair and President are uncorrelated to changes in the federal funds rate." Further, the coefficient of the SameParty indicator is negative, meaning that political alignment between the Fed chair and President is associated with lower interest rates. This is consistent with the claim that the Federal Reserve may lower interest rates for the political benefit of the President.
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.52\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/difflog_qq_plot.png}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.45\textwidth}
+\vspace{0pt}
+\raggedright
+However, viewing the diagnostic QQ plot to the left, we see cause for concern. The residuals are not approximately normal, with some extremely long tails. Those outliers, with Z-scores, larger in magnitude than 6, correspond to Fed behavior during the Volcker era, the Great Recession, and early Covid, and they could have an outsized influence on the result.
+\end{minipage}
+\par\medskip
+```
+
+```{python}
+#| label: block-difflog-regarma-with-indicators
+#| echo: false
+#| output: asis
+indicator_months = ("2020-03-01", "1980-05-01", "2008-10-01")
+
+difflog_indicator_payload = (
+    ("FedFundsMonthly.csv", int((DATA_DIR / "FedFundsMonthly.csv").stat().st_mtime_ns)),
+    ("CPIMonthlyPercentage.csv", int((DATA_DIR / "CPIMonthlyPercentage.csv").stat().st_mtime_ns)),
+    ("UnemploymentMonthly.csv", int((DATA_DIR / "UnemploymentMonthly.csv").stat().st_mtime_ns)),
+    ("FedChairMonthly.csv", int((DATA_DIR / "FedChairMonthly.csv").stat().st_mtime_ns)),
+    ("indicator_months", indicator_months),
+    ("order", (best_p_difflog, 0, best_q_difflog)),
+    ("seasonal_order", (1, 0, 1, 12)),
+    ("trend", "c"),
+)
+difflog_indicator_cache_key = make_shelve_cache_key("difflog_regarma_with_indicators", difflog_indicator_payload)
+
+def _fit_difflog_with_indicators():
+    work = difflog_model_df.copy()
+    y = pd.to_numeric(work["DiffLog"], errors="coerce").astype(float)
+    X = work[["YoYCPI", "UnemploymentRateMonthly", "SameParty"]].apply(
+        pd.to_numeric, errors="coerce"
+    ).astype(float)
+    month_values = pd.to_datetime(work["month"], errors="coerce")
+
+    indicator_columns: list[str] = []
+    for month_key in indicator_months:
+        ts = pd.Timestamp(month_key)
+        col = f"Indicator_{ts.strftime('%Y_%m')}"
+        X[col] = (month_values.dt.to_period("M") == ts.to_period("M")).astype(float)
+        indicator_columns.append(col)
+
+    model_df = pd.concat([y.rename("DiffLog"), X], axis=1).dropna().reset_index(drop=True)
+    y_fit = model_df["DiffLog"].astype(float)
+    X_fit = model_df.drop(columns=["DiffLog"]).astype(float)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fitted = SARIMAX(
+            endog=y_fit,
+            exog=X_fit,
+            order=(best_p_difflog, 0, best_q_difflog),
+            seasonal_order=(1, 0, 1, 12),
+            trend="c",
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        ).fit(disp=False)
+
+    params = pd.Series(fitted.params)
+    pvals = pd.Series(fitted.pvalues).reindex(params.index)
+    display_map = [
+        ("CPI", "YoYCPI"),
+        ("UR", "UnemploymentRateMonthly"),
+        ("SP", "SameParty"),
+        ("Ind2020-03", "Indicator_2020_03"),
+        ("Ind1980-05", "Indicator_1980_05"),
+        ("Ind2008-10", "Indicator_2008_10"),
+    ]
+    coef_values = []
+    pval_values = []
+    for _, param_name in display_map:
+        coef_values.append(params.get(param_name, np.nan))
+        pval_values.append(pvals.get(param_name, np.nan))
+
+    return {
+        "indicator_columns": indicator_columns,
+        "coef_values": coef_values,
+        "pval_values": pval_values,
+        "display_labels": [x[0] for x in display_map],
+    }
+
+difflog_indicator_bundle = shelve_cached_compute(
+    difflog_indicator_cache_key, _fit_difflog_with_indicators
+)
+
+def _fmt(v):
+    if pd.isna(v):
+        return "NA"
+    return f"{float(v):.6g}"
+
+coef_vals = [_fmt(v) for v in difflog_indicator_bundle["coef_values"]]
+pval_vals = [_fmt(v) for v in difflog_indicator_bundle["pval_values"]]
+labels = difflog_indicator_bundle["display_labels"]
+table_rows = "\n".join(
+    [
+        f"{labels[i]} & {coef_vals[i]} & {pval_vals[i]} \\\\"
+        for i in range(len(labels))
+    ]
+)
+
+latex_block = f"""
+\\noindent
+\\begin{{minipage}}[t]{{0.45\\textwidth}}
+\\vspace{{0pt}}
+\\raggedright
+To test whether significance of our predictors is robust to these outliers, we refit the model with additional indicator variables, which are 1 only for that specified month, 0 otherwise. To the right, we see that our three predictors of interest remain statistically significant even accounting for these outliers, suggesting some robustness to these relationships.
+\\end{{minipage}}
+\\hfill
+\\begin{{minipage}}[t]{{0.45\\textwidth}}
+\\vspace{{0pt}}
+\\centering
+\\resizebox{{\\linewidth}}{{!}}{{%
+\\begin{{tabular}}{{lcc}}
+\\hline
+Variable & Coef & Pval \\\\
+\\hline
+{table_rows}
+\\hline
+\\end{{tabular}}
+}}
+\\end{{minipage}}
+\\par\\medskip
+"""
+print(latex_block)
+```
+
+## Conclusion
+This project examined whether adjustments of the interest rate by the Federal Reserve are associated with inflation, unemployment, and political circumstances. An initial SARIMA model using first differences of the federal funds rate found inflation and unemployment to be statistically insignificant which contradicts the Fed’s dual mandate. After ruling out lagged responses, we employed a model using first differences of log-transformed series, which yielded statistically significant effects for inflation, unemployment, and a same-party indicator; these results reject the null hypothesis that "the Fed chair and president's shared political orientation are unrelated to monetary policy." The same-party indicator had a negative value, demonstrating an association between the shared political party of the Fed chair and President and lower interests, a condition considered politically good for the President. 
+
+These results are consistent with the Fed responding in politically motivated ways, though no causation is shown --- this analysis is purely associational. Additionally, some of the diagnostics for the model were not ideal, such as the QQ plot, indicating that the acquired P-values cannot be fully trusted. Other relevant political and macroeconomic factors, such as election cycles and GDP growth, were not included. Despite these limitations, our analysis suggests that the relationship between monetary policy and the executive's politics warrants further investigation, using richer measures of political pressure, additional economic controls, and structural break models to better analyze the political independence of the Fed.
+
+
+# Contributions
+(Group members listed are ordered by alphabetical first name.)
+- Group Member 1: Built the statistical test bed, constructed datasets, performed statistical analyses, and helped format the Quarto document.
+- Group Member 2: Contributed by reviewing past midterm projects for reference. He drafted the introduction section of the report and assisted with organizing and refining the figures to improve overall clarity and structure.
+- Group Member 3: Helped with reviewing past midterm projects, as well as gathering sources for the background information on the project. She also helped create the initial outline of the project and helped with writing the final report.
+
+
+## Acknowledgments {.unnumbered}
+This report used the template available in the STATS 531 github. AI was used with Chatgpt 5.3Codex, extensively for coding, analysis, and formatting in Quarto, using the Codex and Quarto VScode extensions.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+## Data Sources and Transformations
+
+Data for the federal funds rate, consumer price index, and unemployment rate were obtained from the Federal Reserve Economic Data (FRED) which is maintained by the Research Department of the Federal Reserve Bank of St. Louis. 
+
+The following data files were used for this project:
+
+* FedFundsMonthly.csv
+  + FedFundsRateMonthly: [Data](https://fred.stlouisfed.org/series/FEDFUNDS) were collected monthly from the [Federal Reserve](https://www.federalreserve.gov/) and were not seasonally adjusted.
+  + FedFundsDifference: First-order differencing of FedFundsRateMonthly.
+  + DiffLog: First difference of the log-transformed series
+    $$
+    \Delta \log(1 + Y_t) = \log(1 + Y_t) - \log(1 + Y_{t-1}),
+    $$
+    which captures period-to-period changes in $Y_t$.
+  + FundsDetrend: Hodrick-Prescott smoothing with a lambda parameter of 129600 which is appropriate for monthly data.
+
+* UnemploymentMonthly.csv
+  + UnemploymentRateMonthly: [Data](https://fred.stlouisfed.org/series/UNRATENSA) were collected monthly from the [U.S. Bureau Labor of Statistics](https://www.bls.gov/) and were not seasonally adjusted.
+  + UnemploymentRateDetrend: Hodrick-Prescott smoothing with a lambda parameter of 129600 which is appropriate for monthly data.
+
+* CPIMonthlyTotal.csv
+  + CPIMonthlyTotal: [Data](https://fred.stlouisfed.org/series/CPALTT01USA657N) were collected from the [OECD](https://www.oecd.org/) and were not seasonally adjusted.
+
+* CPIMonthlyPercentage.csv
+  + YoYCPI: Rate of change in CPIMonthlyTotal.csv compared to the same month in the previous year.
+  + YoYCPIDetrend: Hodrick-Prescott smoothing with a lambda parameter of 129600 which is appropriate for monthly data.
+
+* PartyGovernment.csv
+  + Note: [Data](https://history.house.gov/Institution/Presidents-Coinciding/Party-Government/) were collected through a collaborative project between the Office of the Historian and the Clerk of the House's Office of Art and Archives.
+  + Year: The start year of two-year terms (e.g. 1957 refers to 1957-1958).
+  + Presidency: The party the President was from that year.
+
+* FedChairs.csv
+  + Note: [Data](https://www.congress.gov/crs_external_products/R/PDF/R48233/R48233.10.pdf) were collected from the Congressional Research Service and manually collected into a dataframe.
+  + StartDate: The start of the Fed chair's term.
+  + Name: The chair of the Federal Reserve.
+  + AppointingParty: An indicator of whether the Fed chair was appointed under a Republican or Democratic President based on the Presidency column in PartyGovernment.csv.
+
+* FedChairMonthly.csv
+  + FedChair: The chair of the Federal Reserve based on the Name column in FedChairs.csv.
+  + AppointingParty: An indicator of whether the Fed chair was appointed under a Republican or Democratic President based on the AppointingParty column in Fedchairs.csv.
+  + SameParty: An indicator based on PartyGovernment.csv of whether the Fed chair's appointing party matches the President's party for that year.

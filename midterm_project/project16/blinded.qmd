@@ -1,6 +1,5 @@
 ---
 title: "Time Series Analysis of Google Realized Volatility"
-author: "Huy Le and Tyler Yee"
 date: "February 2026"
 date-format: "MMMM YYYY"
 bibliography: references.bib

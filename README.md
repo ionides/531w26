@@ -42,12 +42,12 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 9. [Case study: An association between unemployment and mortality?](09)
 
-<!--
 
 10. [Forecasting](10)
 
 11. [Introduction to partially observed Markov process models](11)
 
+<!--
 12. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](12)
 
 13. [Simulation of stochastic dynamic models](13)

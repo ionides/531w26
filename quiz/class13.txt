@@ -1,0 +1,34 @@
+
+Class 13 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class12.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+1. Multiple choice question title:
+ Selecting a model for forecasting: https://ionides.github.io/531w26/quiz/class13.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class13.pdf
+
+
+Answers: 
+
+(A). AIC is based on one-step prediction, so for longer-term forecasts it is less reliable than fitting by $k$-step prediction error for $k>1$.
+
+
+* (B). Leave-one-out cross-validation is not designed for dependent data.
+
+(C). Ideally, we should use a different model for each time in the forecasting window, fitting using $k$-step prediction error when forecasting $k$ steps ahead.
+
+(D). The model that best predicts the most recent data when fitted to earlier data (i.e, (iv)) is more reliable for subsequent forecasting than methods which evaluate based on the whole time series history (i, ii, iii).
+
+(E). More than 1 of (A, B, C, D)
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer to the multiple choice question. You are expected to write between one and three sentences.
+
+The credit is for Q2 not Q1. For this assignment, the grade is for participation and feedback not correctness. 
+
+
+

@@ -1,7 +1,7 @@
 
 Class 13 discussion problem
 
-Solve the question at https://ionides.github.io/531w26/quiz/class12.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+Solve the question at https://ionides.github.io/531w26/quiz/class13.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
 
 
 1. Multiple choice question title:

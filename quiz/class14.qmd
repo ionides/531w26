@@ -1,0 +1,26 @@
+---
+title: ""
+author: ""
+geometry: paperheight=4.6in,paperwidth=6.3in,margin=0.3in
+format:
+  pdf:
+    pdf-engine: xelatex
+    toc: false
+jupyter: python3
+
+---
+
+
+\newcommand\var{\mathrm{Var}}
+\newcommand\varSample{\mathrm{var}}
+\newcommand\cov{\mathrm{Cov}}
+\newcommand\covSample{\mathrm{cov}}
+\newcommand\cor{\mathrm{Cor}}
+\newcommand\corSample{\mathrm{cor}}
+\newcommand\TRUEorFALSE{TRUE or FALSE. } 
+
+
+{{< include tmp14.qmd >}}
+
+
+

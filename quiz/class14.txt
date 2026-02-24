@@ -1,0 +1,51 @@
+Class 14 discussion problem
+
+Solve the questions at https://ionides.github.io/531w26/quiz/class14.pdf. Give a letter answer to the multiple choice questions and some supporting reasoning.
+
+
+1. Multiple choice question title: POMP model identity (1): https://ionides.github.io/531w26/quiz/class14.pdf
+
+Question text: Assess the truth of equation (1) at https://ionides.github.io/531w26/quiz/class14.pdf
+
+[A]
+
+2. Multiple
+choice question title: POMP model identity (2): https://ionides.github.io/531w26/quiz/class14.pdf
+
+Question text:
+Assess the truth of equation (2) at https://ionides.github.io/531w26/quiz/class14.pdf
+
+[A]
+
+3. Multiple choice question title: POMP model identity (3): https://ionides.github.io/531w26/quiz/class14.pdf
+
+Question text:
+Assess the truth of equation (3) at https://ionides.github.io/531w26/quiz/class14.pdf
+
+[B]
+
+4. Multiple choice question title:
+POMP model identity (4): https://ionides.github.io/531w26/quiz/class14.pdf
+
+Question text:
+Assess the truth of equation (4) at https://ionides.github.io/531w26/quiz/class14.pdf
+
+[B]
+
+Answers: 
+
+(A). True for all statistical models
+
+(B). True for general POMP models but not all models
+
+(C). True for linear Gaussian POMP models but not general POMP models
+
+(D). Generally false
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answers to the multiple choice questions. You are expected to write between one and three sentences for each one.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+

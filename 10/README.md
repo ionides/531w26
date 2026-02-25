@@ -5,11 +5,13 @@
 | Lecture material          | Link                         |
 |:-----------------------|:------------------------:|
 | Slides  | [pdf](slides.pdf) |
+| Annotated slides | NA (this short chapter has no annotations) |
 | Notes   | [pdf](notes.pdf) |
 
 
 <!---
 | Annotated slides | [pdf](slides-annotated.pdf) |
+| Annotated slides | NA (this short chapter has no annotations) |
 --->
 
 [Back to course homepage](../index.html)  

@@ -47,9 +47,9 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 11. [Introduction to partially observed Markov process models](11)
 
-<!--
 12. [Introduction to simulation-based inference for epidemiological dynamics via the pomp R package](12)
 
+<!--
 13. [Simulation of stochastic dynamic models](13)
 
 14. [Likelihood for POMP models: Theory and practice](14)

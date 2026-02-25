@@ -1,0 +1,36 @@
+---
+title: "STATS 531 Homework 5"
+author: "Due Sunday 3/15"
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \usepackage{fullpage}
+---
+
+\newcommand\prob{\mathbb{P}}
+\newcommand\E{\mathbb{E}}
+\newcommand\var{\mathrm{Var}}
+\newcommand\cov{\mathrm{Cov}}
+
+_This homework gives you some experience at algebraic manipulation of POMP models by deriving the prediction, filtering and smoothing formulas in [Chapter 11](https://ionides.github.io/531w26/11)._
+
+_The calculations are all applications of basic definitions (such as the Markov property) and basic identities for joint, conditional and marginal probability density functions. The goal is to check carefully how the formulas follow from these properties, so please explain this explicitly in your solutions. The hints for the exercises in the notes may be useful._
+
+_The homework should be written in qmd and rendered to pdf, as preparation for the final project which invovles developing and investigating a POMP model using the qmd format. Submit both the qmd and rendered pdf to Canvas._
+
+_As usual, you are welcome to use the Latex from the notes as a source. Your report should contain a reference section listing sources. The grader should be able to clearly identify where the sources were used, for example using reference numbers in the text. Anything and anyone consulted while you are working on the homework counts as a source and should be credited. The most likely sources for this theoretical homework are class notes, colleagues, past homework solutions, and AI. It is your responsibility to demonstrate and explain in your report the extent to which you have carried out independent work going beyond any sources listed. The homework will be graded following the grading scheme in the [syllabus](https://ionides.github.io/531w26/syllabus.html)._
+
+
+**Question 5.1**. Derive the identity [P2].
+
+**Question 5.2**. Derive the prediction formula, [P4].
+
+**Question 5.3**. Derive the filtering formulas [P5] and [P6].
+
+**Question 5.4**. Derive the backward recursion formulas [P7] and [P8].
+
+**Question 5.5**. Derive the smoothing formula [P9].
+
+

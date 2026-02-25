@@ -235,6 +235,7 @@ f_{X_{n}|Y_{1:n}}(x_n\given y_{1:n}).
 f_{X_{n}|Y_{1:N}}(x_n\given y_{1:N}).
 \end{equation}
 
+
 ## The likelihood
 
 - The likelihood is the joint density of $Y_{1:N}$ evaluated at the data,
@@ -250,6 +251,7 @@ f_{Y_{1:N}}(y_{1:N}).
 - If we can compute $\lik(\theta)$ then we can perform numerical optimization to get a maximum likelihood estimate.
 
 - Likelihood evaluation and maximization lets us compute profile likelihood confidence intervals, carry out likelihood ratio tests, and make AIC model comparisons.
+
 
 ## The prediction formula
 
@@ -293,6 +295,7 @@ f_{X|Y}(x\given y)= \int f_{XZ|Y}(x,z\given y)\, dz.
 f_{X|YZ}(x\given y,z)= \frac{ f_{Y|XZ}(y\given x,z)\, f_{X|Z}(x\given z)}{f_{Y|Z}(y\given z)}.
 \end{equation}
 
+
 ## The filtering formula
 
 Filtering at time $t_n$ can be computed by combining the new information in the datapoint $y_{n}$ with the calculation of the one-step prediction of the latent process at time $t_{n}$ given data up to time $t_{n-1}$.
@@ -315,6 +318,7 @@ f_{Y_{n}|Y_{1:n-1}}(y_n\given y_{1:n-1})
 \vspace{5mm}
 
 The prediction and filtering formulas are *recursive*. If they can be computed for time $t_n$ then they enable the computation at time $t_{n+1}$.
+
 
 ## The conditional likelihood formula
 
@@ -541,11 +545,9 @@ where $\epsilon_n\sim \normal[0,\sigma^2_\epsilon]$, $\xi_n\sim \normal[0,\sigma
 
 - To complete the model, we need to specify initial values.
 
-- We have an example of the common problem of failing to specify initial values: these are not explained in the documentation of the R implementation of the basic structural model, `StructTS`. We could go through the source code to find out what it does.
+- `statsmodels.tsa.statespace.structural.UnobservedComponents` documentation says it uses a "diffuse prior" for initial values. We could go through the source code to find out exactly what that means. 
 
-- Incidentally, `?StructTS` does give some advice which resonates with our experience earlier in the course that optimization for ARMA models is often imperfect.
-
-\vspace{2mm}
+- We should expect optimization difficulties, as we saw for ARMA. `StructTS` in R warns about this:
 
 "Optimization of structural models is a lot harder than many of the references admit. For example, the 'AirPassengers' data are considered in Brockwell & Davis (1996): their solution appears to be a local maximum, but nowhere near as good a fit as that produced by 'StructTS'. It is quite common to find fits with one or more variances zero, and this can include $\sigma^2_{\epsilon}$."
 
@@ -582,6 +584,7 @@ The transition matrix $\matA$ combines the dynamics of level, trend, and seasona
 
 - Here, $\Delta x_n = (1-B)x_n = x_n - x_{n-1}.$
 
+
 ##  
 
 - The *smoothing parameter*, $\lambda$, penalizes $x_{1:N}$ to prevent the spline from interpolating the data.
@@ -603,6 +606,7 @@ since $\Delta^2(\alpha + \beta n) = 0$.
 
 - Note that $\Delta^2 X_n = \epsilon_n$.
 - We will show that [SS1] is equivalent to [SS2,SS3].
+
 
 ## Constructing a linear Gaussian POMP (LG-POMP) model matching [SS2] and [SS3]
 
@@ -630,6 +634,7 @@ Taking logs we get
 \normalsize
 Here, $C$ depends on $\sigma$ and $\lambda$ but not on $y_{1:N}$. $C$ depends on the initial terms $x_0$ and $x_{-1}$, but we suppose these can be ignored, for example by modeling them with an improper uniform density.
 
+
 ##  
 
 - Comparing this with [SS1], we see that maximizing the density $f_{X_{1:N}Y_{1:N}}(x_{1:N},y_{1:N} \params \sigma,\lambda)$ as a function of $x_{1:N}$ is the same problem as finding the smoothing spline by minimizing the penalized sum of squares.
@@ -654,6 +659,7 @@ Here, $C$ depends on $\sigma$ and $\lambda$ but not on $y_{1:N}$. $C$ depends on
 &= \mathbb{E}\big[X_{1:N}\given Y_{1:N}=y_{1:N} \params  \sigma,\lambda\big].
 \end{align}
 
+
 ##
 
 - Because a (conditional) normal distribution is characterized by its (conditional) mean and variance, the smoothing calculation for an LG-POMP model involves finding the conditional mean and variance of $X_{n}$ given $Y_{1:N}=y_{1:N}$.
@@ -674,6 +680,7 @@ Here, $C$ depends on $\sigma$ and $\lambda$ but not on $y_{1:N}$. $C$ depends on
 
 **Note**: This LG-POMP model is sometimes reasonable, but presumably there are other occasions when a different LG-POMP model would lead to superior performance.
 
+
 ## The Kalman filter
 
 - The *Kalman filter* is the name given to the prediction, filtering and smoothing formulas [P4--P9] for the linear Gaussian partially observed Markov process (LG-POMP) model.
@@ -682,7 +689,8 @@ Here, $C$ depends on $\sigma$ and $\lambda$ but not on $y_{1:N}$. $C$ depends on
 
 - The integrals in the general POMP formulas can be found exactly for the Gaussian distribution, leading to linear algebra calculations of conditional means and variances.
 
-- The R function `arima()` uses a Kalman filter to evaluate the likelihood of an ARMA model (or ARIMA, SARMA, SARIMA).
+- Python `statsmodels` uses a Kalman filter to evaluate the likelihood of an ARMA model (or ARIMA, SARMA, SARIMA).
+
 
 ## Review of the multivariate normal distribution
 

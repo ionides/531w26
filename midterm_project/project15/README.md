@@ -28,7 +28,7 @@ modeling setups, and therefore deserves explicit verification. Without reproduci
 1. Sec 4.3 The Granger causality test is relevant and potentially powerful for the question of interest. More details would be good for a test not covered in class. What are its strengths and weaknesses? How reliable is it in this situation? What is the test statistic?
 
 1. The cross-series analysis (CCF and Granger tests) uses first-
-differenced series, but the best WTI model uses $d = 0$. So the univariate analysis and the
+differenced series, but the best WTI model uses $`d = 0`$. So the univariate analysis and the
 cross-series analysis are working on different transformations of the same data, and this isn’t
 discussed.
 
@@ -38,4 +38,4 @@ discussed.
 
 1. All the figure text font sizes are small and hard to read.
 
-1. No spectral analysis is included, which would have been a natural way to confirm the period-5 pattern and check if $s = 5$ is actually an appropriate seasonal period.
+1. No spectral analysis is included, which would have been a natural way to confirm the period-5 pattern and check if $`s = 5`$ is actually an appropriate seasonal period.

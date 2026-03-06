@@ -22,7 +22,7 @@ note the computation of how it was derived. Then, the discrepancy might have bee
 
 1. Sec 9. Ljung-Box is not designed to pick up the non-stationarity that is evident from the time plot.
 
-1. The choice of SARIMA(1,1,1)x(1,1,1) is not well motivated. It is easy enough to compare against alternatives, for example by an AIC table
+1. The choice of SARIMA $`(1,1,1)\times(1,1,1)`$ is not well motivated. It is easy enough to compare against alternatives, for example by an AIC table
 
 1. Sec 10. The Q-Q plot is far from a straight line. It may be unclear what to do about this, since not all non-normality can be controlled by a transformation, but at least it needs to be recognized.
 
@@ -32,6 +32,6 @@ note the computation of how it was derived. Then, the discrepancy might have bee
 SARIMAX function is called with `enforce_stationarity=False` and `enforce_invertibility=False`. While this prevents the optimizer from failing, it requires extra care for interpreting the output. Combining this with `warnings.filterwarnings("ignore")` adds to the danger of invisible numerical problems.
 
 1. A notable related issue arises in section 8, with the reported MA1 coefficient of 2.1844. This
-violates the invertibility of the model that requiring $|\theta_1| < 1$ for an MA1 model component. With the reported MA coefficient of 2.1844, residual calculations (from inverting the model) could be unstable.
+violates the invertibility of the model that requiring $`|\theta_1| < 1`$ for an MA1 model component. With the reported MA coefficient of 2.1844, residual calculations (from inverting the model) could be unstable.
 
 1. The project is written to a high standard of scholarship and reproducibility.

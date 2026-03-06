@@ -1,5 +1,7 @@
 # Review comments on Project 8, STATS 531 W26
 
+An original project making a claim of general interest. Referees had some questions about how solid the findings are. If they hold up to rigorous criticism, the project appears to be a contribution to political science.
+
 1. Sec 3. The QQ plot has long tails. The red line hides this somewhat, since a straight line fitting theoretical quantiles from -1 to 1 would show the long tails more clearly. It is not clear whether this amount of non-Gaussian behavior has an effect, but it should be noted and perhaps explored (e.g., by t-distributed tails; sometimes this suggests a transformation of the data, but not here)
 
 1. Figs 5 and 6. The strong lag-zero relationship is primarily driven by the collapse of the Soviet Union (1990) and also perhaps by the end of the second world war. It would be interesting to see if the pattern remains outside these two special historical events.

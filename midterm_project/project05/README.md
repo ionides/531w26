@@ -22,7 +22,7 @@ values (eg. choosing a different $\alpha$). This issue is not discussed.
 
 1. Sec 2.4 A graphical demonstration of volatility clustering might be simpler and more persuasive for the reader than an undescribed test.
 
-1. Sec 2.4.1. It is not clear what $X_t$ is here. Is it the ARIMA residuals? In that case, there is no need for $\mu$. Is it the regression residuals? In that case, there is clear dependence so GARCH is not suitable. We have to go into the source code to find it is the latter.
+1. Sec 2.4.1. It is not clear what $`X_t`$ is here. Is it the ARIMA residuals? In that case, there is no need for $`\mu`$. Is it the regression residuals? In that case, there is clear dependence so GARCH is not suitable. We have to go into the source code to find it is the latter.
 
 1. Sec 2.4.3. Earlier, in sec 2.4.0, you interpreted a p-value close to zero for the ARCH-LM test as evidence for heteroskedasticity, here you interpret it as evidence against it. Since you don't say what the test is, it is hard to be sure which is right, but how can they both be right? The code for the second application seems to be missing from the file, making it hard to check. By reading more about the test, and seeing the error in the analysis concerning removing a conditional mean before fitting GARCH, it becomes clear that it is the second that is wrong.
 
@@ -53,10 +53,10 @@ returns."
 1. Another major technical concern is that the presented trading strategy should not be considered because it has look-ahead bias. Look-ahead bias refers to the idea of using future
 unavailable information in predictions. This occurs within the computed Z-score statistic
 because the equation:
-    $$
+    ```math
     Z_t = \frac{\mathrm{Spread}_t - \mu_{t,w}}{\sigma_{t,w}}
-    $$ 
-    captures the day’s closing information (captured within $\mu_{t,w}$ and $\sigma_{t,w}$) to execute trades within the same day. In other words, the authors accidentally capture the future closing prices in
+    ```
+    captures the day’s closing information (captured within $`\mu_{t,w}$ and $\sigma_{t,w}`$) to execute trades within the same day. In other words, the authors accidentally capture the future closing prices in
     their calculations of mean and standard deviations, using them execute trades on the same day. This could have caused inflated return estimates.
 
 1. The project could have implemented a few more ideas from the course contents, such as the periodogram; even if this is unlikely to make it in the main body of the paper, maybe it could have ended up

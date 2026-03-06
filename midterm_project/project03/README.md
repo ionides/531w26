@@ -10,7 +10,7 @@ This project tells a coherent story, and is broadly correct, but has many small 
 
 4. Sec 4.1. "An augmented Dickey–Fuller test confirms stationarity (p < 0.01)." ADF is a test for a unit root in a linear Gaussian time series model against the alnative of a linear Gaussian time series model with no root. It is not a general test for stationarity.
 
-5. Sec 4.2. AIC is not directly comparable between levels of differencing. Discussing it in the context of selecting $d$ and $D$ is an error.
+5. Sec 4.2. AIC is not directly comparable between levels of differencing. Discussing it in the context of selecting $`d`$ and $`D`$ is an error.
 
 6. Section 4.3: The Ljung-Box test does not add much to the analysis. As discussed in class, if you select a model with good AIC, it almost always has satisfactory L-B because they measure very similar things. Similarly, they will miss similar things.
 

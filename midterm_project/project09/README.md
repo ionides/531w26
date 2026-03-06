@@ -17,7 +17,7 @@ information matrix. This implies that the parameter estimates can be extremely c
 variations in the data, thus large standard errors and unreliable inference can result. The warning is brought
 up but ignored without any follow-up.
 
-1. The chosen SARIMA $(0, 1, 3)\times (2, 1, 2)_{12}$ model fits seven parameters. Checking the coefficient table, only two
+1. The chosen SARIMA $`(0, 1, 3)\times (2, 1, 2)_{12}`$ model fits seven parameters. Checking the coefficient table, only two
 parameters are significant at conventional levels, and one is marginal, which casts doubt on the overfitting
 concern. The authors should have contemplated a simpler model. The authors very briefly acknowledge this,
 but do not address it in their primary analysis.

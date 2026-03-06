@@ -16,7 +16,7 @@ A technically sound project with broad interest to the reader group.
 
 7. The robustness check to the outliers (e.g., Volker) helps to reinforce the conclusions.
 
-8. The DiffLog transformation, defined as $\Delta\log(1 +Y_t)$, poses conceptual challenges for modeling
+8. The DiffLog transformation, defined as $`\Delta\log(1 +Y_t)`$, poses conceptual challenges for modeling
 interest rates. Since the federal funds rate is already expressed as a percentage, calculating the
 difference of the log of (1 + rate) is unconventional and substantially obscures the economic
 interpretation of the resulting coefficients. In macroeconomic modeling, policy rate changes are

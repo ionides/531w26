@@ -4,7 +4,7 @@ A thorough investigation, broadly correct. Readers identified the following poin
 
 1. The conclusion and abstract are underwhelming. The goal of developing a statistical model is to learn something, or do something, but the conclusion is happy with just having developed a model.
 
-2. Sec 4.2. "All six predictors are statistically significant ($p < 0.001$), confirming that the pre- and post-COVID trend structures differ meaningfully." This appears to be based on an OLS fit, though the results are not shown. Here, there is strong dependence and OLS standard errors should not be considered even if OLS is used to estimate a trend.
+2. Sec 4.2. "All six predictors are statistically significant ($`p < 0.001`$), confirming that the pre- and post-COVID trend structures differ meaningfully." This appears to be based on an OLS fit, though the results are not shown. Here, there is strong dependence and OLS standard errors should not be considered even if OLS is used to estimate a trend.
 
 3. Sec 4.4. "Is shown above" is wrong; the AIC table is in Table 1, which has ended up below. Better to refererce as, "Is shown in Table 1."
 
@@ -25,4 +25,4 @@ determined: was it a data-driven, theory-driven, or an arbitrary decision?
 
 9. For completeness, the authors could have looked at a periodogram; likely, it would show not much new and end up in a supplement.
 
-10. Written followign good standards of reproducibility and scholarship.
+10. Written following good standards of reproducibility and scholarship.

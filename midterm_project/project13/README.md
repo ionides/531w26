@@ -10,7 +10,7 @@ This was a well-written project that involves confidential research so cannot be
 
 1. The log-scale maybe is not so good with relatively small counts, as occur in these data. One option is an autoregressive Poisson or negative binomial model, with mean depending linearly on the previous observation.
 
-1. Discrete time series models are outside the taught material in this class, but see, e.g., Raman, B., & Ravishanker, N. (2023, March 18). Dynamic time series models using R-INLA: An Applied Perspective. Chapter 9 Modeling Count Time Series. https://ramanbala.github.io/dynamic-time-series-models-R-INLA/ch-count.html#ch-count
+1. Discrete time series models are outside the taught material in this class, but see, e.g., Raman, B., & Ravishanker, N. (2023, March 18). Dynamic time series models using R-INLA: An Applied Perspective. Chapter 9 Modeling Count Time Series. [https://ramanbala.github.io/dynamic-time-series-models-R-INLA/ch-count.html#ch-count](https://ramanbala.github.io/dynamic-time-series-models-R-INLA/ch-count.html#ch-count)
 
 1. Regression with ARMA errors and sine/cosine covariates might be a more sensitive way to look for seasonality from 1 year of data. This could lead to a formal likelihood ratio test for seasonality, which is missing from the report.
 

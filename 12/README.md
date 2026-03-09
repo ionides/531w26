@@ -1,4 +1,4 @@
-# "Modeling and Analysis of Time Series Data (STATS 531)
+# Modeling and Analysis of Time Series Data (STATS 531)
 
 ## Chapter 12: Introduction to simulation-based inference for epidemiological dynamics via the pypomp package
 
@@ -9,14 +9,14 @@ Although SBIED focuses on epidemiological examples, you can check from previous 
 Later, we will also consider models for financial markets, another major area of application for nonlinear time series techniques. 
 
 
-| | | | 
-|:---|:---|:---|
-| Slides  | |  [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/slides.pdf) |
-| Notes  | |  [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/notes.pdf) |
-| Recording, Part 1  | Time series analysis and mechanistic models in ecology and epidemiology | [(20 mins)](https://youtu.be/wn4bv3nz0kU) | 
-| Recording, Part 2  | Introduction to POMP models | [(22 mins)](https://youtu.be/-P4lwVDHxjQ) |
-| Recording, Part 3  | The pomp R package for POMP models | [(7 mins)](https://youtu.be/1MY8NuJ5fr4) |
-----------------------
+| Lecture material | Link       |  
+|:-----------------|:-----------|
+| Slides  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/slides.pdf) |
+| Notes  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/notes.pdf) |
+| Recording, Summer 2021, Part 1  | [(20 mins)](https://youtu.be/wn4bv3nz0kU) | 
+| Recording, Summer 2021, Part 2  | [(22 mins)](https://youtu.be/-P4lwVDHxjQ) |
+| Recording, Summer 2021, Part 3  | [(7 mins)](https://youtu.be/1MY8NuJ5fr4) |
+
 
 <!--
 | Annotated slides | | [pdf](slides-annotated.pdf) |
@@ -27,7 +27,7 @@ Later, we will also consider models for financial markets, another major area of
 
 [Back to course homepage](../index.html)  
 [Acknowledgements](../acknowledge.html)  
-[Source code for these notes](http://github.com/kingaa/sbied/tree/master/intro)
+[Source code for these notes](http://github.com/pypomp/tutorials/tree/master/sbied/chapter1)
 
 
 ----------------------

@@ -1,0 +1,35 @@
+
+Class 15 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class15.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title:
+POMP representations of ARMA: https://ionides.github.io/531w26/quiz/class15.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class15.pdf
+
+Answers: 
+
+(A). Only (M3)
+
+(B). (M1) and (M2) but not (M3)
+
+(C). (M2) and (M3) but not (M1)
+
+(D). (M1) and (M3) but not (M2)
+
+(E). (M1), (M2) and (M3)
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+Due to time constraints, you may like to focus on the justification for whether or not (M1) matches ARMA(1,1).
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

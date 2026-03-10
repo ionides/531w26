@@ -1,0 +1,33 @@
+
+Class 16 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class16.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title:
+The Markov property and POMP models: https://ionides.github.io/531w26/quiz/class16.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class16.pdf
+
+Answers: 
+
+(A). i, iv, v
+
+(B). ii, iv
+
+(C). ii, v
+
+(D). iii
+
+(E). Some combination other than those listed above
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

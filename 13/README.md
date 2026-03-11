@@ -11,8 +11,8 @@ The SIR model in epidemiology is closely related to predator-prey models in ecol
 
 | Lecture material | Link       |  
 |:-----------------|:-----------|
-| Slides  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/slides.pdf) |
-| Notes  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter1/notes.pdf) |
+| Slides  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter2/slides.pdf) |
+| Notes  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter2/notes.pdf) |
 | Recording, Summer 2021, Part 1  | [(17 mins)](https://youtu.be/l5YCll5qcP0) | 
 | Recording, Summer 2021, Part 2  | [(24 mins)](https://youtu.be/69F4oEjXkug) | 
 | Recording, Summer 2021, Part 3  | [(47 mins)](https://youtu.be/XmUQR1Bp8C4) |

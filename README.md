@@ -47,11 +47,12 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 11. [Introduction to partially observed Markov process models](11)
 
-12. [Introduction to simulation-based inference for epidemiological dynamics via the pypomp package](12)
+12. [Introduction to simulation-based inference for epidemiological dynamics via the pypomp package](12). 
+    - [Getting starte with pypomp](https://pypomp.github.io/tutorials/sbied/chapter0)
 
-<!--
 13. [Simulation of stochastic dynamic models](13)
 
+<!--
 14. [Likelihood for POMP models: Theory and practice](14)
 
 15. [Likelihood maximization for POMP models](15)

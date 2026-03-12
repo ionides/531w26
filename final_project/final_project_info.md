@@ -73,7 +73,7 @@ Come ask the instructor or GSI if you have questions or concerns about your choi
     + You are expected to look at previous projects, including those at [https://ionides.github.io/531w25/final_project](https://ionides.github.io/531w25/final_project) and [https://ionides.github.io/531w24/final_project](https://ionides.github.io/531w24/final_project.).
     You can also reference the peer review for these projects, posted online next to the projects.
 
-    + 3 of the scholarship points are for putting your project into the context of previous 531 projecs. How is your work similar or different? What relevant things have you learned from previous peer review? It may be helpful to employ teamwork to survey a collection of past projects.
+    + 3 of the scholarship points are for putting your project into the context of previous 531 projects. How is your work similar or different? What relevant things have you learned from previous peer review? It may be helpful to employ teamwork to survey a collection of past projects.
 
     + If you address a question related to a previous project, you should put your contribution in the context of the previous work and explain how your approach varies or extends the previous work.
     It is especially important that this is clearly explained: substantial points will be lost if the reader has to carry out detective work to figure out clearly the relationship to a previous project.
@@ -86,14 +86,14 @@ Come ask the instructor or GSI if you have questions or concerns about your choi
     
     + When using a reference to point the reader to descriptions elsewhere, you should provide a brief summary in your own report to make it self-contained. 
 
-    + Credit between group members will be addredded via a separate individual Canvas assignment, set up to discuss individual contributions. Unless evidence arises of extreme team dysfunction, all team members will receive the same score. Usually, a few sentences is enough to explain how the work was divided.
+    + Credit between group members will be addressed via a separate individual Canvas assignment, set up to discuss individual contributions. Unless evidence arises of extreme team dysfunction, all team members will receive the same score. Usually, a few sentences is enough to explain how the work was divided.
 
     + AI is helpful for developing code in a complex data analysis.
     If used carefully, it can contribute positively to support scientific writing.
     Readers will assume you are using AI, and they will be looking for clear, complete, honest and insightful assessment of its role.
     AI should be credited, like any other source, but its unique capabilities require special attention.
     Your project can be strengthened by a thorough explanation of your research methodology for use of AI.
-    You may comment on how you guarded against abuse of AI, to ensure quanlity control and full human responsibility for the submitted report.
+    You may comment on how you guarded against abuse of AI, to ensure quality control and full human responsibility for the submitted report.
     
 **Plagiarism**. If material is taken directly from another source, that source must be cited and the copied material clearly attributed to the source, for example by the use of quotation marks. Failing to do this is [plagiarism](https://en.wikipedia.org/wiki/Plagiarism) may result in zero credit for the scholarship category and the section of the report in which the plagiarism occurs. Here is how the [Rackham Academic and Professional Integrity Policy](https://rackham.umich.edu/policy/section8/) describes plagiarism:
 

@@ -1,0 +1,254 @@
+---
+title: "Parallel statistical computing in Python on greatlakes for STATS 531 W26"
+author: "Edward Ionides"
+format:
+  beamer:
+    slide-level: 2
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    output-file: slides.pdf
+    classoption: t
+  pdf:
+    header-includes: |
+    output-file: notes.pdf
+
+jupyter: python3
+
+---
+
+## Requirements to log in to greatlakes
+
+We follow the [Great Lakes online documentation](https://its.umich.edu/advanced-research-computing/high-performance-computing/great-lakes/getting-started). You need:
+
+- **A Slurm account**. Everybody in this class is a member of the account `stats531w26s001_class`. Graduate students in the Applied Statistics and Data Science masters programs, or Statistics PhD program, also have a primary departmental account, `stats_dept1`. 
+- **A greatlakes cluster login account**. If you have not yet filled in the form at <https://its.umich.edu/advanced-research-computing/high-performance-computing/great-lakes/getting-started>
+then do so.
+- **A umich internet address**. Use the umich VPN if you are not on campus.
+
+
+## Connecting to greatlakes with macOS, Linux or Windows
+
+1. Open a Terminal window (recall that, on a Mac, this can be done using Control-Spacebar and typing Terminal) and type
+
+```bash
+ssh uniqname@greatlakes.arc-ts.umich.edu
+```
+
+where `uniqname` is your uniqname.
+
+2. Login with your Kerberos level-1 password, and Okta two-factor authentication.
+
+This creates a remote terminal shell on greatlakes.
+
+
+## Connecting to greatlakes with a browser
+
+* Use the umich VPN if you are not on campus.
+
+* Point your browser to \url{https://greatlakes.arc-ts.umich.edu}
+
+* Choose the menu option: Clusters $\rightarrow$ Great Lakes Shell Access. This creates a remote terminal shell on greatlakes within your browser.
+
+
+## Moving files on and off greatlakes: `scp`
+
+`scp` which has similar syntax to the terminal command `cp`.
+To copy `myfile` on your laptop to a subdirectory `mydir` of your home directory on greatlakes:
+
+\small
+```bash
+scp myfile uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir
+```
+\normalsize
+
+To copy an entire directory, use the `-r` flag for recursive copy:
+
+\small
+```bash
+scp -r mydir uniqname@greatlakes-xfer.arc-ts.umich.edu:
+```
+\normalsize
+
+These commands can also be reversed to copy files from greatlakes to your machine. To copy `mydir` back to your machine:
+
+\small
+```bash
+scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir .
+```
+\normalsize
+
+You will need to authenticate via Okta to complete the file transfer.
+On Mac or Windows, [FileZilla](https://filezilla-project.org) provides a file system user interface.
+
+
+## Synchronizing files using git
+
+* If you have a project on GitHub, clone the git repository to greatlakes and push your work back to greatlakes when you are done.
+
+* This workflow keeps your project synchronized between greatlakes, GitHub, and your laptop.
+
+
+## A workflow for working with batch jobs
+
+1. You create a batch script and submit it as a job
+2. Your job is scheduled, and it enters the queue
+3. When its turn arrives, your job will execute the batch script
+4. Your script has access to all applications and data
+5. When your script completes, anything it sent to standard output and error are saved in files stored in your submission directory
+6. You can ask that email be sent to you when your jobs starts, ends, or fails
+7. You can check on the status of your job at any time, or delete it if it's not doing what you want
+8. A short time after your job completes, it disappears
+
+
+## Useful batch commands
+
+Submit a job
+
+```bash
+sbatch sample.sbat
+```
+
+Query job status
+
+```bash
+squeue -j jobid
+squeue -u uniqname
+```
+
+Delete a job
+
+```bash
+scancel jobid
+```
+
+Check a job script and estimate its start time
+
+```bash
+sbatch --test-only sample.sbat
+```
+
+## More Slurm commands to try
+
+| Command | Description |
+|---|---|
+| `sacct -u user` | show recent job history |
+| `seff jobid` | show cpu utilization for jobid |
+| `my_accounts` | list accounts you have permission to use |
+
+
+## Python modules on greatlakes
+
+Software on greatlakes is packaged in modules which must be loaded
+
+```bash
+module load python
+```
+
+Other versions of Python are available:
+
+```bash
+module avail python
+```
+
+- For simple multicore computing, sending jobs to multiple cores on a single node, the default Python module is appropriate.
+
+
+## A test for multiprocessing
+
+- The `greatlakes` subdirectory of the `531w26` git repository has a file `test.sbat` which submits a batch job running the parallel multiprocessing test in `test.py`.
+
+- A basic Linux exercise is to set up a directory on greatlakes with these files, at which point you can run
+
+```bash
+sbatch test.sbat
+```
+
+to submit the job. If you have little or no experience with Linux or Unix, this is a nontrivial task. You could ask for help or read <https://ubuntu.com/tutorials/command-line-for-beginners>.
+
+- You can transfer the files from your laptop via `scp`, or by copy-paste, but it may be simplest to clone the class git repository into your greatlakes account,
+
+```bash
+git clone https://github.com/ionides/531w26.git
+```
+
+## Editing text files on greatlakes
+
+- Inspect the text file `test.sbat`, for example by
+
+```bash
+more test.sbat
+```
+
+Is it fairly self-explanatory?
+
+- One thing that needs changing is to set your email address for alerts about jobs beginning and ending.
+- To make these edits on greatlakes, you need a text editor.
+- It is convenient to use a text editor that runs in a terminal. Options include
+
+```bash
+vi test.sbat
+emacs -nw test.sbat
+nano test.sbat
+```
+
+- It is useful to acquire some familiarity with each of these editors.
+
+
+## Comparing results
+
+- You are now ready to run a batch job
+
+```bash
+sbatch test.sbat
+```
+
+- From inspecting the code in `test.py`, we see that the results are saved in `test.csv`
+
+- You can assess what you learn from comparing run times on greatlakes and your laptop, though the main goal here is just to practice running the code.
+
+
+## Python packages on greatlakes
+
+- After making Python available by running
+
+```bash
+module load python
+```
+
+you can start a Python session in a terminal on the login node just by typing `python`.
+
+- This is useful for setting up all the Python libraries you may need.
+- You are not supposed to do heavy multi-core computing on the login node, but installing libraries and small tests is okay.
+- For example, you can install packages using:
+
+```bash
+pip install --user numpy pandas statsmodels
+```
+
+then your subsequent Python jobs run via `sbatch` are able to use `import numpy` or `import statsmodels`.
+
+## Other ways to run Python on greatlakes
+
+It can be useful to start an interactive session on greatlakes, particularly for debugging. This is done from the terminal as follows:
+
+```bash
+module load python
+srun --nodes=1 --account=datasci531w26_class \
+  --ntasks-per-node=8 --pty /bin/bash
+```
+
+You can then run Python in the terminal as usual, by typing
+
+```bash
+python
+```
+
+- This Python session will have access to the cores you have requested.
+- Here, we require `nodes=1` since `multiprocessing` alone cannot work with cores spread across different machines.
+- You can also run [web-based Jupyter](https://documentation.its.umich.edu/node/4996). However, batch jobs remain the basic tool for intensive statistical computing.
+
+## Acknowledgments
+
+- This lesson builds on the [Great Lakes User Guide](https://its.umich.edu/advanced-research-computing/high-performance-computing/great-lakes), an [introduction by Charles Antonelli and John Thiels](https://ionides.github.io/531w20/cluster/STATS_531_Introduction_to_R_and_pomp_on_Great_Lakes.pdf), and notes from [STATS 810](https://ionides.github.io/810f25/gl/notes.pdf).
+
+- Compiled on \today.

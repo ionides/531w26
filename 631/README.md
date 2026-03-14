@@ -45,22 +45,27 @@ Spring Break
 8. Week starting Mar 9: [__doucet09__](http://www.warwick.ac.uk/fac/sci/statistics/staff/academic-research/johansen/publications/dj11.pdf)\
 Particle filtering facilitates time series analysis for many nonlinear systems. We study a review of this technique by two leading experts.  
 
-9. Week starting Mar 16: [__kristensen16__](https://doi.org/10.18637/jss.v070.i05)\
+9. Week starting Mar 16:
+[__linderman25__](https://joss.theoj.org/papers/10.21105/joss.07069)\
+Dynamax is a modern JAX framework for state space models. We should review the package as well as the JOSS paper.
+
+10. Week starting Mar 23:
+[__kristensen16__](https://doi.org/10.18637/jss.v070.i05)\
 Perhaps the main alternative to likelihood-based inference for partially observed Markov process (POMP) models is the locally Gaussian approximation used in the integrated nested Laplace approximation method.
 A popular implemention is Template Model Builder, described in this paper.
 
-10. Week starting Mar 23: [__stock21__](https://doi.org/10.1016/j.fishres.2021.105967)\
+11. Week starting Mar 30:
+[__stock21__](https://doi.org/10.1016/j.fishres.2021.105967)\
 Fishery management is a major economic and environmental task that is based on POMP models for time series data.
 Template Model Builder is widely used in this context.
 Would there be an advantage to using particle filter methods to avoid the approximations inherent in Template Model Builder, or does this class of problems expose the limitations of the particle filter?
 
-11. Week starting Mar 30: [__wheeler24__](https://doi.org/10.1371/journal.pcbi.1012032)\
+12. Week starting Apr 6:
+[__wheeler24__](https://doi.org/10.1371/journal.pcbi.1012032)\
 A paper dealing with various practical issues in data analysis via mechanistic models, including residual analysis and benchmarking to help identify model misspecification.
 
-12. Week starting Apr 6: [__linderman25__](https://joss.theoj.org/papers/10.21105/joss.07069)\
-Dynamax is a modern JAX framework for state space models. We should review the package as well as the JOSS paper.
-
-13. Week starting Apr 13: [__madden24__](https://doi.org/10.1371/journal.pcbi.1012616)\
+13. Week starting Apr 13:
+[__madden24__](https://doi.org/10.1371/journal.pcbi.1012616)\
 Integrating deep learning with mechanistic modeling for time series data, in the context of measles epidemiology.
 
 ## References for the STATS 631 reading group

@@ -16,6 +16,21 @@ jupyter: python3
 
 ---
 
+## Do I need to use greatlakes for STATS 531
+
+* **No, it is optional, but recommended.** A modern laptop is sufficient to complete a reasonable STATS 531 final project.
+
+* Long time series, or high-dimensional models, will be hard to investigate using particle filter methods without access to a reasonably powerful machine.
+
+* Profile likelhood calculations also benefit from more compute cores than a laptop can offer.
+
+* Greatlakes CPU calculations should be sufficient. JAX, and therefore `pypomp`, will use use a GPU if it is present and if you provide a CUDA-enabled version of `jaxlib`.
+
+* You can experiment with GPU computing if the wait is not too long on greatlakes, or if your project becomes computationally ambitious.
+
+* These notes focus on using greatlakes CPUs.
+
+
 ## Requirements to log in to greatlakes
 
 We follow the [Great Lakes online documentation](https://its.umich.edu/advanced-research-computing/high-performance-computing/great-lakes/getting-started). You need:
@@ -36,7 +51,7 @@ ssh uniqname@greatlakes.arc-ts.umich.edu
 
 where `uniqname` is your uniqname.
 
-2. Login with your Kerberos level-1 password, and Okta two-factor authentication.
+2. Login with your Kerberos level-1 password, and Duo two-factor authentication. At time of writing, greatlakes has not replaced Duo with Okta.
 
 This creates a remote terminal shell on greatlakes.
 
@@ -50,7 +65,23 @@ This creates a remote terminal shell on greatlakes.
 * Choose the menu option: Clusters $\rightarrow$ Great Lakes Shell Access. This creates a remote terminal shell on greatlakes within your browser.
 
 
-## Moving files on and off greatlakes: `scp`
+## Synchronizing files using git
+
+* If you have a project on GitHub, clone the git repository to greatlakes and push your work back to greatlakes when you are done.
+
+* This workflow keeps your project synchronized between greatlakes, GitHub, and your laptop.
+
+* It is recommended to clone the class git repository into your greatlakes account,
+  ```bash
+  git clone https://github.com/ionides/531w26.git
+  ```
+  If you have an ssh key set up in your GitHub account (recommended) you can use
+  ```bash
+  git clone git@github.com:ionides/531w26
+  ```
+
+
+## Moving files on and off greatlakes using `scp`
 
 `scp` which has similar syntax to the terminal command `cp`.
 To copy `myfile` on your laptop to a subdirectory `mydir` of your home directory on greatlakes:
@@ -77,15 +108,8 @@ scp -r uniqname@greatlakes-xfer.arc-ts.umich.edu:mydir .
 ```
 \normalsize
 
-You will need to authenticate via Okta to complete the file transfer.
+You will need to authenticate to complete the file transfer.
 On Mac or Windows, [FileZilla](https://filezilla-project.org) provides a file system user interface.
-
-
-## Synchronizing files using git
-
-* If you have a project on GitHub, clone the git repository to greatlakes and push your work back to greatlakes when you are done.
-
-* This workflow keeps your project synchronized between greatlakes, GitHub, and your laptop.
 
 
 ## A workflow for working with batch jobs
@@ -150,101 +174,86 @@ Other versions of Python are available:
 module avail python
 ```
 
-- For simple multicore computing, sending jobs to multiple cores on a single node, the default Python module is appropriate.
+The default, marked `(D)`, is currently 3.13.2.
 
 
-## A test for multiprocessing
+## Setting up a virtual environment
 
-- The `greatlakes` subdirectory of the `531w26` git repository has a file `test.sbat` which submits a batch job running the parallel multiprocessing test in `test.py`.
+* The use of virtual environments is always recommended.
 
-- A basic Linux exercise is to set up a directory on greatlakes with these files, at which point you can run
-
-```bash
-sbatch test.sbat
-```
-
-to submit the job. If you have little or no experience with Linux or Unix, this is a nontrivial task. You could ask for help or read <https://ubuntu.com/tutorials/command-line-for-beginners>.
-
-- You can transfer the files from your laptop via `scp`, or by copy-paste, but it may be simplest to clone the class git repository into your greatlakes account,
+* Here, it is useful to have a Python version set up for CPU and a version set up for GPU. These will need different versions of `jaxlib`.
 
 ```bash
-git clone https://github.com/ionides/531w26.git
+python -m venv ~/.venv-cpu
+source ~/.venv-cpu/bin/activate
+pip install --upgrade pip
+pip install pypomp 
 ```
 
-## Editing text files on greatlakes
+##
 
-- Inspect the text file `test.sbat`, for example by
+- Once you have loaded the module and your virtual environment, you can start a Python session in a terminal on the login node just by typing `python`.
 
-```bash
-more test.sbat
-```
+- The login node is appropriate for setting up Python environments and other administrative tasks.
 
-Is it fairly self-explanatory?
+- You are not supposed to do heavy multi-core computing on the login node. Short tests are okay.
 
-- One thing that needs changing is to set your email address for alerts about jobs beginning and ending.
-- To make these edits on greatlakes, you need a text editor.
-- It is convenient to use a text editor that runs in a terminal. Options include
-
-```bash
-vi test.sbat
-emacs -nw test.sbat
-nano test.sbat
-```
-
-- It is useful to acquire some familiarity with each of these editors.
-
-
-## Comparing results
-
-- You are now ready to run a batch job
-
-```bash
-sbatch test.sbat
-```
-
-- From inspecting the code in `test.py`, we see that the results are saved in `test.csv`
-
-- You can assess what you learn from comparing run times on greatlakes and your laptop, though the main goal here is just to practice running the code.
-
-
-## Python packages on greatlakes
-
-- After making Python available by running
-
-```bash
-module load python
-```
-
-you can start a Python session in a terminal on the login node just by typing `python`.
-
-- This is useful for setting up all the Python libraries you may need.
-- You are not supposed to do heavy multi-core computing on the login node, but installing libraries and small tests is okay.
-- For example, you can install packages using:
-
-```bash
-pip install --user numpy pandas statsmodels
-```
-
-then your subsequent Python jobs run via `sbatch` are able to use `import numpy` or `import statsmodels`.
+- Your Python jobs run via `sbatch` can load the pre-setup virtual environment.
 
 ## Other ways to run Python on greatlakes
 
 It can be useful to start an interactive session on greatlakes, particularly for debugging. This is done from the terminal as follows:
 
 ```bash
-module load python
-srun --nodes=1 --account=datasci531w26_class \
+srun --nodes=1 --account=stats531w26s001_class \
   --ntasks-per-node=8 --pty /bin/bash
 ```
 
-You can then run Python in the terminal as usual, by typing
+You can then run Python in the terminal as usual, for example the `531w26` git repository has a file `greatlakes/test.py` which runs some demonstration JAX code.
 
 ```bash
-python
+module load python
+source ~/.venv-cpu/bin/activate
+cd ~/531w26/greatlakes
+python test.py
+```
+When you want to leave the interactive session,
+```bash
+exit
 ```
 
-- This Python session will have access to the cores you have requested.
-- Here, we require `nodes=1` since `multiprocessing` alone cannot work with cores spread across different machines.
+## A test for batch computing
+
+* `531w16/greatlakes/test.sbat` contains a SLURM script to submit a batch job running the test in `test.py`.
+
+* Before running this script, please change the email address to your own, so you receive the notifications about the job starting and ending. If you're not sure how to edit a text file on Linux, see below for more details.
+
+* Then, run the job by
+```bash
+sbatch test.sbat
+```
+
+* The output is in the `.out` file corresponding the job.
+
+* It may be interesting to  study these run times, and compare greatlakes with your laptop, though the main goal here is just to practice running the code.
+
+- Many tutorials on command line Linux are online, e.g. <https://ubuntu.com/tutorials/command-line-for-beginners>.
+
+
+## Editing text files on greatlakes
+
+- Inspect the text file `test.sbat`, for example by
+```bash
+more test.sbat
+```
+- One thing that needs changing is to set your email address for alerts about jobs beginning and ending.
+- To make these edits on greatlakes, you need a text editor. It is convenient to use a text editor that runs in a terminal. Options include:
+```bash
+vi test.sbat
+nano test.sbat
+```
+- It is useful to gain some familiarity with these editors.
+- This Python session will have access to the cores you have requested. Here, we require `nodes=1` since `multiprocessing` alone cannot work with cores spread across different machines.
 - You can also run [web-based Jupyter](https://documentation.its.umich.edu/node/4996). However, batch jobs remain the basic tool for intensive statistical computing.
 
 ## Acknowledgments

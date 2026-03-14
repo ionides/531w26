@@ -1,60 +1,49 @@
-import os
-import time
-import csv
 import jax
 import jax.numpy as jnp
+import time
 
-devices = jax.local_device_count()
-print(f"JAX devices available: {devices}")
-print(f"JAX default backend: {jax.default_backend()}")
+# Initialize your initial key
+key = jax.random.key(42)
 
-key = jax.random.PRNGKey(0)
+# Define the function, then JIT-compile it with shape as a static argument.
+# 'shape' must be static because jax.random.normal requires a concrete (non-traced)
+# shape value at compile time. Passing static_argnames=['shape'] tells JAX to treat
+# 'shape' as a compile-time constant rather than an abstract traced value.
+# JAX will recompile the function if called with a different shape, which is fine here.
+def get_random_normal(key, shape):
+    new_key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape)
+    return new_key, x
 
-def time_task(fn):
-    """Time a function, returning elapsed wall-clock seconds."""
-    start = time.time()
-    fn()
-    elapsed = time.time() - start
-    return elapsed
+N = 10**8
+get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['shape'])
 
-# Single large draw: 10^8 normal random values
-def task0():
-    x = jax.random.normal(key, shape=(10**8,))
-    x.block_until_ready()
+# Compare different ways to calculate N iid standard normal realizations
+# block_until_ready is used because JAX does asynchronous dispatach
+# https://docs.jax.dev/en/latest/async_dispatch.html
 
-# 10 draws of 10^7
-def task1():
-    keys = jax.random.split(key, 10)
-    xs = jax.vmap(lambda k: jax.random.normal(k, shape=(10**7,)))(keys)
-    xs.block_until_ready()
+start_time = time.perf_counter()
+key0, x0 = get_random_normal(key, shape=(N,))
+x0.block_until_ready()
+end0_time = time.perf_counter()
+key1, x1 = get_random_normal_jit(key0, shape=(N,))
+x1.block_until_ready()
+end1_time = time.perf_counter()
+key2, x2 = get_random_normal_jit(key1, shape=(N,))
+x2.block_until_ready()
+end2_time = time.perf_counter()
+keys3 = jax.random.split(key2, 10)
+keys3_new, x3 = jax.vmap(lambda k: get_random_normal_jit(k, shape=(int(N/10),)))(keys3)
+x3.block_until_ready()
+end3_time = time.perf_counter()
 
-# 10^2 draws of 10^6
-def task2():
-    keys = jax.random.split(key, 10**2)
-    xs = jax.vmap(lambda k: jax.random.normal(k, shape=(10**6,)))(keys)
-    xs.block_until_ready()
+print(f"time0: {end0_time-start_time:.3f}s, ",
+      f"time1: {end1_time-end0_time:.3f}s, ",
+      f"time2: {end2_time-end1_time:.3f}s, ",
+      f"time3: {end3_time-end2_time:.3f}s")
 
-# 10^3 draws of 10^5
-def task3():
-    keys = jax.random.split(key, 10**3)
-    xs = jax.vmap(lambda k: jax.random.normal(k, shape=(10**5,)))(keys)
-    xs.block_until_ready()
-
-# 10^4 draws of 10^4
-def task4():
-    keys = jax.random.split(key, 10**4)
-    xs = jax.vmap(lambda k: jax.random.normal(k, shape=(10**4,)))(keys)
-    xs.block_until_ready()
-
-times = {}
-for name, fn in [("time0", task0), ("time1", task1), ("time2", task2),
-                 ("time3", task3), ("time4", task4)]:
-    elapsed = time_task(fn)
-    times[name] = elapsed
-    print(f"{name}: {elapsed:.3f}s")
-
-with open("test.csv", "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow(["task", "elapsed"])
-    for name, elapsed in times.items():
-        writer.writerow([name, f"{elapsed:.4f}"])
+# The moral of the story:
+# jit and vmap do not help much here
+# jax.random.normal is already a fully vectorized XLA        
+# operation — it generates all elements in one kernel call,
+# having access to all cores on a cpu or gpu if available.

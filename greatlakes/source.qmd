@@ -44,12 +44,10 @@ then do so.
 ## Connecting to greatlakes with macOS, Linux or Windows
 
 1. Open a Terminal window (recall that, on a Mac, this can be done using Control-Spacebar and typing Terminal) and type
-
-```bash
-ssh uniqname@greatlakes.arc-ts.umich.edu
-```
-
-where `uniqname` is your uniqname.
+   ```bash
+   ssh uniqname@greatlakes.arc-ts.umich.edu
+   ```
+   where `uniqname` is your uniqname.
 
 2. Login with your Kerberos level-1 password, and Duo two-factor authentication. At time of writing, greatlakes has not replaced Duo with Okta.
 

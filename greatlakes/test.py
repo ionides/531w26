@@ -47,3 +47,7 @@ print(f"time0: {end0_time-start_time:.3f}s, ",
 # jax.random.normal is already a fully vectorized XLA        
 # operation — it generates all elements in one kernel call,
 # having access to all cores on a cpu or gpu if available.
+
+# This code was written in collaboration with Claude Code,
+# using the opus 4.6 and sonnet 4.6 models and no
+# user-supplied skills or context.

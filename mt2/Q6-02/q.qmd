@@ -1,0 +1,62 @@
+
+
+Pypomp gains power from JAX, but JAX is a sophisticated tool that has its [sharp bits](https://docs.jax.dev/en/latest/notebooks/Common_Gotchas_in_JAX.html).
+Keeping alert for these can help address subtle bugs that could arise in your Pypomp code.
+```{python}
+import jax
+key = jax.random.key(42)
+def get_random_normal(key, shape):
+    new_key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape)
+    return new_key, x
+
+get_random_normal_jit = jax.jit(get_random_normal)
+```
+We can generate 10 standard normal random variables as follows
+```{python}
+#| echo: true
+#| eval: false
+get_random_normal(key,10)
+```
+But the jitted code gives a hard-to-interpret error message, `TypeError: iteration over a 0-d array`
+```{python}
+#| echo: true
+#| eval: false
+get_random_normal_jit(key,10)
+```
+What is the problem?
+
+(A). The code is okay, so there is some deeper problem. Perhaps we are working with an old version of Python (say, 3.8) and using a recent JAX version which is not fully backward-compatible, leading to a compilation error.
+
+(B). Arguments to compiled functions must be JAX arrays. Replacing `10` by `jax.numpy.array([10])` will fix it. 
+
+(C). We cannot expect JAX to compile code for a variable value of random numbers. We should set
+```python
+get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['shape'])
+```
+
+(D). We cannot reasonably expect JAX to compile for a variable `key`. We should set
+```python
+get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['key'])
+```
+
+(E). The problem will be solved if we use the `@jit` decorator to compile the code while keeping the same name as the original function. For example,
+```{python}
+#| echo: true
+#| eval: false
+@jax.jit
+def get_random_normal(key, shape):
+    new_key, subkey = jax.random.split(key)
+    x = jax.random.normal(subkey, shape)
+    return new_key, x
+
+get_random_normal_jit(key,10)
+```
+will run the compiled version, without error. 
+
+
+
+
+
+
+

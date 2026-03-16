@@ -1,0 +1,16 @@
+
+\color{blue}
+
+**Solution**. C.\
+
+`get_random_normal` generates an array of dimension `shape`.
+JAX `jit` has to know the memory allocation at compile time.
+If `shape` is `static` then `jit` will compile the function treating `shape` as fixed.
+JAX will reuse this compiled code unless the function is called with a previously unseen value of `shape` that triggers a recompilation.
+
+The memory requirements do not depend on the value of `key`, so it is fine to include this as a variable at compilation time.
+
+The other suggestions are false. For (E), the `@jit` decorator is a convenient shortcut but is exactly equivalent to a call to `jit`
+
+\color{black}
+

@@ -1,0 +1,28 @@
+
+Let $X(t)=(S(t),I(t),R(t))$ be a discrete-valued SIR model, and suppose that the counting process $N_{SI}(t)$ has per-capita rate $\mu_{SI}(t)=\beta I(t)$. Consider four Euler approximations:
+\begin{eqnarray} 
+N_{SI}(t+\delta) - N_{SI}(t) &\sim& \mathrm{Poisson} \big(\beta I(t) S(t) \delta\big)
+\\  
+N_{SI}(t+\delta) - N_{SI}(t) &\sim& \mathrm{Binomial} \big(S(t), \beta I(t)\delta\big)
+\\  
+N_{SI}(t+\delta) - N_{SI}(t) &\sim& \mathrm{Binomial} \big(S(t), 1-\exp\big\{-\beta I(t)\delta\big\}\big)
+\\  
+N_{SI}(t+\delta) - N_{SI}(t) &\sim& \mathrm{Binomial} \big(S(t), \beta I(t)\delta\big/(1+\beta I(t)\delta) \big)
+\end{eqnarray}
+Which (if any) of these choices is preferable, and why?
+
+(A). (1) because it is the simplest, quickest to simulate, and most easily understood. All continuous time, discrete state, compartment models have approximately Poisson increments on small time intervals.
+
+(B). (2) because each individual in $S$ has approximately an independent chance $\beta I(t)\delta$ of transitioning to $I$.
+
+(C). (3) because each individual in $S$ has approximately an independent hazard rate $\beta I(t)\delta$ of transitioning to $I$.
+
+(D). (4) because it is asymptotically equivalent to (\ref{eq:euler3}), up to order $\delta^2$, but quicker to compute.
+
+(E). It should not matter which you choose. All the methods are correct Euler schemes, with the same justification in a limit when $\delta$ is small. Therefore, there is no theoretical reason to prefer one over another.
+
+
+
+
+
+

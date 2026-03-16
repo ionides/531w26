@@ -1,0 +1,11 @@
+
+\color{blue}
+
+**Solution**. (C).
+
+The problem with (1) is that it is possible for $N_{SI}(t+\delta) - N_{SI}(t)$ to exceed the size of $S(t)$, leading to negative compartment membership. For (2), it is possible to havey $\beta I(t)\delta>1$, an error for a probability. (3) and (4) both take values in $[0,1]$. It is true that (4) is quicker to compute, since exponentiation is considerably more expensive than basic arithmetic. However, it is not true that (4) is second-order equivalent to (3). One could change the denominator in (4) to $(1+2\beta I(t)\delta)$ to match the order $\delta^2$ term, but this has problematic behavior for large $\beta I(t)\delta$. The exponential hazard form in (3) is numerically stable and takes proper account of the exponentially distributed time for each individual to transition (if rates were constant). It is therefore preferred.
+
+(E) is arguably correct. All these methods are first-order Euler schemes, and they are equivalent to order $\delta$. However, practical considerations are also important. Having code that does not crash, and behaves reasonably across a wide range of parameter values, is scientifically helpful.
+
+\color{black}
+

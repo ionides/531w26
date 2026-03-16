@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate temporary question files for class16.qmd
+Generate temporary question files for class17.qmd
 Run this before rendering the qmd to pdf
 """
 
-Q = "mt2/Q1-04"
+Q = "mt2/Q4-04"
 
 import os
 import glob
@@ -16,7 +16,7 @@ random.seed(117)
 np.random.seed(117)
 
 q_file = os.path.join("../", Q, "q.qmd")
-q_tmp = "tmp16.qmd"
+q_tmp = "tmp17.qmd"
 
 with open(q_tmp, 'w') as f:
     with open(q_file, 'r') as qf:

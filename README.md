@@ -52,9 +52,9 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 13. [Simulation of stochastic dynamic models](13)
 
-<!--
 14. [Likelihood for POMP models: Theory and practice](14)
 
+<!--
 15. [Likelihood maximization for POMP models](15)
 
 16. [A case study of polio including covariates, seasonality & over-dispersion](16)

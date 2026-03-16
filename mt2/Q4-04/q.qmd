@@ -17,7 +17,7 @@ Which (if any) of these choices is preferable, and why?
 
 (C). (3) because each individual in $S$ has approximately an independent hazard rate $\beta I(t)\delta$ of transitioning to $I$.
 
-(D). (4) because it is asymptotically equivalent to (\ref{eq:euler3}), up to order $\delta^2$, but quicker to compute.
+(D). (4) because it is asymptotically equivalent to (3), up to order $\delta^2$, but quicker to compute.
 
 (E). It should not matter which you choose. All the methods are correct Euler schemes, with the same justification in a limit when $\delta$ is small. Therefore, there is no theoretical reason to prefer one over another.
 

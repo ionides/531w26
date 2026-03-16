@@ -5,7 +5,7 @@ Solve the question at https://ionides.github.io/531w26/quiz/class17.pdf. Give a 
 
 
 Multiple choice question title:
-Comparing Euler solutions to the SIR model: https://ionides.github.io/531w26/quiz/class17.pdf
+Comparing different Euler solutions to the SIR model: https://ionides.github.io/531w26/quiz/class17.pdf
 
 Question text:
 The question is posted at https://ionides.github.io/531w26/quiz/class17.pdf
@@ -14,13 +14,13 @@ Answers:
 
 (A). (1) because it is the simplest, quickest to simulate, and most easily understood. All continuous time, discrete state, compartment models have approximately Poisson increments on small time intervals.
 
-(B). (2) because each individual in $S$ has approximately an independent chance $\beta I(t)\delta$ of transitioning to $I$.
+(B). (2) because each individual in S has approximately an independent chance (beta I(t) delta) of transitioning to I.
 
-* (C). (3) because each individual in $S$ has approximately an independent hazard rate $\beta I(t)\delta$ of transitioning to $I$.
+* (C). (3) because each individual in S has approximately an independent hazard rate (beta I(t) delta) of transitioning to I.
 
-(D). (4) because it is asymptotically equivalent to (\ref{eq:euler3}), up to order $\delta^2$, but quicker to compute.
+(D). (4) because it is asymptotically equivalent to (3), up to order delta^2, but quicker to compute.
 
-(E). It should not matter which you choose. All the methods are correct Euler schemes, with the same justification in a limit when $\delta$ is small. Therefore, there is no theoretical reason to prefer one over another.
+(E). It should not matter which you choose. All the methods are correct Euler schemes, with the same justification in a limit when delta is small. Therefore, there is no theoretical reason to prefer one over another.
 
 
 

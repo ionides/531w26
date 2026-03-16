@@ -1,6 +1,6 @@
 # Modeling and Analysis of Time Series Data (STATS 531)
 
-## Chapter 13: Simulation of stochastic dynamic models"
+## Chapter 13: Simulation of stochastic dynamic models
 
 As for [Chapter 12](../12), we use material from the short course [Simulation-Based Inference for Epidemiological Dynamics](https://pypomp.github.io/tutorials/sbied/) (SBIED).  We develop a concrete example of the general POMP modeling framework, and we see the theory and practice of implementing a simulator for the model.
 

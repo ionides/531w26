@@ -1,0 +1,28 @@
+---
+title: "Linderman et al. 2025"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
+---
+
+## Impact
+
+Linderman, S. W., Chang, P., Harper-Donnelly, G., Kara, A., Li, X., Duran-Martin, G., & Murphy, K. (2025). Dynamax: A Python package for probabilistic state space modeling with JAX. _Journal of Open Source Software_, 10(108), 7069. <https://doi.org/10.21105/joss.07069>
+
+* cited 18 times
+
+* <https://github.com/probml/dynamax> has  940 stars and 108 forks
+
+* Downloads last month: 10,846 from <https://pypistats.org/packages/dynamax>
+
+## What is Dynamax being used for?
+
+Hu, A., Smith, H., & Linderman, S. (2025). SING: SDE Inference via Natural Gradients. <https://arxiv.org/pdf/2506.17796>
+
+* This assumes time-homogeneous noise, which makes it inapplicable for most models of interest to the Pypomp community.
+
+Tanoh, I. C., Deistler, M., Macke, J. H., & Linderman, S. W. (2025). Identifying multi-compartment Hodgkin-Huxley models with high-density extracellular voltage recordings. [arXiv:2506.20233](https://arxiv.org/pdf/2506.20233)
+

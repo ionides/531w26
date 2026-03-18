@@ -1,0 +1,35 @@
+
+Class 18 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class18.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title:
+An evolutionary interpretation of the particle filter: https://ionides.github.io/531w26/quiz/class18.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class18.pdf
+
+Answers: 
+
+(A). (1a) (2b) (3c) (4d)
+
+(B). (1b) (2a) (3c) (4d)
+
+* (C). (1c) (2d) (3a) (4b)
+
+(D). (1d) (2c) (3a) (4b)
+
+(E). A combination not listed above.
+
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

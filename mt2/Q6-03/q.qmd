@@ -1,0 +1,32 @@
+The following defines the dynamics of a certain SIR model in Pypomp:
+```python
+def rproc(X_, theta_, key, covars, t, dt):
+    S, I, R = X_["S"], X_["I"], X_["R"]
+    Beta = theta_["Beta"]
+    mu_IR = theta_["mu_IR"]
+    N = theta_["N"]
+    dN_SI = jax.random.binomial(key, n=jnp.int32(S), p=Beta * I / N * dt)
+    dN_IR = jax.random.binomial(key, n=jnp.int32(I), p=mu_IR * dt)
+    S_new = S - dN_SI
+    I_new = I + dN_SI - dN_IR
+    R_new = R + dN_IR
+    return {"S": S_new, "I": I_new, "R": R_new}
+```
+What is the most critical flaw in this code? Or is the code valid?
+
+(A). The random number stream `key` is not passed correctly.
+
+(B). The binomial probability should be exponentiated, say $1-\exp\{-\mu_{IR}dt\}$.
+
+(C). The code is missing an accumulator state, $H$, to keep track of the number of new cases.
+
+(D). This model has only demographic noise, represented by the binomial distribution. For statistically matching the variability in data, it can be important to include extra-demographic variability, such as noise on the transmission rate, $\beta$.
+
+(E). The model may be fine. Without seeing the data or knowing the scientific context, we can't tell for sure whether there is a problem.
+
+
+
+
+
+
+

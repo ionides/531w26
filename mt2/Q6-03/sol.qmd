@@ -1,0 +1,18 @@
+
+\color{blue}
+
+**Solution**. A.\
+
+It is necessary to split the random number stream, e.g.,
+```python
+    key_SI, key_IR = jax.random.split(key)
+```
+Otherwise, the same random number key is used to determine both the SI and IR transitions, which does not have any reasonable scientific justification.
+We would be fitting an unintended model with unknown consequences.
+Points (B,C,D) are all reasonable concerns, but not necessarily fatal. 
+(B) is usually recommended, but only sometimes critical depending on whether the resulting `p` ever exceeds 1.
+(C) is also common, but sometimes the measurements directly correspond to prevalence (I) rather than incidence (new arrivals in I).
+(D) is also good advice, escpecially if the population is large so demographic stochasticity is relatively irrelevant, but we don't know if that is the case here.
+
+\color{black}
+

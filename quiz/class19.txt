@@ -1,0 +1,38 @@
+
+Class 19 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class19.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title:
+A JAX error message: https://ionides.github.io/531w26/quiz/class19.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class19.pdf
+
+Answers: 
+
+(A). The code is okay, so there is some deeper problem. Perhaps we are working with an old version of Python (say, 3.8) and using a recent JAX version which is not fully backward-compatible, leading to a compilation error.
+
+(B). Arguments to compiled functions must be JAX arrays. Replacing `10` by  
+`jax.numpy.array([10])` will fix it. 
+
+* (C). We cannot expect JAX to compile code for a variable value of random numbers. Set
+`get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['shape'])`
+
+(D). We cannot reasonably expect JAX to compile for a variable `key`. We should set
+`get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['key'])`
+
+(E). The problem will be solved if we use the @jit decorator to compile the code while keeping the same name as the original function.
+
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

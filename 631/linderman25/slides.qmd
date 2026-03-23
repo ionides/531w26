@@ -1,0 +1,60 @@
+---
+title: "Linderman et al. 2025"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
+    linkcolor: blue
+---
+
+## Impact
+
+Linderman, S. W., Chang, P., Harper-Donnelly, G., Kara, A., Li, X., Duran-Martin, G., & Murphy, K. (2025). Dynamax: A Python package for probabilistic state space modeling with JAX. _Journal of Open Source Software_, 10(108), 7069. <https://doi.org/10.21105/joss.07069>
+
+* cited 18 times
+
+* <https://github.com/probml/dynamax> has  940 stars and 108 forks
+
+* Downloads last month: 10,846 from <https://pypistats.org/packages/dynamax>
+
+## What is Dynamax being used for?
+
+Hu, A., Smith, H., & Linderman, S. (2025). SING: SDE Inference via Natural Gradients. <https://arxiv.org/pdf/2506.17796>
+
+* This assumes time-homogeneous noise, which makes it inapplicable for most models of interest to the Pypomp community.
+
+Tanoh, I. C., Deistler, M., Macke, J. H., & Linderman, S. W. (2025). Identifying multi-compartment Hodgkin-Huxley models with high-density extracellular voltage recordings. [arXiv:2506.20233](https://arxiv.org/pdf/2506.20233)
+
+## Algorithms in Dynamax [copied from the paper]
+
+* Forward-Backward algorithms for discrete-state hidden Markov models (HMMs)
+
+* Kalman filtering and smoothing algorithms for linear Gaussian SSMs
+
+* Extended and unscented generalized Kalman filtering and smoothing for nonlinear and/or
+non-Gaussian SSMs
+
+* Parallel message passing routines that leverage GPU or TPU acceleration to perform
+message passing in 𝑂(log 𝑇 ) time on a parallel machine (Hassan et al., 2021; Särkkä
+& Garcı ́ a-Fernández, 2020; Stone, 1975). Note that these routines are not simply
+parallelizing over batches of time series, but rather using a parallel algorithm with
+sublinear depth or span.
+
+## Other libraries for state space modeling in Python and Julia {.allowframebreaks}
+
+Corenflos, A., & Särkkä, S. (2021). Code companion for Bayesian Filtering and Smoothing
+(Version 1.0). <https://github.com/EEA-sensors/Bayesian-Filtering-and-Smoothing>
+
+Dalle, G. (2024). HiddenMarkovModels.jl: Generic, fast and reliable state space modeling.
+Journal of Open Source Software, 9(96), 6436. https://doi.org/10.21105/joss.06436
+
+Johnson, M. J. (2020). PyHSMM: Bayesian inference in HSMMs and HMMs (Version 0.0.0). <https://github.com/mattjj/pyhsmm>
+
+Linderman, S., Antin, B., Zoltowski, D., & Glaser, J. (2020). SSM: Bayesian Learning and Inference for State Space Models (Version 0.0.1). <https://github.com/lindermanlab/ssm>
+
+Seabold, S., & Perktold, J. (2010). Statsmodels: Econometric and statistical modeling with python. 9th Python in Science Conference. <https://doi.org/10.25080/>
+
+Weiss, R., Du, S., Grobler, J., Cournapeau, D., Pedregosa, F., Varoquaux, G., Mueller, A., Thirion, B., Nouri, D., Louppe, G., Vanderplas, J., Benediktsson, J., Buitinck, L., Korobov, M., McGibbon, R., Lattarini, S., Niculae, V., Gramfort, A., Lebedev, S., … Rockhill, A. (2024). Hmmlearn (Version 0.3.2). <https://github.com/hmmlearn/hmmlearn>
+

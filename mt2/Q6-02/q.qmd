@@ -28,9 +28,10 @@ What is the problem?
 
 (A). The code is okay, so there is some deeper problem. Perhaps we are working with an old version of Python (say, 3.8) and using a recent JAX version which is not fully backward-compatible, leading to a compilation error.
 
-(B). Arguments to compiled functions must be JAX arrays. Replacing `10` by `jax.numpy.array([10])` will fix it. 
+(B). Arguments to compiled functions must be JAX arrays. Replacing `10` by  
+`jax.numpy.array([10])` will fix it. 
 
-(C). We cannot expect JAX to compile code for a variable value of random numbers. We should set
+(C). We cannot expect JAX to compile code for a variable value of random numbers. Set
 ```python
 get_random_normal_jit = jax.jit(get_random_normal, static_argnames=['shape'])
 ```

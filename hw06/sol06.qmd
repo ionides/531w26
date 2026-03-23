@@ -1,0 +1,332 @@
+---
+title: "Solution to [Homework 6](q.pdf)"
+author: "STATS/DATASCI 531"
+output:
+  html_document:
+    toc: no
+execute:
+  echo: false
+bibliography: ../bib531.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+## Question 6.1: Simulating an SIR process 
+
+```{python sir_setup, include=FALSE}
+import pandas as pd
+import numpy as np
+import jax
+import jax.numpy as jnp
+import pypomp as pp
+from pypomp.pomp_class import Pomp
+from plotnine import *
+
+key = jax.random.key(70982)
+
+# Load data using local file to avoid SSL issues
+meas = pd.read_csv("Measles_Consett_1948.csv")
+meas_sir_data = meas[["week", "cases"]].rename(columns={"cases": "reports"})
+meas_sir_data = meas_sir_data[meas_sir_data["week"] <= 42].set_index("week")
+
+
+def sir_init(theta_, key, covars=None, t0=0):
+    N = theta_["N"]
+    eta = theta_["eta"]
+    S = jnp.round(eta * N)
+    I = 1.0
+    R = jnp.round((1 - eta) * N)
+    H = 0.0
+    return {"S": S, "I": I, "R": R, "H": H}
+
+
+def sir_step(X_, theta_, key, covars, t, dt):
+    S, I, R, H = X_["S"], X_["I"], X_["R"], X_["H"]
+    Beta, mu_IR, N = theta_["Beta"], theta_["mu_IR"], theta_["N"]
+
+    key_si, key_ir = jax.random.split(key)
+
+    p_si = 1 - jnp.exp(-Beta * I / N * dt)
+    dN_SI = pp.random.fast_approx_rbinom(key_si, n=S, p=p_si)
+
+    p_ir = 1 - jnp.exp(-mu_IR * dt)
+    dN_IR = pp.random.fast_approx_rbinom(key_ir, n=I, p=p_ir)
+
+    return {"S": S - dN_SI, "I": I + dN_SI - dN_IR, "R": R + dN_IR, "H": H + dN_IR}
+
+
+def dmeasure(Y_, X_, theta_, covars=None, t=None):
+    reports = Y_["reports"]
+    H = X_["H"]
+    rho = theta_["rho"]
+    return jax.scipy.stats.binom.logpmf(reports, jnp.int32(H), rho)
+
+
+def rmeas(X_, theta_, key, covars=None, t=None):
+    H = X_["H"]
+    rho = theta_["rho"]
+    reports = pp.random.fast_approx_rbinom(key, n=H, p=rho)
+    return jnp.array([reports])
+
+
+rmeas.ydim = 1
+
+params = {"Beta": 20.0, "mu_IR": 0.5, "rho": 0.5, "eta": 0.03, "N": 38000.0}
+
+measSIR = Pomp(
+    ys=meas_sir_data,
+    t0=0,
+    rinit=sir_init,
+    rproc=sir_step,
+    rmeas=rmeas,
+    dmeas=dmeasure,
+    theta=params,
+    statenames=["S", "I", "R", "H"],
+    accumvars=["H"],
+    dt=1 / 7,
+    ydim=1,
+)
+```
+
+In the simulated outbreaks, the overall incidence is much too low, and the outbreak dies out after only a few weeks. To attempt to simulate data for which the observed data is a more plausible realization, we might try increasing the force of infection.
+
+```{python initial_plot, echo=FALSE}
+sim_params = {"Beta": 20.0, "mu_IR": 0.5, "rho": 0.5, "eta": 0.03, "N": 38000.0}
+_, sims = measSIR.simulate(theta=sim_params, nsim=20, key=jax.random.key(123))
+
+data_df = measSIR.ys.reset_index().rename(columns={"week": "time", "reports": "obs_0"})
+data_df["sim"] = "data"
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Taking it farther....
+
+```{python, echo=FALSE}
+sim_params = {"Beta": 40.0, "mu_IR": 0.5, "rho": 0.5, "eta": 0.03, "N": 38000.0}
+_, sims = measSIR.simulate(theta=sim_params, nsim=20, key=jax.random.key(124))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+While this increases the overall incidence, the epidemic is now peaking too quickly. To counteract this, we might try reducing the recovery rate
+
+```{python, echo=FALSE}
+sim_params = {"Beta": 40.0, "mu_IR": 0.2, "rho": 0.5, "eta": 0.03, "N": 38000.0}
+_, sims = measSIR.simulate(theta=sim_params, nsim=20, key=jax.random.key(125))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Additionally, we might have a look at the effects of changing the initial susceptible fraction, η. It's possible to get something not too awful to contemplate by just manipulating $\eta$, in fact:
+
+```{python, echo=FALSE}
+sim_params = {"Beta": 15.0, "mu_IR": 0.5, "rho": 0.5, "eta": 0.06, "N": 38000.0}
+_, sims = measSIR.simulate(theta=sim_params, nsim=20, key=jax.random.key(126))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+## Question 6.2: Simulating an SEIR process  
+
+The existing code may be modified as follows:
+
+```{python SEIR_building, include=FALSE}
+def seir_init(theta_, key, covars=None, t0=0):
+    N = theta_["N"]
+    eta = theta_["eta"]
+    S = jnp.round(eta * N)
+    E = 0.0
+    I = 1.0
+    R = jnp.round((1 - eta) * N)
+    H = 0.0
+    return {"S": S, "E": E, "I": I, "R": R, "H": H}
+
+
+def seir_step(X_, theta_, key, covars, t, dt):
+    S, E, I, R, H = X_["S"], X_["E"], X_["I"], X_["R"], X_["H"]
+    Beta, mu_EI, mu_IR, N = (
+        theta_["Beta"],
+        theta_["mu_EI"],
+        theta_["mu_IR"],
+        theta_["N"],
+    )
+
+    key_se, key_ei, key_ir = jax.random.split(key, 3)
+
+    p_se = 1 - jnp.exp(-Beta * I / N * dt)
+    p_ei = 1 - jnp.exp(-mu_EI * dt)
+    p_ir = 1 - jnp.exp(-mu_IR * dt)
+
+    dN_SE = pp.random.fast_approx_rbinom(key_se, n=S, p=p_se)
+    dN_EI = pp.random.fast_approx_rbinom(key_ei, n=E, p=p_ei)
+    dN_IR = pp.random.fast_approx_rbinom(key_ir, n=I, p=p_ir)
+
+    return {
+        "S": S - dN_SE,
+        "E": E + dN_SE - dN_EI,
+        "I": I + dN_EI - dN_IR,
+        "R": R + dN_IR,
+        "H": H + dN_IR,
+    }
+
+
+seir_params = params.copy()
+seir_params.update({"mu_EI": 0.8, "mu_IR": 1.3})
+
+measSEIR = Pomp(
+    ys=meas_sir_data,
+    t0=0,
+    rinit=seir_init,
+    rproc=seir_step,
+    rmeas=rmeas,
+    dmeas=dmeasure,
+    theta=seir_params,
+    statenames=["S", "E", "I", "R", "H"],
+    accumvars=["H"],
+    dt=1 / 7,
+    ydim=1,
+)
+```
+
+Using the rough estimate that the latent period in measles is $8-10$ days, we take $\mu_{EI} \sim 0.8 wk^{-1}$ and $\mu_{IR} \sim 1.3 wk^{-1}$ (so as to have roughly the same generation time as before).
+
+```{python mod1, echo=FALSE}
+seir_params1 = {
+    "Beta": 15.0,
+    "mu_EI": 0.8,
+    "mu_IR": 1.3,
+    "rho": 0.5,
+    "eta": 0.06,
+    "N": 38000.0,
+}
+_, sims = measSEIR.simulate(theta=seir_params1, nsim=20, key=jax.random.key(127))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Again one can increase the force of infection:
+
+```{python mod2, echo=FALSE}
+seir_params2 = {
+    "Beta": 40.0,
+    "mu_EI": 0.8,
+    "mu_IR": 1.3,
+    "rho": 0.5,
+    "eta": 0.06,
+    "N": 38000.0,
+}
+_, sims = measSEIR.simulate(theta=seir_params2, nsim=20, key=jax.random.key(128))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Now increase $\beta$ to, by trial and error, 37. 
+
+```{python mod3, echo=FALSE}
+seir_params3 = {
+    "Beta": 37.0,
+    "mu_EI": 0.6,
+    "mu_IR": 1.0,
+    "rho": 0.7,
+    "eta": 0.05,
+    "N": 38000.0,
+}
+_, sims = measSEIR.simulate(theta=seir_params3, nsim=20, key=jax.random.key(129))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Notice that it seems that the simulated time series peak too late. We can decrease $\eta$ back to 0.03, and increase $\beta$ to 73.
+
+```{python mod4, echo=FALSE}
+seir_params4 = {
+    "Beta": 73.0,
+    "mu_EI": 0.6,
+    "mu_IR": 1.0,
+    "rho": 0.7,
+    "eta": 0.03,
+    "N": 38000.0,
+}
+
+_, sims = measSEIR.simulate(theta=seir_params4, nsim=20, key=jax.random.key(131))
+
+sims["sim"] = sims["sim"].astype(str)
+plot_df = pd.concat([sims, data_df])
+
+(
+    ggplot(plot_df, aes(x="time", y="obs_0", group="sim", color='sim == "data"'))
+    + geom_line()
+    + scale_color_manual(values={True: "red", False: "black"})
+    + labs(x="week", y="reports")
+    + theme_minimal()
+)
+```
+
+Despite some uncertainties, this seems like a reasonable model for the time series. So we can choose $\beta=73, \mu_{EI}=0.6,\mu_{IR}=1, \rho=0.7, \eta=0.03$ for the SEIR model.
+
+----------------
+
+### References
+

@@ -1,9 +1,10 @@
 ---
 title: "Solution to [Homework 6](q.pdf)"
 author: "STATS/DATASCI 531"
-output:
-  html_document:
-    toc: no
+format:
+  html:
+    toc: true
+    embed-resources: true
 execute:
   echo: false
 bibliography: ../bib531.bib

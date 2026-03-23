@@ -161,25 +161,19 @@ These are drawn from the same problem bank as the daily quizzes. They are done w
 * You're welcome to browse previous final projects. The [2025](http://ionides.github.io/531w25/final_project/) [2024](http://ionides.github.io/531w24/final_project/), [2022](http://ionides.github.io/531w22/final_project/) and  [2021](http://ionides.github.io/531w21/final_project/)  final projects have a posted summary of peer review comments. Earlier projects from [2016](http://ionides.github.io/531w16/final_project/), [2018](http://ionides.github.io/531w18/final_project/), [2020](http://ionides.github.io/531w20/final_project/) may also be useful.
 
 
-<!--
-
 ## Using the Great Lakes cluster
 
 * Great Lakes access will be set up after the midterm project and used for the second half of the course.
 
 * [Introductory notes](greatlakes/index.html) for using our class account on the greatlakes cluster. This is optional but may be helpful for your final project.
 
-* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```datasci531w25_class```.
+* If you are already familiar with using R on Great Lakes, all you need to know is the class account: ```stats531w26s001_class```.
 
-* You are expected to use our class account only for computations related to DATASCI/STATS 531.
+* You are expected to use our class account only for computations related to STATS 531.
 
 * Please share knowledge about cluster computing between group members, and/or on piazza, to help everyone who wants to learn these skills.
 
 * Cluster-related questions can also be emailed to the U-M Information and Technology Services helpdesk, help@umich.edu
-
----------
-
--->
 
 
 ## Acknowledgements and License

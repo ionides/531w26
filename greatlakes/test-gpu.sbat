@@ -1,18 +1,16 @@
 #!/bin/bash
 
-#SBATCH --job-name=jax_test
+#SBATCH --job-name=jax_gpu_test
 #SBATCH --mail-user=ionides@umich.edu
 #SBATCH --mail-type=BEGIN,END,FAIL
 
 #SBATCH --account=stats531w26s001_class
-#SBATCH --partition=standard
+#SBATCH --partition=gpu
 
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=36
-#SBATCH --cpus-per-task=1
-
-## 5GB/cpu is the basic share
-#SBATCH --mem-per-cpu=1GB
+#SBATCH --gpus=v100:1
+#SBATCH --cpus-per-gpu=1
+## mem is CPU memory - the GPU automatically gets the entire VRAM
+#SBATCH --mem=1GB
 
 ## wall time hours:minutes:seconds
 #SBATCH --time=0:05:00
@@ -26,6 +24,6 @@ module list
 
 echo "Running on $SLURM_JOB_NODELIST"
 echo "Running in $(pwd)"
-source ~/.venv-cpu/bin/activate
-python test.py
+source ~/.venv-gpu/bin/activate
+python test.py > test-gpu.out
 

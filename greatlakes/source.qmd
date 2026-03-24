@@ -175,7 +175,7 @@ module avail python
 The default, marked `(D)`, is currently 3.13.2.
 
 
-## Setting up a virtual environment
+## A virtual environment for JAX on CPU
 
 * The use of virtual environments is always recommended.
 
@@ -185,6 +185,22 @@ The default, marked `(D)`, is currently 3.13.2.
 python -m venv ~/.venv-cpu
 source ~/.venv-cpu/bin/activate
 pip install --upgrade pip
+pip install jax jaxlib
+pip install pypomp 
+```
+
+## A virtual environment for JAX on GPU
+
+* First, shut down the current virtual environment:
+```bash
+deactivate
+```
+* Then, build a new one, using `jax[cuda12]`
+```bash
+python -m venv ~/.venv-gpu
+source ~/.venv-gpu/bin/activate
+pip install --upgrade pip
+pip install jax[cuda12]
 pip install pypomp 
 ```
 
@@ -203,8 +219,8 @@ pip install pypomp
 It can be useful to start an interactive session on greatlakes, particularly for debugging. This is done from the terminal as follows:
 
 ```bash
-srun --nodes=1 --account=stats531w26s001_class \
-  --ntasks-per-node=8 --pty /bin/bash
+srun --partition=gpu --account=stats531w26s001_class \
+  --gpus=v100:1 --cpus-per-gpu=1 --pty /bin/bash
 ```
 
 You can then run Python in the terminal as usual, for example the `531w26` git repository has a file `greatlakes/test.py` which runs some demonstration JAX code.
@@ -220,15 +236,23 @@ When you want to leave the interactive session,
 exit
 ```
 
+
+## An interactive GPU session
+
+```bash
+srun --nodes=1 --account=stats531w26s001_class \
+  --ntasks-per-node=8 --pty /bin/bash
+```
+
 ## A test for batch computing
 
-* `531w16/greatlakes/test.sbat` contains a SLURM script to submit a batch job running the test in `test.py`.
+* `531w16/greatlakes/test-cpu.sbat` contains a SLURM script to submit a batch CPU job running the test in `test.py`.
 
 * Before running this script, please change the email address to your own, so you receive the notifications about the job starting and ending. If you're not sure how to edit a text file on Linux, see below for more details.
 
 * Then, run the job by
 ```bash
-sbatch test.sbat
+sbatch test-cpu.sbat
 ```
 
 * The output is in the `.out` file corresponding the job.
@@ -240,15 +264,15 @@ sbatch test.sbat
 
 ## Editing text files on greatlakes
 
-- Inspect the text file `test.sbat`, for example by
+- Inspect the text file `test-cpu.sbat`, for example by
 ```bash
-more test.sbat
+more test-cpu.sbat
 ```
 - One thing that needs changing is to set your email address for alerts about jobs beginning and ending.
 - To make these edits on greatlakes, you need a text editor. It is convenient to use a text editor that runs in a terminal. Options include:
 ```bash
-vi test.sbat
-nano test.sbat
+vi test-cpu.sbat
+nano test-cpu.sbat
 ```
 - It is useful to gain some familiarity with these editors.
 - This Python session will have access to the cores you have requested. Here, we require `nodes=1` since `multiprocessing` alone cannot work with cores spread across different machines.

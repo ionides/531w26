@@ -1,10 +1,15 @@
 
 # Mini-quizzes
 
-The data directory is a symbolic link to mt1/data, created by
+The `data` directory is a symbolic link to `mt1/data`, created by
 ```
 ln -s ../mt1/data data
 ```
+The `data-mt2` directory links to `mt2/data-mt2`, via
+```
+ln -s ../mt2/data-mt2 data-mt2
+```
+
 
 To set up the mini-quiz in Canvas
 

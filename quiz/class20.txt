@@ -1,0 +1,34 @@
+
+Class 20 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class20.pdf. Give a letter answer to the multiple choice question and some supporting reasoning.
+
+
+Multiple choice question title:
+Interpreting diagnostics for fitting a Gamestop stock price model: https://ionides.github.io/531w26/quiz/class20.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class20.pdf
+
+Answers: 
+
+* (A). Everything seems to be working fine. The likelihood is climbing. The replicated searches are giving consistent runs. The spread of convergence points for sigma_nu and H_0 indicates weak identifability, which is a statistical fact worth noticing but not a weakness of the model.
+  
+(B). The consistently climbing likelihood is promising, but the failure of sigma_nu and H_0 to converge needs attention. Additional searching is needed, experimenting with larger values of the random walk perturbation standard deviation for these parameters to make sure the parameter space is properly searched.
+  
+(C). The consistently climbing likelihood is promising, but the failure of sigma_nu$ and H_0 to converge needs attention. Additional searching is needed, experimenting with smaller values of the random walk perturbation standard deviation for these parameters to make sure the parameter space is properly searched.
+
+(D).  The consistently climbing likelihood is promising, but the failure of sigma_nu and H_0 to converge needs attention. This indicates weak identifiability which cannot be solved by improving the searching algorithm. Instead, we should change the model, or fix one or more parameters at scientifically plausible values, to resolve the identifiability issue before proceeding.
+
+(E). Although the log likelihood seems to be climbing during the search, until the convergence problems with sigma_nu and H_0 have been addressed we should not be confident about the successful optimization of the likelihood function or the other parameter estimates. 
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

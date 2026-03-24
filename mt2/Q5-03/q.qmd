@@ -8,7 +8,7 @@ They obtained a log-likelihood of 34975.3, compared to 28587.4 for GARCH and 289
 Their iterated filtering convergence diagnostics are shown in figure \ref{mif-diagnostics-heston-w22-project14}.
 What is the best conclusion from this information?
 
-![Diagnostic plot for fitting the Heston model\label{mif-diagnostics-heston-w22-project14}](data/mif-diagnostics-heston-w22-project14.png)
+![Diagnostic plot for fitting the Heston model\label{mif-diagnostics-heston-w22-project14}](data-mt2/mif-diagnostics-heston-w22-project14.png)
 
 **A**. The high likelihood shows this is a promising model despite the convergence problems identified in the figure. Attention to the diagnostics may lead to additional improvements.
 

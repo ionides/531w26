@@ -1,5 +1,5 @@
 
-![Diagnostic plot for a COVID-19 model\label{mif-diagnostics-covid}](data/mif-diagnostics-poor.pdf "Iterated filtering diagnostics")
+![Diagnostic plot for a COVID-19 model\label{mif-diagnostics-covid}](data-mt2/mif-diagnostics-poor.pdf "Iterated filtering diagnostics")
 
 The iterated filtering convergence diagnostics plot in figure \ref{mif-diagnostics-covid} comes from a 2021 [student project](https://ionides.github.io/531w21/final_project/project15/blinded.html) investigating COVID-19. The calculation used $10^3$ particles. What is the best interpretation?
 

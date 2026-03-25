@@ -1,0 +1,52 @@
+---
+title: "Kristensen, Nielsen,  Berg, Skaug & Bell (2016)"
+author: "STATS 631, Winter 2026"
+format:
+  beamer:
+    header-includes: |
+      \setbeamertemplate{footline}[page number]
+    fig_crop: false
+    linkcolor: blue
+---
+
+## Impact
+
+[__kristensen16__](https://doi.org/10.18637/jss.v070.i05).
+ Kristensen, K., Nielsen, A., Berg, C. W., Skaug, H., & Bell, B. M. (2016). TMB: Automatic Differentiation and Laplace Approximation. _Journal of Statistical Software_, 70(5), 1–21. 
+
+* 1300 Google cites (250 over the past year)
+
+* [glmmTMB](https://digitalcommons.unl.edu/r-journal/675/) has 13560 Google cites (2800 over the past year)
+
+
+## When would you prefer to use TMB rather than particle filter methods?
+
+* For a given task, what is a good way to compare the two approaches?
+
+* TMB is primarily used in fisheries and more generally in ecology, whereas pomp has been more widely used for infectious disease modeling. Is this an accident of history, or based on fundamental strengths and limitations?
+
+* Discrete latent states and highly nonlinear stochastic dynamics may be difficult for Laplace approximation methods.
+
+* High-dimensional models for structured populations in fisheries may suit the strengths of TMB.
+
+* These open questions could be addressed using advances in POMP methods. 
+
+
+## AD in TMB
+
+* ADMD and its successor, TMB, were early adopters of automatic differentiation (AD).
+
+* The TMB team are computer scientists and ecologists
+
+
+## TMB vs particle filters for WHAM
+
+A start at addressing this is <https://github.com/ionides/fish-pomp>
+
+
+
+
+
+
+
+

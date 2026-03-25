@@ -26,20 +26,20 @@ The greatlakes cluster is a collection of high-performance Linux machines operat
 
 It is possible to access greatlakes via an on-demand web interface. However, for larger tasks it is better to submit batch jobs from a greatlakes terminal, and that is that we practice here. 
 
-Read the [greatlakes notes on the course website](https://ionides.github.io/531w26/greatlakes) and work through the example to run the code in the file [test.py](https://ionides.github.io/531w26/greatlakes) on greatlakes. 
+Read the [greatlakes notes on the course website](https://ionides.github.io/531w26/greatlakes) and work through the example to run the code in the file [test.py](https://ionides.github.io/531w26/greatlakes) on greatlakes, on both CPU and GPU hardware.
 
-(a) Report on any issues you had to overcome to run the test code as a batch job on greatlakes, both cpu and gpu. Did everything go smoothly, or were there problems you had to overcome?
+(a) Report on any issues you had to overcome to run the test code as a batch job on greatlakes. Did everything go smoothly, or were there problems you had to overcome?
 
 (b) Have you used a Linux cluster before?
 
-(c) Compare the run times reported by test.py for greatlakes cpu and gpu, and your laptop. How do you interpret these results?
+(c) Compare the run times reported by test.py for greatlakes CPU and GPU, and your laptop. How do you interpret these results?
 
 
 ## Question 7.2. Likelihood maximization for the SEIR model.
 
 We consider an SEIR model for the Consett measles epidemic, which is the same model and data used for Homework 6. Write a report presenting the following steps. 
 
-You will need to tailor the intensity of your search to the computational resources at your disposal. Choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. You should test your code on smaller tasks before moving to larger numbers of particles and search iterations. Do this by setting up a run level variable (see Chapters 3 and 4 for examples) so that your qmd file compiled with `RL=0` runs in seconds on your laptop, `RL=1` runs in 5 to 10 minutes on your laptop, and `RL=2` runs in under 30 minutes on a greatlakes GPU (counting run time, not counting time waiting for the job to queue which depends on how busy the cluster is). Your qmd file should collect and report the run time separately for each long calculation.
+You will need to tailor the intensity of your search to the computational resources at your disposal. Choose the number of starting points, number of particles employed, and the number of IF2 iterations appropriately for the size and speed of your machine. You should test your code on smaller tasks before moving to larger numbers of particles and search iterations. Do this by setting up a run level variable (see [Chapter 14](https://ionides.github.io/531w26/14) for examples) so that your qmd file compiled with `RL=0` runs in seconds on your laptop, `RL=1` runs in 5 to 10 minutes on your laptop, and `RL=2` runs in under 30 minutes on a greatlakes GPU (counting run time, not counting time waiting for the job to queue which depends on how busy the cluster is). Your qmd file should collect and report the run time separately for each long calculation.
 
 It is okay for this homework if the Monte Carlo error is larger than you would like. You should aim to get as much accuracy as possible given the constraints on run time.
 

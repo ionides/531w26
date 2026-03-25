@@ -51,9 +51,17 @@ def get_random_normal(key, shape):
     x = jax.random.normal(subkey, shape)
     return new_key, x
 
-get_random_normal_jit(key,10)
+get_random_normal(key,10)
 ```
-will run the compiled version, without error. 
+will run the compiled version, without error. Note that
+```python
+@jax.jit
+get_random_normal
+```
+is equivalent to
+```
+get_random_normal = jax.jit(get_random_normal)
+```
 
 
 

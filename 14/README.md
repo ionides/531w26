@@ -9,17 +9,18 @@ This chapter has some duplication with the background on likelihood-based infere
 | Lecture material | Link       |  
 |:-----------------|:-----------|
 | Slides  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter3/slides.pdf) |
+| Annotated slides | [pdf](slides-annotated.pdf) |
 | Notes  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter3/notes.pdf) |
 | Recording, Summer 2021, Part 1  | [(23 mins)](https://youtu.be/y0Wc6qt5qY0) |
 | Recording, Summer 2021, Part 2  | [(27 mins)](https://youtu.be/uZZKglvJq0c) |
 | Recording, Summer 2021, Part 3  | [(12 mins)](https://youtu.be/68cX1ckgusY) |
 | Recording, Summer 2021, Part 4  | [(31 mins)](https://youtu.be/oNpdp5WcdUQ) |
-| Recording, Summer 2021, Part 4  | [(17 mins)](https://youtu.be/ZJ7mmC0E3zs) |
+| Recording, Summer 2021, Part 5  | [(17 mins)](https://youtu.be/ZJ7mmC0E3zs) |
 
 
 
 <!--
-| Annotated slides | | [pdf](slides-annotated.pdf) |
+| Annotated slides | [pdf](slides-annotated.pdf) |
 -->
 
 

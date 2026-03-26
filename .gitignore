@@ -37,3 +37,11 @@ source_files
 
 mt1/mt1.pdf
 mt2/mt2.pdf
+
+# don't commit run level 0 results
+*_0
+
+
+# don't include symbolic links used for navigation
+pypomp
+sbied

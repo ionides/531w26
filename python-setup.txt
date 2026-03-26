@@ -19,4 +19,10 @@ pip install scikit-learn torch
 # for calling R when needed
 pip install rpy2
 
+# for POMP models in the second half of the course
+pip install pypomp
+# this will install jax, but if working on a gpu we need jax with cuda
+# pip install jax[cuda12]
 
+# for Chapter 17, stochastic volatility
+pip install arch

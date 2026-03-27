@@ -1,0 +1,31 @@
+jupyter 
+matplotlib 
+pandas
+statsmodels
+
+# for pandas.df.to_markdown
+tabulate
+
+# for Chapter 10, forecasting using Facebook Prophet
+pystan 
+prophet 
+plotly
+
+# for Chapter 10, LSTM
+scikit-learn 
+torch
+
+# for calling R when needed, but needs R loaded
+# rpy2
+
+# for POMP models in the second half of the course
+pypomp
+jax[cuda12]  
+# jax if cpu
+
+# for Chapter 17, stochastic volatility
+arch
+
+# for rendering notes
+quarto-cli
+

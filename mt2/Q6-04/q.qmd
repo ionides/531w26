@@ -1,0 +1,18 @@
+
+A basic diagnostic plot is to simulate from the fitted model POMP model at the parameter value with the highest likelihood found so far in the search of the parameter space. If this simulation is qualitatively similar to the data, this suggests the data are consistent with the model. If the simulation is qualitatively different from the data, which of the following is the best next step?
+
+(A). We should do additional global and local searches to make sure we have accurately maximized likelihood estimate. If the problem remains, we can try other approaches with more confidence. 
+
+(B). Visual comparisons of trajectories can be misleading. For example, there is no reason why a simulation from a model should match the timing of events in the dataset (e.g., recessions in economic data; outbreaks in epidemic data). Maybe our model is good despite the mismatching simulation.
+
+(C). We should think hard about why the simulations don't match the data. There could easily be a missing scientific mechanism that needs to be included to explain the data. Unless we think about the science, we won't work this out. 
+
+(D). We should compare the log-likelihood against non-mechanistic benchmarks, such as ARMA models. If we can find a simple statistical model that has better AIC than our mechanistic model, that would strengthen the inference that there might be a problem with the data.
+
+(E). We should inspect residuals (the difference between observed data and the one-step prediction mean) to help us identify which data points are explained poorly by the model.
+
+
+
+
+
+

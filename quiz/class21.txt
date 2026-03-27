@@ -1,0 +1,34 @@
+
+Class 21 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class21.pdf. Answer the multiple choice question and give some supporting reasoning.
+
+
+Multiple choice question title:
+Iterated filtering diagnostics: decreasing likelihood: https://ionides.github.io/531w26/quiz/class21.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class21.pdf
+
+Answers: 
+
+(A). One or more random walk standard deviations is too large.
+
+(B). One or more random walk standard deviations is too small.
+
+(C). The model is misspecified, so it does not fit the data adequately.
+
+(D). A combination of the parameters is weakly identified, leading to a ridge in the likelihood surface.
+
+(E). Too few particles are being used.
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

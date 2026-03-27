@@ -1,0 +1,35 @@
+
+Class 23 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class23.pdf. Answer the multiple choice question and give some supporting reasoning.
+
+
+Multiple choice question title:
+GARCH likelihood: https://ionides.github.io/531w26/quiz/class23.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class23.pdf
+
+Answers: 
+
+A: The positive values of the log-likelihood are implausible. Perhaps the software actually reports the negative log-likelihood since many optimizers are designed to minimize rather than maximize.
+
+B: The models are nested and so a larger model should mathematically have a larger likelihood. In this table, the larger model usually has lower likelihood, so optimization is problematic.
+
+C: This table would make more sense if logLik in fact returns an AIC value. The preferred model is (p,q)=(1,4).
+
+D: The preferred model is (p,q)=(1,1) since it is both the simplest model and the one with the highest log-likelihood.
+
+E: tseries::logLik.garch produces a number that is not the likelihood of the model for the data, and so we cannot readily compare it between models.
+
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

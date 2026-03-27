@@ -1,0 +1,17 @@
+
+\color{blue}
+
+**Solution**. D.\
+
+It is possible that the search of parameter space has missed the region with parameter values that match the data well. However, after a reasonbly well-conducted global search, it is usually right to take your results at face value as a good approximation to the global maximum. If you are worried about ability to maximize, a simulation study (re-estimating with known parameters) is a good check. So, (A) is not the winner.
+
+(B) can also be true, but is not a constructive next step.
+
+(C) is also, broadly speaking, good advice. However, we don't want to spend too much time and effort on redesigning our model until we are more sure that there is indeed a substantial problem.
+
+(D) is good advice. If the model has competitive log-likelihood versus alternative models, it is worth considering carefully whether the problem is with our judgement of the visual comparison rather than with the model itself.
+
+Residual plots can help with diagnostics, especially to identify outliers. However, they are only indirectly related to the question at hand in this question.
+
+\color{black}
+

@@ -101,7 +101,7 @@ if ALL:
 
 \exam{\newpage}
 
-### Q6. Computing with POMP models
+### Q6. Diagnostics and debugging for POMP models
 
 {{< include tmp6.qmd >}}
 

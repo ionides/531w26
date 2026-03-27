@@ -63,24 +63,22 @@ header-includes: |
 
 ## Introduction
 
-* Returns on investments in stock market indices or large companies are often found to be approximately uncorrelated.
-
 * If investment returns are substantially correlated, investors can study their time series behavior and make money.
 
 * If the investment is non-liquid (i.e., not reliably tradeable), or expensive to trade, then it might be hard to make money even if you can statistically predict a positive expected return.
 
 * Otherwise, the market may notice a favorable investment opportunity. More buyers will lead to higher prices, and the opportunity will disappear.
 
-* Consequently, most readily traded investments (e.g., stock market indices, or stock of large companies) have close to uncorrelated returns.
+* Consequently, **most readily traded investments (e.g., stock market indices, or stock of large companies) have close to uncorrelated returns.**
 
-* The variability of the returns (called the volatility) can fluctuate considerably. Understanding this volatility is important for quantifying and managing the risk of investments.
+* The variability of the returns (called the volatility) can fluctuate considerably. Understanding volatility is important for quantifying and managing investment risk.
 
 ## The S&P 500 data
 
 * Recall the daily S&P 500 data that we saw earlier, in Chapter 3.
 
 ```{python}
-#| echo: true
+#| echo: false
 #| label: setup
 import jax.numpy as jnp
 import jax
@@ -93,14 +91,14 @@ import os
 import time
 from pypomp.ParTrans_class import ParTrans
 
-RL = 0   # run level 0: quick, 1: medium, 2: slow
+RL = 1   # run level 0: quick, 1: medium, 2: slow
 
 cache_dir = "cache_" + str(RL)
 os.makedirs(cache_dir, exist_ok=True)
 ```
 
 ```{python}
-#| echo: true
+#| echo: false
 #| label: sp500 plot
 dat = pd.read_csv("sp500.csv", comment="#")
 fig, axes = plt.subplots(1, 2, figsize=(10, 3.5))
@@ -159,7 +157,7 @@ plt.show()
 
 ## The ARCH model
 
-* ARCH and GARCH models are widely used for financial time series modeling. We follow @cowpertwait09 to introduce these models; see also Section 5.4 of @shumway17.
+* ARCH and GARCH models are widely used for financial time series modeling. Our introduction follows @cowpertwait09; see also Section 5.4 of @shumway17.
 
 * An order $p$ \myemph{autoregressive conditional heteroskedasticity} model, known as ARCH(p), has the form
 $$ Y_n = \epsilon_n \sqrt{V_n},$$
@@ -312,6 +310,7 @@ $$w_{n,j}=f_{Y_n|G_n,H_n}(\data{y}_n|G^P_{n,j},H^P_{n,j}).$$
 
 ## Model components
 
+Here, we add type hints to the model components. This is optional, but it may help humans and AIs to read and write accurately.
 ```{python}
 #| echo: true
 #| label: model components
@@ -334,7 +333,7 @@ def rinit(theta_: ParamDict, key: RNGKey,
 
 ## Process model for filtering
 
-* In the filtering version, `Y_state` is set from the covariate (i.e., the observed data).
+The filtering version sets `Y_state` from the covariate (i.e., the observed data).
 
 ```{python}
 #| echo: true
@@ -365,7 +364,7 @@ def rproc_filt(X_: StateDict, theta_: ParamDict,
 
 ## Process model for simulation
 
-* In the simulation version, `Y_state` is simulated from the model.
+The simulation version simulates `Y_state` from the model.
 
 ```{python}
 #| echo: true
@@ -417,10 +416,7 @@ def rmeas(X_: StateDict, theta_: ParamDict,
 
 ## Parameter transformations
 
-* For optimization procedures such as iterated filtering, it is convenient to transform parameters to be defined on the whole real line.
-
-* We therefore write transformation functions for $\sigma_\eta$, $\sigma_\nu$ and $\phi$.
-
+For optimization procedures such as iterated filtering, it is convenient to transform parameters to be defined on the whole real line. We therefore transform $\sigma_\eta$, $\sigma_\nu$ and $\phi$.
 ```{python}
 #| echo: true
 #| label: parameter transformations
@@ -452,19 +448,23 @@ par_trans = ParTrans(to_est=to_est, from_est=from_est)
 
 ## Building the `pypomp` objects
 
-* Note that the data are also placed in a covariate slot. This is a device to allow the state process evolution to depend on the data. In a POMP model, the latent process evolution depends only on the current latent state.
+**Note that the data are also placed in a covariate slot.** This allows the state process transition to depend on the data. In a POMP model, the latent process transition depends only on the current latent state.
 
-* However, a POMP model does allow for the possibility for the basic elements to depend on arbitrary covariates. In `pypomp`, this means `rproc` has access to a covariate slot.
+A POMP model allows the basic components to depend on arbitrary covariates. In `pypomp`, this means `rproc` has access to a covariate slot.
 
 ```{python}
 #| echo: true
-#| label: build pomp objects
+#| label: build covars
 ys = pd.DataFrame({"y": y}, index=np.arange(1, N + 1).astype(float))
 
 covars = pd.DataFrame(
     {"covaryt": np.concatenate([[0.0], y])},
     index=np.arange(0, N + 1).astype(float))
+```
 
+```{python}
+#| echo: false
+#| label: build test parameter vector
 params_test = {
     "sigma_nu": np.exp(-4.5),
     "mu_h": -0.25,
@@ -475,7 +475,7 @@ params_test = {
 }
 ```
 
-##
+## The version for filtering uses `rproc_filt`
 
 ```{python}
 #| echo: true
@@ -496,9 +496,8 @@ sp500_filt = pp.Pomp(
 )
 ```
 
-##
+## The version for simulating uses `rproc_sim`
 
-* Simulating from the model is convenient for developing and testing the code, as well as to investigate a fitted model.
 
 ```{python}
 #| echo: true
@@ -532,7 +531,7 @@ X_sim, Y_sim = sp500_sim.simulate(key=key, nsim=1)
 #| echo: false
 #| label: plot simulation
 fig, ax = plt.subplots(figsize=(8, 3))
-sim_y = np.array(Y_sim).flatten()
+sim_y = np.array(Y_sim["obs_0"]).flatten()
 ax.plot(sim_y, linewidth=0.5)
 ax.set_xlabel("business day")
 ax.set_ylabel("simulated return")
@@ -544,18 +543,17 @@ plt.show()
 
 ## Building a filtering object from simulated data
 
-* To test the filtering and parameter estimation code on simulated data, we need to copy the simulated data into the covariate slot and use the filtering version of `rproc`.
+To test the filtering and parameter estimation code on simulated data, we need to copy the simulated data into the covariate slot and use the filtering version of `rproc`.
 
 ```{python}
 #| echo: true
 #| label: build sim filtering object
-sim_y_vec = np.array(Y_sim).flatten()
 ys_sim = pd.DataFrame(
-    {"y": sim_y_vec},
-    index=np.arange(1, len(sim_y_vec) + 1).astype(float))
+    {"y": sim_y},
+    index=np.arange(1, len(sim_y) + 1).astype(float))
 covars_sim = pd.DataFrame(
-    {"covaryt": np.concatenate([[0.0], sim_y_vec])},
-    index=np.arange(0, len(sim_y_vec) + 1).astype(float))
+    {"covaryt": np.concatenate([[0.0], sim_y])},
+    index=np.arange(0, len(sim_y) + 1).astype(float))
 
 sim1_filt = pp.Pomp(
     ys=ys_sim,
@@ -583,15 +581,15 @@ sim1_filt = pp.Pomp(
 ```{python}
 #| echo: true
 #| label: run level
-sp500_Np =           [50, 1000, 2000][RL]
-sp500_Nmif =         [5,  100,  200][RL]
-sp500_Nreps_eval =   [2,  10,   20][RL]
-sp500_Nreps_local =  [2,  20,   20][RL]
-sp500_Nreps_global = [2,  20,  100][RL]
+sp500_Np =           [50, 500, 2000][RL]
+sp500_Nmif =         [5,  20,  200][RL]
+sp500_Nreps_eval =   [2,  5,   20][RL]
+sp500_Nreps_local =  [2,  5,   20][RL]
+sp500_Nreps_global = [2,  5,  100][RL]
 ```
 
 
-## Particle filter on simulated data
+## Test the particle filter on simulated data
 
 ```{python}
 #| echo: true
@@ -616,14 +614,14 @@ else:
 ```{python}
 #| echo: true
 #| label: pfilter simulated results
+# Average using logmeanexp since the likelihood estimate
+# is unbiased on the natural scale but not the log scale.
 logLiks = np.array(pf1_result.logLiks).flatten()
 L_pf1 = pp.logmeanexp(logLiks)
 L_pf1_se = pp.logmeanexp_se(logLiks)
 print(f"Log-likelihood estimate: {L_pf1:.2f}"
     f" (SE: {L_pf1_se:.2f})")
 ```
-
-* Notice that the replications are averaged using the log-mean-exp trick, since the likelihood estimate is unbiased on the natural scale but not the log scale.
 
 
 ## Fitting the stochastic leverage model to S&P 500 data
@@ -654,7 +652,7 @@ rw_sd = pp.RWSigma(
 ## Local search
 
 ```{python}
-#| echo: true
+#| echo: false
 #| label: local mif
 cache_file = cache_dir + "/mif1.pkl"
 if os.path.exists(cache_file):
@@ -684,10 +682,9 @@ else:
         pickle.dump(mif1_result, f)
 ```
 
-## Evaluating the likelihood at MIF endpoints
 
 ```{python}
-#| echo: true
+#| echo: false
 #| label: local pfilter
 cache_file = cache_dir + "/local-pfilter.pkl"
 if os.path.exists(cache_file):
@@ -730,7 +727,9 @@ else:
         pickle.dump(local_results, f)
 ```
 
-## Local search results
+1. Set up the cache for the results
+2. Conduct multiple searches from a single initial condition
+3. Conduct multiple log-likelihood evaluations
 
 ```{python}
 #| echo: true
@@ -742,7 +741,7 @@ print(f"Best log-likelihood: "
 
 ## MIF diagnostic plots
 
-* The repeated stochastic maximizations can also show us the geometry of the likelihood surface in a neighborhood of the point estimate.
+Repeated stochastic maximizations can show the geometry of the likelihood surface.
 
 ```{python}
 #| echo: false
@@ -754,7 +753,7 @@ subset = r_if1[
     r_if1["logLik"] > r_if1["logLik"].max() - 20]
 n_vars = len(plot_vars)
 fig, axes = plt.subplots(n_vars, n_vars,
-    figsize=(10, 10))
+    figsize=(8, 8))
 for i in range(n_vars):
     for j in range(n_vars):
         ax = axes[i, j]
@@ -796,8 +795,10 @@ sp500_box = {
 
 ## Global search
 
+* More searches, from diverse starting points.
+
 ```{python}
-#| echo: true
+#| echo: false
 #| label: global search
 cache_file = cache_dir + "/box_eval.pkl"
 if os.path.exists(cache_file):
@@ -865,10 +866,8 @@ else:
         pickle.dump(global_results, f)
 ```
 
-## Global search results
-
 ```{python}
-#| echo: true
+#| echo: false
 #| label: global search summary
 r_box = global_results if 'global_results' in dir() \
     else pickle.load(open(cache_dir + "/box_eval.pkl", 'rb'))
@@ -884,7 +883,7 @@ for p in params_test.keys():
 
 ##
 
-* We see that optimization attempts from diverse remote starting points can approach our MLE, but do not exceed it. This gives us some reasonable confidence in our MLE.
+Optimization attempts from diverse remote starting points can approach our MLE, but do not exceed it. This gives us some reasonable confidence in our MLE.
 
 * Plotting these diverse parameter estimates can help to give a feel for the global geometry of the likelihood surface.
 
@@ -897,7 +896,7 @@ subset = r_box[
     r_box["logLik"] > r_box["logLik"].max() - 10]
 n_vars = len(plot_vars)
 fig, axes = plt.subplots(n_vars, n_vars,
-    figsize=(10, 10))
+    figsize=(8, 8))
 for i in range(n_vars):
     for j in range(n_vars):
         ax = axes[i, j]
@@ -929,16 +928,20 @@ plt.show()
 
 ## Benchmark likelihoods for alternative models
 
-* To assess the overall success of the model, it is helpful to put the log likelihoods in the context of simpler models, called \myemph{benchmarks}.
+To assess the overall success of the model, it is helpful to put the log likelihoods in the context of simpler models, called **benchmarks.**
 
-* Benchmarks provide a complementary approach to residual analysis and the investigation of simulations from the fitted model.
+Benchmarks provide a complementary approach to residual analysis and the investigation of simulations from the fitted model.
 
 ```{python}
-#| echo: true
-#| label: benchmark comparison
+#| echo: false
+#| label: read results for benchmark comparison
 if 'r_box' not in dir():
     r_box = pickle.load(
         open(cache_dir + "/box_eval.pkl", 'rb'))
+```
+```{python}
+#| echo: true
+#| label: benchmark comparison
 L_pomp = r_box["logLik"].max()
 print(f"GARCH(1,1) log-likelihood: {L_garch:.1f}"
     f" (3 parameters)")
@@ -951,9 +954,14 @@ print(f"  GARCH(1,1): {aic_garch:.1f}")
 print(f"  Stochastic leverage: {aic_pomp:.1f}")
 ```
 
+
+## Interpretation of benchmark results
+
 * A model which both fits better and has meaningful interpretation has clear advantages over a simple statistical model.
 
 * The disadvantage of the sophisticated modeling and inference is the extra effort required.
+
+* You should choose the best-fitting benchmarks that you can think of to rigorously test your mechanistic model.
 
 
 ## Can a mechanistic model be helpful if it loses to a non-mechanistic alternative?
@@ -984,11 +992,13 @@ This is partially plug-and-play, in the sense that the $U_n$ part of the proposa
 
 * Computing the weights, we see that the transition density for the $U_n$ component cancels out and does not have to be computed, i.e.,
 
+\small
 $$\begin{aligned}
 w_{n}(x_n|x_{n-1}) &= \frac{f_{Y_n|V_n}(\data{y}_n|v_n)f_{U_n|X_{n-1}}(u_n|x_{n-1})f_{V_n|U_n,X_{n-1}}(v_n|u_n,x_{n-1})}{f_{U_n|X_{n-1}}(u_n|x_{n-1}) g_n(v_n)} \\
 &= \frac{f_{Y_n|V_n}(\data{y}_n|v_n)f_{V_n|U_n,X_{n-1}}(v_n|u_n,x_{n-1})}{ g_n(v_n)}.
 \end{aligned}
 $$
+\normalsize
 
 ##
 
@@ -1016,3 +1026,5 @@ $$
   Please share and remix non-commercially, mentioning its origin.
 
 * We acknowledge [previous versions of this course](https://ionides.github.io/531w25/acknowledge.html).
+
+* Translated from a previous R version with assistance from Claude Code opus 4.6.

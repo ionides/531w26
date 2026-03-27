@@ -4,6 +4,7 @@ source .venv/bin/activate
 pip install --upgrade pip
 pip install jupyter matplotlib pandas statsmodels
 
+
 # for pandas.df.to_markdown
 pip install tabulate
 
@@ -26,3 +27,6 @@ pip install pypomp
 
 # for Chapter 17, stochastic volatility
 pip install arch
+
+# convenient for accessing quarto on greatlakes
+pip install quarto-cli

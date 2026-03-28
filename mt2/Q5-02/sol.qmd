@@ -2,7 +2,8 @@
 \color{blue}
 
 **Solution**. E.\
-```{r logLik-garch-help,echo=TRUE,eval=FALSE}
+In R,
+``` 
 ?tseries::logLik.garch
 ```
 reveals that
@@ -14,6 +15,7 @@ reveals that
 Therefore, the log-likelihood for fiting GARCH(p,q) corresponds only to $y^*_{(\max(p,q)+1):N}$.
 The violations of nesting occur because different amounts of data are used for differeng values of $\max(p,q)$.
 Therefore, we cannot easily compare likelihoods or AIC values.
+This question could be updated to Python, but the difficulty of working with the exact GARCH likelihood incentivizes packages to cut corners in this way.
 
 \color{black}
 

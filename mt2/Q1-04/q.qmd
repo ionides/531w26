@@ -13,11 +13,11 @@ i. If $V_n=(X_n,Y_n)$ and $h(X_n,Y_n)=X_n$ then $W_n$ is a Markov process.
 
 i. If $V_n=(X_n,Y_n)$ and $h(X_n,Y_n)=Y_n$ then $W_n$ is a Markov process.
 
-**A**. i,iv,v\
-**B**. ii,iv\
-**C**. ii,v\
-**D**. iii\
-**E**. Some combination other than those listed above
+(A). i,iv,v\
+(B). ii,iv\
+(C). ii,v\
+(D). iii\
+(E). Some combination other than those listed above
 
 <!--
 This question was written for the [SBIED short course](https://kingaa.github.io/sbied/)

@@ -108,15 +108,7 @@ There are further POMP case studies, in a similar style, on [Ebola modeling](htt
 <!--
 [Solution](hw07/sol07.html).
 
-* [Homework 8](hw08/q.pdf), due Sun Apr 13, 11:59pm.
-
--->
-
-<!--
-
-* There is no assigned homework for the last two weeks of the semester. You should work on your final project. The remaining lectures contain material that will be useful for your final projects.
-
--------------------
+* [Homework 8](hw08/q.pdf), due Sun Apr 12, 11:59pm.
 
 -->
 
@@ -129,10 +121,7 @@ These are drawn from the same problem bank as the daily quizzes. They are done w
 [Sample questions](mt1/mt1-all-questions.pdf). [With solutions](mt1/mt1-all-sol.pdf). [Sample midterm](mt1/mt1-sample.pdf) randomly drawn from the test generator; the actual test will use a different seed.
 
 * Exam 2. In class on Wednesday 4/15.
-[Sample questions and solutions](mt2/mt2-all-sol.pdf). This is preliminary; more questions may be added before the test.
-<!--
-[Sample questions](mt2/mt2-all-questions.pdf). [With solutions](mt2/mt2-all-sol.pdf). [Sample midterm](mt2/mt2-sample.pdf) randomly drawn from the test generator; the actual test will use a different seed.
--->
+[Sample questions](mt2/mt2-all-questions.pdf). [With solutions](mt2/mt2-all-sol.pdf). [Sample midterm](mt2/mt2-sample.pdf) randomly drawn from the test generator; the actual test will use a different seed. This is preliminary; more questions may be added before the test.
 
 
 ## Midterm project

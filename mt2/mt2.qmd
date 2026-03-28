@@ -19,9 +19,10 @@ if EXAM:
 
 
 
-\newcommand\exam[1]{#1}
+\newcommand\exam[1]{}
 <!-- \renewcommand\exam[1]{} to remove exam formatting -->
-\renewcommand\exam[1]{}
+<!-- \renewcommand\exam[1]{#1} to keep exam formatting -->
+
 
 
 <!---

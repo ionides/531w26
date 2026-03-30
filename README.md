@@ -55,27 +55,32 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 15. [Likelihood maximization for POMP models](15)
 
+16. [A case study of measles: Dynamics revealed in long time series](16)
+
 <!--
-16. [A case study of polio including covariates, seasonality & over-dispersion](16)
+
 
 17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17). With [notes on how to run the code on the Great Lakes Linux cluster](17).
 
-18. [A case study of measles: Dynamics revealed in long time series](18)
+18. [A case study of polio including covariates, seasonality & over-dispersion](18)
 
 -->
 
 <!--
-19. [A case study of ebola: Model criticism and forecasting](19)
+19. [A case study of ebola: Model criticism and forecasting](18)
 
 -->
 
-<!--
 
-There are further POMP case studies, in a similar style, on [Ebola modeling](https://kingaa.github.io/sbied/ebola/index.html), [measles transmission](https://kingaa.github.io/sbied/measles/index.html), and [dynamic variation in the rate of human sexual contacts](https://kingaa.github.io/sbied/contacts/index.html).
+Other examples of POMP data analysis, covering diverse topics, are provided by the final projects for previous 531 courses:
+[2025](http://ionides.github.io/531w25/final_project/),
+[2024](http://ionides.github.io/531w24/final_project/),
+[2022](http://ionides.github.io/531w22/final_project/),
+[2021](http://ionides.github.io/531w21/final_project/),
+[2020](http://ionides.github.io/531w20/final_project/),
+[2018](http://ionides.github.io/531w18/final_project/),
+[2016](http://ionides.github.io/531w16/final_project/).
 
---------
-
--->
 
 ## Homework and participation assignments
 

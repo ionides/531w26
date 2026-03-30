@@ -16,11 +16,9 @@ Answers:
 
 (B). The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units. We should use more particles and/or more iterations to achieve this.
 
-(C). The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units.
-We should compare the best likelihoods obtained with simple statistical models, such as an auto-regressive moving average model, to look for evidence of model misspecification.
+(C). The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units. We should compare the best likelihoods obtained with simple statistical models, such as an auto-regressive moving average model, to look for evidence of model misspecification.
 
-(D). The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units.
-We should look at the effective sample size plot for the best fit we have found yet, to see whether there are problems with the particle filtering.
+(D). The searches obtain likelihood values spread over thousands of log units. We would like to see consistent convergence within a few log units. We should look at the effective sample size plot for the best fit we have found yet, to see whether there are problems with the particle filtering.
 
 (E). All of B, C, and D.
 

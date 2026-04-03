@@ -91,7 +91,7 @@ import os
 import time
 from pypomp.ParTrans_class import ParTrans
 
-RL = 1   # run level 0: quick, 1: medium, 2: slow
+RL = 2   # run level 0: quick, 1: medium, 2: slow
 
 cache_dir = "cache_" + str(RL)
 os.makedirs(cache_dir, exist_ok=True)
@@ -739,9 +739,10 @@ print(f"Best log-likelihood: "
     f"{r_if1['logLik'].max():.1f}")
 ```
 
-## MIF diagnostic plots
+* We proceed to look at convergence diagnostics...
 
-Repeated stochastic maximizations can show the geometry of the likelihood surface.
+## 
+
 
 ```{python}
 #| echo: false
@@ -753,7 +754,7 @@ subset = r_if1[
     r_if1["logLik"] > r_if1["logLik"].max() - 20]
 n_vars = len(plot_vars)
 fig, axes = plt.subplots(n_vars, n_vars,
-    figsize=(8, 8))
+    figsize=(5, 5), layout="constrained")
 for i in range(n_vars):
     for j in range(n_vars):
         ax = axes[i, j]
@@ -769,7 +770,8 @@ for i in range(n_vars):
         if j == 0:
             ax.set_ylabel(plot_vars[i], fontsize=8)
         ax.tick_params(labelsize=6)
-plt.tight_layout()
+#plt.figure(figsize=(4, 4))
+#plt.tight_layout()
 plt.show()
 ```
 
@@ -866,6 +868,7 @@ else:
         pickle.dump(global_results, f)
 ```
 
+\small
 ```{python}
 #| echo: false
 #| label: global search summary
@@ -879,13 +882,13 @@ print(f"Best parameters:")
 for p in params_test.keys():
     print(f"  {p}: {r_box.loc[best_idx, p]:.4f}")
 ```
-
+\normalsize
 
 ##
 
+<!--
 Optimization attempts from diverse remote starting points can approach our MLE, but do not exceed it. This gives us some reasonable confidence in our MLE.
-
-* Plotting these diverse parameter estimates can help to give a feel for the global geometry of the likelihood surface.
+-->
 
 ```{python}
 #| echo: false
@@ -896,7 +899,7 @@ subset = r_box[
     r_box["logLik"] > r_box["logLik"].max() - 10]
 n_vars = len(plot_vars)
 fig, axes = plt.subplots(n_vars, n_vars,
-    figsize=(8, 8))
+    figsize=(6, 6), layout="constrained")
 for i in range(n_vars):
     for j in range(n_vars):
         ax = axes[i, j]
@@ -912,7 +915,6 @@ for i in range(n_vars):
         if j == 0:
             ax.set_ylabel(plot_vars[i], fontsize=8)
         ax.tick_params(labelsize=6)
-plt.tight_layout()
 plt.show()
 ```
 
@@ -949,13 +951,18 @@ print(f"Stochastic leverage log-likelihood: "
     f"{L_pomp:.1f} (6 parameters)")
 aic_garch = -2 * L_garch + 2 * 3
 aic_pomp = -2 * L_pomp + 2 * 6
-print(f"\nAIC comparison:")
-print(f"  GARCH(1,1): {aic_garch:.1f}")
-print(f"  Stochastic leverage: {aic_pomp:.1f}")
 ```
 
 
 ## Interpretation of benchmark results
+
+```{python}
+#| echo: false
+#| label: print benchmark comparison
+print(f"\nAIC comparison:")
+print(f"  GARCH(1,1): {aic_garch:.1f}")
+print(f"  Stochastic leverage: {aic_pomp:.1f}")
+```
 
 * A model which both fits better and has meaningful interpretation has clear advantages over a simple statistical model.
 

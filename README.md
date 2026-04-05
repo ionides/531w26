@@ -57,11 +57,9 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 16. [A case study of measles: Dynamics revealed in long time series](16)
 
+17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17). 
+
 <!--
-
-
-17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17). With [notes on how to run the code on the Great Lakes Linux cluster](17).
-
 18. [A case study of polio including covariates, seasonality & over-dispersion](18)
 
 -->
@@ -113,9 +111,9 @@ Other examples of POMP data analysis, covering diverse topics, are provided by t
 <!--
 [Solution](hw07/sol07.html).
 
-* [Homework 8](hw08/q.pdf), due Sun Apr 12, 11:59pm.
-
 -->
+
+* [Homework 8](hw08/q.pdf), due Sun Apr 12, 11:59pm.
 
 
 ## Midterm exams.

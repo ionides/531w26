@@ -26,7 +26,7 @@ for (i in 1:p) {
 (B). The models are nested and so a larger model should mathematically have a larger likelihood. In this table, the larger model usually has lower likelihood, so optimization is problematic.\
 (C). This table would make more sense if `logLik` in fact returns an AIC value. The preferred model is $(p,q)=(1,4)$.\
 (D). The preferred model is $(p,q)=(1,1)$ since it is both the simplest model and the one with the highest log-likelihood.\
-(E). `tseries::logLik.garch` produces something that is not the log-likelihood of $y_{1:N}$, so we cannot readily compare it between models.
+(E). The software produces something that is not the log-likelihood of $y_{1:N}$, so we cannot readily compare it between models.
 
 
 

@@ -12,15 +12,15 @@ The question is posted at https://ionides.github.io/531w26/quiz/class23.pdf
 
 Answers: 
 
-A: The positive values of the log-likelihood are implausible. Perhaps the software actually reports the negative log-likelihood since many optimizers are designed to minimize rather than maximize.
+(A). The positive values of the log-likelihood are implausible. Perhaps the software actually reports the negative log-likelihood since many optimizers are designed to minimize rather than maximize.
 
-B: The models are nested and so a larger model should mathematically have a larger likelihood. In this table, the larger model usually has lower likelihood, so optimization is problematic.
+(B). The models are nested and so a larger model should mathematically have a larger likelihood. In this table, the larger model usually has lower likelihood, so optimization is problematic.
 
-C: This table would make more sense if logLik in fact returns an AIC value. The preferred model is (p,q)=(1,4).
+(C). This table would make more sense if logLik in fact returns an AIC value. The preferred model is (p,q)=(1,4).
 
-D: The preferred model is (p,q)=(1,1) since it is both the simplest model and the one with the highest log-likelihood.
+(D). The preferred model is (p,q)=(1,1) since it is both the simplest model and the one with the highest log-likelihood.
 
-E: tseries::logLik.garch produces a number that is not the likelihood of the model for the data, and so we cannot readily compare it between models.
+* (E). The software produces a number that is not the likelihood of the model for the data, and so we cannot readily compare it between models.
 
 
 

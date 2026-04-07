@@ -1,0 +1,388 @@
+---
+title: "Solution to [Homework 6](q.pdf)"
+author: "STATS/DATASCI 531"
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  echo: false
+bibliography: ../bib531.bib
+csl: https://raw.githubusercontent.com/citation-style-language/styles/master/cell-numeric.csl
+---
+
+
+
+```{python sir_setup, include=FALSE}
+import pandas as pd
+import numpy as np
+import jax
+import jax.numpy as jnp
+import pypomp as pp
+from pypomp.pomp_class import Pomp
+from plotnine import *
+import pickle
+
+key = jax.random.key(70982)
+```
+
+
+# Question 7.1: Introduction to JAX on the greatlakes cluster
+
+Running `test.py` on a MacBook Air laptop, you may get output like this
+
+```{default}
+time0: 1.428s,  time1: 1.615s,  time2: 0.691s,  time3: 1.142s
+```
+
+On Great Lakes, you may get output like this
+
+```{default}
+time0: 3.234s,  time1: 3.304s,  time2: 2.785s,  time3: 3.567s
+```
+
+for the CPU, and 
+
+```{default}
+time0: 0.772s,  time1: 0.605s,  time2: 0.001s,  time3: 0.713s
+```
+
+for the GPU. Due to being designed for parallel processing, GPUs are much faster than CPUs for tasks that can be heavily parallelized, such as, in this case, generating 100 million random numbers at once. 
+
+Why does the script run faster on the MacBook Air laptop than on the Great Lakes CPU? This occurs because CPUs used in computing clusters are designed for high throughput, high latency tasks, while CPUs used in laptops are designed for low throughput, low latency tasks. People generally aren't interested in running an hours-long script on their laptop, but they are interested in being able to run small scripts quickly. A high-throughput CPU such as the ones on Great Lakes could take the lead if we used enough cores (we used just 1 in this case) and if the task were large enough and indepdendent enough that the overhead of parallel processing were overcome. 
+
+Note what each time represents:
+
+time0: time to generate 100 million random numbers without JIT compilation
+
+time1: time to generate 100 million random numbers with JIT compilation
+
+time2: time to generate 100 million random numbers with JIT compilation, after the first run (compilation overhead is cached)
+
+time3: time to generate 100 million random numbers with JIT compilation and vmap (automatic vectorization)
+
+While times 0 and 1 are similar across each platform, time 2 tends to be significantly faster than time 1. This is because a JIT-compiled function runs faster once compiled, but it incurs compilation overhead the first time it is run. If we only wanted to generate 100 million random numbers once, JIT compilation would be of little benefit. On the other hand, if we wanted to generate 100 million random numbers many times on a GPU, the time to generate each batch would shrink from 0.605s to 0.001s after the first run, which would save a huge amount of time in the long run. An alternative approach would be to JIT-compile a function that would run for long enough such that the compilation overhead is only a small part of the total runtime anyway, which is the case for the primary methods in `pypomp`. 
+
+Note that time 3 is slower than time 2. In this case, it's actually because the vmap operation is triggering JIT-compilation, producing overhead. However, even with pre-compilation, vmap itself can introduce some slight overhead compared to manually vectorizing a function.
+
+# Question 7.2: Likelihood maximization for the SEIR model
+
+```{python Run level settings}
+RUN_LEVEL = 2
+RUN_SEARCHES = True
+
+NFITR = (2, 100, 200)[RUN_LEVEL - 1]
+NP_FITR = (2, 5000, 10000)[RUN_LEVEL - 1]
+NP_EVAL = (2, 2000, 5000)[RUN_LEVEL - 1]
+NREPS_FITR = (2, 24, 72)[RUN_LEVEL - 1]
+NREPS_EVAL = (2, 24, 36)[RUN_LEVEL - 1]
+```
+
+```{python data, include=FALSE}
+# Loading data using local file to avoid SSL issues
+meas = pd.read_csv("../hw06/Measles_Consett_1948.csv")
+meas_sir_data = meas[["week", "cases"]].rename(columns={"cases": "reports"})
+meas_sir_data = meas_sir_data[meas_sir_data["week"] <= 42].set_index("week")
+```
+
+
+```{python sir_setup, include=FALSE}
+def sir_init(theta_, key, covars=None, t0=0):
+    N = theta_["N"]
+    eta = theta_["eta"]
+    S = jnp.round(eta * N)
+    I = 1.0
+    R = jnp.round((1 - eta) * N)
+    H = 0.0
+    return {"S": S, "I": I, "R": R, "H": H}
+
+
+def sir_step(X_, theta_, key, covars, t, dt):
+    S, I, R, H = X_["S"], X_["I"], X_["R"], X_["H"]
+    Beta, mu_IR, N = theta_["Beta"], theta_["mu_IR"], theta_["N"]
+
+    p_si = 1 - jnp.exp(-Beta * I / N * dt)
+    p_ir = 1 - jnp.exp(-mu_IR * dt)
+    p_si_ir = jnp.stack([p_si, p_ir])
+    SI = jnp.stack([S, I])
+
+    dN_SI_IR = pp.random.fast_approx_rbinom(key, n=SI, p=p_si_ir)
+    dN_SI = dN_SI_IR[0]
+    dN_IR = dN_SI_IR[1]
+
+    return {"S": S - dN_SI, "I": I + dN_SI - dN_IR, "R": R + dN_IR, "H": H + dN_IR}
+
+
+def nbinom_logpmf(x, k, mu):
+    """Log PMF of NegBin(k, mu) that is robust when mu == 0."""
+    x = jnp.asarray(x)
+    k = jnp.asarray(k)
+    mu = jnp.asarray(mu)
+    logp_zero = jnp.where(x == 0, 0.0, -jnp.inf)
+    safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+    core = (
+        jax.scipy.special.gammaln(k + x)
+        - jax.scipy.special.gammaln(k)
+        - jax.scipy.special.gammaln(x + 1)
+        + k * jnp.log(k / (k + safe_mu))
+        + x * jnp.log(safe_mu / (k + safe_mu))
+    )
+    return jnp.where(mu == 0.0, logp_zero, core)
+
+
+def dmeas(Y_, X_, theta_, covars, t):
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = rho * H
+    return nbinom_logpmf(Y_["reports"], k, mu)
+
+
+SIR_box = {
+    "Beta": (5.0, 100.0),
+    "mu_IR": (0.1, 100.0),
+    "rho": (0.05, 0.95),
+    "eta": (0.004, 0.1),
+    "k": (1.0, 100.0),
+    "N": (30000.0, 50000.0),
+}
+key, subkey = jax.random.split(key)
+initial_params_list = pp.Pomp.sample_params(SIR_box, NREPS_FITR, key=subkey)
+
+measSIR = Pomp(
+    ys=meas_sir_data,
+    t0=0,
+    rinit=sir_init,
+    rproc=sir_step,
+    dmeas=dmeas,
+    theta=initial_params_list,
+    statenames=["S", "I", "R", "H"],
+    accumvars=["H"],
+    dt=1 / 7,
+    ydim=1,
+)
+```
+
+```{python SEIR_building, include=FALSE}
+def seir_init(theta_, key, covars=None, t0=0):
+    N = theta_["N"]
+    eta = theta_["eta"]
+    S = jnp.round(eta * N)
+    E = 0.0
+    I = 1.0
+    R = jnp.round((1 - eta) * N)
+    H = 0.0
+    return {"S": S, "E": E, "I": I, "R": R, "H": H}
+
+
+def seir_step(X_, theta_, key, covars, t, dt):
+    S, E, I, R, H = X_["S"], X_["E"], X_["I"], X_["R"], X_["H"]
+    Beta, mu_EI, mu_IR, N = (
+        theta_["Beta"],
+        theta_["mu_EI"],
+        theta_["mu_IR"],
+        theta_["N"],
+    )
+
+    p_se = 1 - jnp.exp(-Beta * I / N * dt)
+    p_ei = 1 - jnp.exp(-mu_EI * dt)
+    p_ir = 1 - jnp.exp(-mu_IR * dt)
+
+    p_se_ei_ir = jnp.stack([p_se, p_ei, p_ir])
+    SEI = jnp.stack([S, E, I])
+
+    dN_SE_EI_IR = pp.random.fast_approx_rbinom(key, n=SEI, p=p_se_ei_ir)
+    dN_SE = dN_SE_EI_IR[0]
+    dN_EI = dN_SE_EI_IR[1]
+    dN_IR = dN_SE_EI_IR[2]
+
+    return {
+        "S": S - dN_SE,
+        "E": E + dN_SE - dN_EI,
+        "I": I + dN_EI - dN_IR,
+        "R": R + dN_IR,
+        "H": H + dN_IR,
+    }
+
+
+SEIR_box = {
+    "Beta": (5.0, 100.0),
+    "mu_IR": (0.1, 100.0),
+    "mu_EI": (0.1, 100.0),
+    "rho": (0.05, 0.95),
+    "eta": (0.004, 0.1),
+    "k": (1.0, 100.0),
+    "N": (30000.0, 50000.0),
+}
+key, subkey = jax.random.split(key)
+seir_params = pp.Pomp.sample_params(SEIR_box, NREPS_FITR, key=subkey)
+
+measSEIR = Pomp(
+    ys=meas_sir_data,
+    t0=0,
+    rinit=seir_init,
+    rproc=seir_step,
+    dmeas=dmeas,
+    theta=seir_params,
+    statenames=["S", "E", "I", "R", "H"],
+    accumvars=["H"],
+    dt=1 / 7,
+    ydim=1,
+)
+```
+
+## (a) Search
+
+```{python Search setup}
+COOLING_RATE = 0.5
+RW_SD_SIR = pp.RWSigma(
+    sigmas={
+        "Beta": 0.02,
+        "mu_IR": 0.02,
+        "rho": 0.02,
+        "eta": 0.02,
+        "k": 0.02,
+        "N": 0.02,
+    },
+    init_names=["eta"],
+)
+
+RW_SD_SEIR = pp.RWSigma(
+    sigmas={
+        "Beta": 0.02,
+        "mu_EI": 0.02,
+        "mu_IR": 0.02,
+        "rho": 0.02,
+        "eta": 0.02,
+        "k": 0.02,
+        "N": 0.02,
+    },
+    init_names=["eta"],
+)
+```
+
+
+```{python SIR search}
+if RUN_SEARCHES:
+    key, subkey = jax.random.split(key)
+    measSIR.mif(
+        rw_sd=RW_SD_SIR,
+        M=NFITR,
+        a=COOLING_RATE,
+        J=NP_FITR,
+        key=subkey,
+    )
+    measSIR.pfilter(J=NP_EVAL, reps=NREPS_EVAL)
+
+    with open("measSIR.pkl", "wb") as f:
+        pickle.dump(measSIR, f)
+else:
+    with open("measSIR.pkl", "rb") as f:
+        measSIR = pickle.load(f)
+```
+
+
+```{python SEIR search}
+if RUN_SEARCHES:
+    key, subkey = jax.random.split(key)
+    measSEIR.mif(
+        rw_sd=RW_SD_SEIR,
+        M=NFITR,
+        a=COOLING_RATE,
+        J=NP_FITR,
+        key=subkey,
+    )
+    measSEIR.pfilter(J=NP_EVAL, reps=NREPS_EVAL)
+
+    with open("measSEIR.pkl", "wb") as f:
+        pickle.dump(measSEIR, f)
+else:
+    with open("measSEIR.pkl", "rb") as f:
+        measSEIR = pickle.load(f)
+```
+
+## (b) Likelihood comparison
+
+```{python}
+
+```
+
+## (c) Parameter estimate comparison
+
+## (d) Profile likelihood over reporting rate
+
+```{python profile}
+rho_grid = np.linspace(0.1, 0.9, 8)
+nreps_per_rho = 4
+profile_params_list = []
+
+for r in rho_grid:
+    box_r = SEIR_box.copy()
+    box_r["rho"] = (r, r)
+    key, subkey = jax.random.split(key)
+    profile_params_list.extend(pp.Pomp.sample_params(box_r, nreps_per_rho, key=subkey))
+
+measSEIR_profile = Pomp(
+    ys=meas_sir_data,
+    t0=0,
+    rinit=seir_init,
+    rproc=seir_step,
+    dmeas=dmeas,
+    theta=profile_params_list,
+    statenames=["S", "E", "I", "R", "H"],
+    accumvars=["H"],
+    dt=1 / 7,
+    ydim=1,
+)
+
+RW_SD_PROFILE = pp.RWSigma(
+    sigmas={
+        "Beta": 0.02,
+        "mu_EI": 0.02,
+        "mu_IR": 0.02,
+        "rho": 0.0,  # Fixed parameter
+        "eta": 0.02,
+        "k": 0.02,
+        "N": 0.02,
+    },
+    init_names=["eta"],
+)
+
+if RUN_SEARCHES:
+    key, subkey = jax.random.split(key)
+    measSEIR_profile.mif(
+        rw_sd=RW_SD_PROFILE,
+        M=NFITR,
+        a=COOLING_RATE,
+        J=NP_FITR,
+        key=subkey,
+    )
+    measSEIR_profile.pfilter(J=NP_EVAL, reps=NREPS_EVAL)
+
+    with open("measSEIR_profile.pkl", "wb") as f:
+        pickle.dump(measSEIR_profile, f)
+else:
+    with open("measSEIR_profile.pkl", "rb") as f:
+        measSEIR_profile = pickle.load(f)
+
+profile_results = measSEIR_profile.results()
+profile_summary = profile_results.groupby("rho")["logLik"].max().reset_index()
+
+(
+    ggplot(profile_summary, aes(x="rho", y="logLik"))
+    + geom_point()
+    + geom_line()
+    + labs(
+        title="Profile Likelihood Search for reporting rate (rho)",
+        x="Reporting Rate (rho)",
+        y="Max Evaluated Log-likelihood",
+    )
+    + theme_bw()
+)
+```
+
+----------------
+
+### References
+
+

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#SBATCH --job-name="homework 07 solutions"
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-type=END
+#SBATCH --mail-user=aaronabk@umich.edu
+
+#SBATCH --partition=gpu-rtx6000
+#SBATCH --gpus=rtx_pro_6000_blackwell:1
+#SBATCH --cpus-per-gpu=1
+#SBATCH --mem=30GB
+#SBATCH --output=sol07.out
+#SBATCH --account=ionides0
+#SBATCH --time=2:00:00
+
+source ../.venv/bin/activate
+quarto render sol07.qmd

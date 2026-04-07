@@ -1,0 +1,32 @@
+#!/bin/bash
+
+#SBATCH --job-name=jax_single_cpu_test
+#SBATCH --mail-user=aaronabk@umich.edu
+#SBATCH --mail-type=END,FAIL
+
+#SBATCH --account=stats531w26s001_class
+#SBATCH --partition=standard
+
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1
+
+## 5GB/cpu is the basic share
+#SBATCH --mem-per-cpu=5GB
+
+## wall time hours:minutes:seconds
+#SBATCH --time=0:05:00
+
+###   Load software modules
+
+module load python
+module list
+
+####  Commands your job should run follow this line
+
+echo "Running on $SLURM_JOB_NODELIST"
+echo "Running in $(pwd)"
+source ../.venv/bin/activate
+python test.py > test-cpu.out
+
+

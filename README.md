@@ -59,15 +59,7 @@ Students registering for 631 are expected to have taken at least one core PhD-le
 
 17. [A case study of financial volatility and a POMP model with observations driving latent dynamics](17). 
 
-<!--
-18. [A case study of polio including covariates, seasonality & over-dispersion](18)
-
--->
-
-<!--
-19. [A case study of ebola: Model criticism and forecasting](18)
-
--->
+18. [A case study of ebola: Model criticism and forecasting](18)
 
 
 Other examples of POMP data analysis, covering diverse topics, are provided by the final projects for previous 531 courses:

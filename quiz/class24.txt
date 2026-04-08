@@ -12,7 +12,7 @@ The question is posted at https://ionides.github.io/531w26/quiz/class24.pdf
 
 Answers: 
 
-(A). The high likelihood shows this is a promising model despite the convergence problems identified in the figure. Attention to the diagnostics may lead to additional improvements.
+* (A). The high likelihood shows this is a promising model despite the convergence problems identified in the figure. Attention to the diagnostics may lead to additional improvements.
 
 (B). The most important diagnostic feature is the observation that the log-likelihood trace plot peaks and then declines. From the y-axis scale we see the decline is of order 1000 log units. This is evidence of substantial model misspecification which should be addressed.
 

@@ -1,0 +1,34 @@
+
+Class 25 discussion problem
+
+Solve the question at https://ionides.github.io/531w26/quiz/class25.pdf. Answer the multiple choice question and give some supporting reasoning.
+
+
+Multiple choice question title:
+Interpretation of a parametric bootstrap: https://ionides.github.io/531w26/quiz/class25.pdf
+
+Question text:
+The question is posted at https://ionides.github.io/531w26/quiz/class25.pdf
+
+Answers: 
+
+(A). This is a strong check that both the model and the methodology are correctly implemented. Except for some rare special cases, an error in either one of these will lead the check to fail.
+
+* (B). This checks the implementation of the inference methodology but not the model. Even if the model is implemented wrongly, the check will still show us whether the inference methodology is correct.
+
+(C). This checks the implementation of the model but not the inference methodology. As long as the model is implemented correctly, any reasonable inference methodology should pass the check successfully.
+
+(D). This is not a strong check of either the model or the methodology. It shows self-consistency but that is different from showing accuracy.
+
+
+
+
+2. essay question title: Supporting reasoning
+
+Give some supporting reasoning for your answer. You are expected to write between one and three sentences.
+
+For this assignment, the credit is for the showing some reasoning, not for correctness. 
+
+
+
+

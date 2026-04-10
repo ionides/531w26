@@ -4,7 +4,7 @@
 **Solution**. A.\
 The structure of the particle filter makes it hard to obtain an artificially high likelihood by cheating. Mathematically, the best expected log-likelihood is obtained by a one-step forecast distribution matching the true prediction distribution, assuming the model is correct. (This is just another way of stating the property that the expected log-likelihood is highest under the true model.)
 
-If `dmeasure` is not in fact a density then artificially high likelihoods are possible, but in most models (including this one) the measurement model is a call to a basic R function known to be a density (i.e., integrating to 1).
+If `dmeasure` is not in fact a density then artificially high likelihoods are possible, but in most models (including this one) the measurement model is a call to a probability density function known to integrate to 1.
 
 Inspection of the source code, [available online]( https://ionides.github.io/531w22/final_project/project14/Blinded.html), reveals that the authors made a mistake in implementing `rprocess`.
 Specifically, the `rprocess` line

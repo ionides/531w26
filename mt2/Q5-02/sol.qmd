@@ -15,7 +15,22 @@ reveals that
 Therefore, the log-likelihood for fiting GARCH(p,q) corresponds only to $y^*_{(\max(p,q)+1):N}$.
 The violations of nesting occur because different amounts of data are used for differeng values of $\max(p,q)$.
 Therefore, we cannot easily compare likelihoods or AIC values.
-This question could be updated to Python, but the difficulty of working with the exact GARCH likelihood incentivizes packages to cut corners in this way.
+Similar issues arise in Python. 
+For example, 
+```{python}
+import pandas as pd
+import numpy as np
+from arch import arch_model
+sp500_data=pd.read_csv(
+    "data-mt2/sp500-2002-2012-demeaned.csv", comment="#")
+z= sp500_data["x"].values/100
+L1 = (arch_model(z,vol="Garch",p=1,q=1,mean="Zero",rescale=False)
+    .fit(disp="off").loglikelihood)
+L2 = (arch_model(z,vol="Garch",p=1,q=5,mean="Zero",rescale=False)
+    .fit(disp="off").loglikelihood)
+```
+The log-likelihood reported for the larger GARCH(1,5) model is `{python} f"{L2:.1f}"` which is lower than the nested GARCH(1,1) model, `{python} f"{L1:.1f}"`.
+This is mathematically impossible for the actual likelihood.
 
 \color{black}
 

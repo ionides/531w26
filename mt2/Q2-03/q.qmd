@@ -1,6 +1,7 @@
 
 Effective sample size (ESS) is one of the main tools for diagnosing the success of a particle filter.
-If you plot an object of class `pfilterd_pomp` (created by applying `pfilter` to a pomp object), the ESS is displayed.
+For a POMP model, `mod`, ESS is obtained by running `mod.pfilter` with argument `ESS=True`.
+The dataframe built by POMP can then be accessed by `mod.ESS()`.
 Suppose one or more time points have low ESS (say, less than 10) even when using a fairly large number of particles (say, $10^4$).
 What is the proper interpretation?
 

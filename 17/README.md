@@ -5,6 +5,7 @@
 | Lecture material          | Link                  |
 |:-----------------------|:------------------------:|
 | Slides  | [pdf](slides.pdf) |
+| Annotated slides | [pdf](slides-annotated.pdf) |
 | Notes   | [pdf](notes.pdf) |
 
 

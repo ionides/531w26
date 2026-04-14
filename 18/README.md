@@ -9,6 +9,7 @@ We continue using material from the short course [Simulation-Based Inference for
 | Lecture material | Link       |  
 |:-----------------|:-----------|
 | Slides  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter6/slides.pdf) |
+| Annotated slides  | [pdf](slides-annotated.pdf) |
 | Notes  |   [pdf](https://pypomp.github.io/tutorials/sbied/chapter6/notes.pdf) |
 | Recording, Summer 2020 | [(40 min)](https://www.youtube.com/playlist?list=PLluGwj6FGt2QuMxA6ZM4MGAMqE3r022Dd)) | 
 

@@ -56,7 +56,7 @@ __Computing support__. If you have a coding problem you cannot debug, first try 
 The primary task of peer review is to identify strengths and weaknesses in the technical details; comments on matters of style, organization and presentation are also welcome.
 Reviews should include discussion relating to reproducibility of the project's numerical results.
 * A group final project (30%, due 11:59pm on Tuesday 4/21).
-* Two individual anonymous peer review evaluations of other group final projects (8\%, due 11:59pm on Wednesday 4/30), each about 500 words long.
+* Two individual anonymous peer review evaluations of other group final projects (8\%, due 11:59pm on Wednesday 4/29), each about 500 words long.
 The primary task of peer review is to identify strengths and weaknesses in the technical details; comments on matters of style, organization and presentation are also welcome.
 Reviews should include discussion relating to reproducibility of the project's numerical results.
 * Participation (2%). In-class feedback questions; typically single-question Canvas quizzes that do not require any preparation.

@@ -136,9 +136,9 @@ These are drawn from the same problem bank as the daily quizzes. They are done w
 
 * [Information](final_project/final_project_info.html)
 
-<!--
 * [Final peer review report instructions](final_project/final_review.html)
 
+<!--
 * [2025 final projects](final_project/index.html)
 -->
 

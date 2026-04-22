@@ -1,0 +1,26 @@
+# Core scientific computing
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+matplotlib>=3.8
+statsmodels>=0.14
+
+# JAX (CPU backend — switch to jax[cuda12] on GPU clusters)
+jax>=0.4.25
+jaxlib>=0.4.25
+
+# POMP framework
+pypomp>=0.2.0
+
+# Data download
+yfinance>=0.2.36
+
+# GARCH benchmark
+arch>=6.3
+
+# Quarto rendering
+jupyter>=1.0
+nbformat>=5.9
+ipykernel>=6.28
+jupyter-cache>=1.0  # required for execute: cache: true in Quarto
+tabulate>=0.9   # for DataFrame.to_markdown()

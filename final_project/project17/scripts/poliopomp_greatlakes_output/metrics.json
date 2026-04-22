@@ -1,0 +1,13 @@
+{
+  "overall_log_likelihood_logscale": -226.33138878185795,
+  "overall_log_likelihood_logscale_se": 0.44870276293060757,
+  "mae_raw": 87.60748013920252,
+  "rmse_raw": 233.69889255827135,
+  "mae_log": 0.07386816555697051,
+  "rmse_log": 0.09914922626936219,
+  "peak_mae_raw": 256.32828905864307,
+  "peak_timing_mae_days": 7.057142857142857,
+  "initial_log_likelihood_logscale": -3857.4717847553898,
+  "initial_mean_ess": 152.63616453602336,
+  "elapsed_seconds": 1020.2884113788605
+}

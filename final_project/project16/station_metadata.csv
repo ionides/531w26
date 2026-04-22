@@ -1,0 +1,4 @@
+station_korean,station_english,latitude,longitude,height_m,address,equipment,installed
+시화_산단,Industrial,37.334244,126.726128,3.0,경기 시흥시 정왕동 1368 소망공원,GRIMM EDM365-SVC,2019-12-16
+시화_차단숲,Forest,37.341370,126.735296,14.0,경기 시흥시 정왕동 1961 차단숲,GRIMM EDM365-SVC,2019-12-16
+시화_주거,Residential,37.349817,126.735757,9.0,경기 시흥시 정왕동 1845-1 중앙공원,GRIMM EDM365-SVC,2019-12-16

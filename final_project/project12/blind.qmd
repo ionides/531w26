@@ -1,0 +1,937 @@
+---
+title: "Final Project: A Time Series Analysis of Weekly RSV Hospitalization Rate in Michigan\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+---
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.formula.api as smf
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.seasonal import seasonal_decompose
+from scipy.signal import welch
+from statsmodels.formula.api import ols
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import jax
+import jax.numpy as jnp
+import jax.scipy.special
+import pypomp as pp
+import pickle
+import os
+import time
+from scipy.stats import chi2
+from pypomp.random import (
+  fast_approx_rbinom,
+  fast_approx_rgamma,
+  fast_approx_rpoisson,
+  )
+cache_dir = "cache"
+os.makedirs(cache_dir, exist_ok=True)
+```
+
+# Abstract {.unnumbered}
+We analyze weekly RSV hospitalization rates in Michigan from late 2018 to early 2026. The series has a clear annual cycle, a quiet 2020--2022 period that lines up with the COVID-19 pandemic, and a rebound peak in the 2022--2023 season. We fit two models in parallel. A SARIMA(4,0,1) $\times$ (1,1,1)$_{52}$ model with time and COVID-step regressors gives the lowest AIC and passes residual diagnostics. A seasonally forced SEIRS POMP model, fit by iterated filtering in pypomp, recovers latent and infectious period estimates of about 3.9 and 4.4 days, close to published RSV values. The SARIMA model fits the statistical structure more tightly on its own scale, but the SEIRS model gives parameters we can interpret in terms of transmission, which is why we included a POMP analysis in the first place.
+
+# Introduction
+RSV (Respiratory Syncytial Virus) remains a significant public health concern, with high mortality rates in vulnerable populations such as older adults (over 65) and infants under 6 months [@rsvinfo]. Understanding when and how RSV spreads is critical for optimizing the timing and targeting of preventive measures, including vaccination campaigns and monoclonal antibody distribution. The goal of this project is to analyze the structural and temporal dependencies of weekly RSV activity in Michigan. We aim to determine whether a simple mechanistic transmission model can reproduce the observed seasonal patterns.
+
+We use data from CDC RSV-NET [@rsvdata], a surveillance system for laboratory-confirmed RSV hospitalizations. Our analysis focuses on Michigan, using a weekly time series of hospitalization rates from late 2018 through early 2026. We evaluate the data using two complementary approaches: a SARIMA model for statistical seasonality and a seasonally forced SEIRS POMP model to recover interpretable transmission parameters. A similar combination of SARMA and a seasonally forced SEIRS POMP has been applied to Michigan weekly flu cases in a previous 531 project [@flu_michigan]; we follow the same general structure and use the same cosine seasonal forcing form, but target RSV hospitalizations and use pypomp in place of R pomp.
+
+
+# Data Preprocessing
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+df = pd.read_csv('Weekly_Rates_of_Laboratory-Confirmed_RSV.csv')
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+df["Week ending date"] = pd.to_datetime(df["Week ending date"])
+df_weekly = (df[df["Age Category"] == "All"].groupby("Week ending date", as_index=False).agg({"Rate": "mean"}).sort_values("Week ending date").reset_index(drop=True))
+```
+
+The raw RSV-NET file provides weekly hospitalization rates stratified by location, sex, and age group. We kept the rows where Age Category is "All" and averaged within each week ending date, which gives one rate per week for the Michigan population as a whole. A few epiweek-52 entries appeared twice in some years; these were collapsed by taking the mean. All recorded rates are non-negative, so for the seasonal decomposition and the regression step we used $\log(\text{rate} + 0.01)$, which keeps the zero-rate weeks finite without introducing arbitrary jumps.
+
+# Exploratory Data Analysis
+
+## Time plot
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+plt.figure(figsize = (8,4))
+plt.plot(df_weekly['Week ending date'], df_weekly['Rate'])
+plt.tight_layout()
+plt.show()
+```
+
+The time plot shows a clear annual cycle: each year's peak sits somewhere around the end of the calendar year. The 2022--2023 peak is unusually tall relative to other seasons, and the period from early 2020 through 2021 looks structurally different, with the usual winter peak almost absent. Both observations are consistent with the COVID-19 pandemic disrupting RSV circulation during 2020 and producing a rebound in 2022. A seasonal plot broken out by year appears in the Supplementary Material and makes this pattern easier to read.
+
+## ACF and PACF
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# ACF AND PACF
+plot_acf(df_weekly["Rate"], lags=150)
+plt.title("ACF of RSV Rate")
+plt.tight_layout()
+plt.show()
+plot_pacf(df_weekly["Rate"], lags=150, method="ywm")
+plt.title("PACF of RSV Rate")
+plt.tight_layout()
+plt.show()
+```
+
+The ACF shows strong short-lag autocorrelation and an oscillating pattern with bumps near lag 52 and 104. This is evidence of an annual seasonality in the RSV series. The PACF has a dominant spike at lag 1, suggesting that an AR component is important even before we add the seasonal structure. Together these plots motivate a SARIMA specification with both nonseasonal and seasonal terms. The spectral density in the Supplementary Material confirms a 52-week period, which we use as the seasonal period $s$ in the SARIMA model.
+
+## Decomposition
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Decomposition Plots on Log Scale
+df_decomp = (df[df["Age Category"] == "All"].groupby("Week ending date", as_index=False).agg({"Rate": "mean"}).sort_values("Week ending date").reset_index(drop=True))
+df_decomp["Week ending date"] = pd.to_datetime(df_decomp["Week ending date"])
+df_decomp = df_decomp.set_index("Week ending date")
+df_decomp = df_decomp.asfreq("W-SAT")
+df_decomp["log_rate_interp"] = np.log(df_decomp["Rate"] + 0.01).interpolate()
+decomp_log = seasonal_decompose(df_decomp["log_rate_interp"], model="additive",period=52)
+fig = decomp_log.plot()
+fig.set_size_inches(10, 7)
+plt.tight_layout()
+plt.show()
+```
+
+An additive decomposition of the log rate gives a seasonal component that repeats cleanly on a 52-week cycle, a trend component that dips during 2020--2022 and spikes around 2023, and a residual component that still has noticeable structure. The trend shape supports the COVID-disruption reading of the time plot. The residual being this large also tells us a standard decomposition is not enough on its own, which is part of why we move on to SARIMA and then to a mechanistic model.
+
+## Regression Analysis on COVID time step
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+df_weekly["year"] = df_weekly["Week ending date"].dt.year
+df_weekly["week"] = df_weekly["Week ending date"].dt.isocalendar().week.astype(int)
+df_weekly = (df_weekly.groupby(["year", "week"], as_index=False).agg({"Rate": "mean"}))
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+ys = pd.DataFrame({'cases': df_weekly['Rate'].round()}).reset_index(drop=True)
+ys['time'] = np.arange(1, len(ys) + 1)
+ys['time_sq'] = ys['time'] ** 2
+ys['covid_step'] = ((df_weekly['year'] >= 2020) & (df_weekly['year'] <= 2022)).astype(int)
+ys['time_covid'] = ys['time'] * ys['covid_step']
+ys['time_sq_covid'] = ys['time_sq'] * ys['covid_step']
+```
+
+To check whether the 2020--2022 window behaved differently from the rest of the record, we fit a simple OLS regression of the log rate on a linear and quadratic time trend, a COVID step dummy for 2020--2022, and interaction terms with time. The COVID step is data-driven, motivated by the visibly quiet 2020--2022 period in the time plot, and is consistent with reports that RSV circulation patterns shifted during that season for reasons beyond the virus itself [@covid_impact_ref]. All five covariates are significant at the 5% level, which supports the idea that RSV activity really did change during the pandemic period. However, the overall $R^2$ is only 0.095, so linear and quadratic trend terms alone explain very little of the variation. Most of the structure sits in the seasonality and in higher-frequency fluctuations that a pure trend model cannot capture.
+
+# Methodology
+[@notes531]
+We use two models in parallel. The first is a seasonal ARIMA model with exogenous regressors,
+$$
+\text{SARIMA}(p,d,q) \times (P,D,Q)_{s},
+$$
+fit by maximum likelihood and selected by AIC, where
+$$
+\text{AIC} = 2k - 2\hat{\ell}
+$$
+with $\hat{\ell}$ the maximized log-likelihood and $k$ the number of estimated parameters. We search over $p, q \in \{0,1,2,3,4\}$, $P, Q \in \{0,1\}$, and $d, D \in \{0,1\}$, with the seasonal period fixed at $s = 52$. The full AIC tables are given in the Appendix and the detailed SARIMA model equations appear in the Supplementary Material.
+
+The second model is a partially observed Markov process (POMP) of SEIRS form with seasonal forcing. SEIRS is a natural fit for RSV: it has a latent stage (E), an infectious stage (I), and allows waning immunity so that recovered individuals can return to the susceptible pool, which is consistent with the annual recurrence of RSV. The stochastic transitions and state updates are defined as follows:
+
+$$
+\begin{aligned}
+\Delta N_{SE} &\sim \text{Binomial}(S, 1 - e^{-\beta I / N \Delta t}) \\
+\Delta N_{EI} &\sim \text{Binomial}(E, 1 - e^{-\mu_{EI} \Delta t}) \\
+\Delta N_{IR} &\sim \text{Binomial}(I, 1 - e^{-\mu_{IR} \Delta t}) \\
+\Delta N_{RS} &\sim \text{Binomial}(R, 1 - e^{-\mu_{RS} \Delta t})
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+S_{t+\Delta t} &= S_t - \Delta N_{SE} + \Delta N_{RS} \\
+E_{t+\Delta t} &= E_t + \Delta N_{SE} - \Delta N_{EI} \\
+I_{t+\Delta t} &= I_t + \Delta N_{EI} - \Delta N_{IR} \\
+R_{t+\Delta t} &= R_t + \Delta N_{IR} - \Delta N_{RS} \\
+H_{t+\Delta t} &= H_t + \Delta N_{IR}
+\end{aligned}
+$$
+
+We fit the POMP model with iterated filtering (IF2) in pypomp [@pypomp_pkg], starting from both a local neighborhood of a reasonable initial guess and from a wider random search.
+
+# SARIMA Model AIC Table
+
+After searching different parameters and printing the AIC table, there are several candidate sets of parameters that have similar small AIC values. Then, in the residual diagnostic plots of these sets of parameters, applying differences to seasonal components significantly enhances the residual distribution for the SARIMA models. Considering minimizing AIC values while normalizing residuals presentation in Q-Q plot, $SARIMA(4,0,1) \times (1,1,1)_52$ is selected. We further examine this model using the diagnostic plots below.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+X = ys[["time", "time_sq", "covid_step", "time_covid", "time_sq_covid"]]
+```
+
+## Residual Diagnostics
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+best_model = SARIMAX(
+    df_decomp["log_rate_interp"].dropna(),
+    order=(4, 0, 1),
+    xreg = X,
+    seasonal_order=(1, 1, 1, 52),
+    enforce_stationarity=False,
+    enforce_invertibility=False
+)
+best_result = best_model.fit(disp=False)
+best_result.plot_diagnostics(lags=60)
+plt.tight_layout()
+plt.show()
+```
+
+The diagnostic panel suggests that the selected SARIMA model captures most of the temporal dependence in the log RSV series. The standardized residuals fluctuate around zero with no obvious drift, and the residual correlogram shows little remaining autocorrelation at the displayed lags up to 60. After seasonal differencing, the Q-Q plot and the histogram align reasonably well with the normal reference lines, suggesting that the residuals are approximately normal.
+
+# POMP (SEIRS) MODEL
+## Model specification
+
+The latent process follows a seasonally forced SEIRS compartmental structure with state variables $S_t, E_t, I_t, R_t$, and an accumulator $H_t$ representing the accumulated infection-related observation process. Individuals move according to the cycle:
+$$
+S \to E \to I \to R \to S
+$$ [@notes531]
+
+The transmission rate $\beta(t)$ is modeled as a periodic function to reflect the annual seasonality of RSV:
+
+$$
+\beta(t) = \beta_0 \left[1 + a \cos\!\left(2\pi (t + \phi)/52\right)\right]
+$$ [@flu_michigan]
+
+where $\beta_0$ is the baseline rate, $a$ is the seasonal amplitude, and $\phi$ is the phase shift.
+
+Per-step transition probabilities are $1 - \exp(-\text{rate} \cdot \Delta t)$, where the rates for each compartment are defined as:
+
+* $S \to E$: $\beta(t)(I + \iota)/N$
+
+* $E \to I$: $\mu_{EI}$
+
+* $I \to R$: $\mu_{IR}$
+
+* $R \to S$: $\mu_{RS}$
+
+The observation model follows a negative binomial distribution to account for overdispersion in the surveillance data:
+
+$$
+\text{cases}_t \sim \text{NegBin}(\text{mean}=\rho H_t,\ \text{size}=k)
+$$
+
+The parameter $\iota$ handles occasional imported infections to prevent the system from becoming trapped at $I=0$, while $\mu_{RS}$ is fixed at $1/52$ to reflect an average immunity duration of one year. Weekly rates are treated as pseudo-counts with a fixed population $N = 100{,}000$; this simplification is discussed further in the limitations section.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#SEIR MODEL
+def nbinom_logpmf(x, k, mu):
+    x, k, mu = (jnp.asarray(v) for v in (x, k, mu))
+    logp_zero = jnp.where(x == 0, 0.0, -jnp.inf)
+    safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+    gammaln = jax.scipy.special.gammaln
+    core = (gammaln(k + x) - gammaln(k) - gammaln(x + 1) +
+            k * jnp.log(k / (k + safe_mu)) + x * jnp.log(safe_mu / (k + safe_mu)))
+    return jnp.where(mu == 0.0, logp_zero, core)
+
+def rnbinom(key, k, mu):
+    key_g, key_p = jax.random.split(key)
+    lam = jax.random.gamma(key_g, k) * (mu / k)
+    return jax.random.poisson(key_p, lam)
+
+def rinit(theta_, key, covars, t0):
+    N = theta_["N"]
+    eta = theta_["eta"]
+    S0 = jnp.round(N * eta)
+    E0 = 0.0
+    I0 = 1.0
+    R0 = jnp.round(N * (1 - eta)) - 1.0
+    H0 = 0.0
+    return {"S": S0, "E": E0, "I": I0, "R": R0, "H": H0}
+
+def rproc(X_, theta_, key, covars, t, dt):
+    S, E, I, R, H = X_["S"], X_["E"], X_["I"], X_["R"], X_["H"]
+    Beta0 = theta_["Beta"]
+    a = theta_["a"]
+    phi = theta_["phi"]
+    T = 52.0
+    mu_EI = theta_["mu_EI"]
+    mu_IR = theta_["mu_IR"]
+    mu_RS = theta_["mu_RS"]
+    iota = theta_["iota"]
+    N = theta_["N"]
+    Beta_t = Beta0 * (1.0 + a * jnp.cos(2.0 * jnp.pi * (t + phi) / T))
+    p_SE = 1.0 - jnp.exp(-Beta_t * (I+iota) / N * dt)
+    p_EI = 1.0 - jnp.exp(-mu_EI * dt)
+    p_IR = 1.0 - jnp.exp(-mu_IR * dt)
+    p_RS = 1.0 - jnp.exp(-mu_RS * dt)
+    key1, key2, key3, key4 = jax.random.split(key, 4)
+    dN_SE = fast_approx_rbinom(key1, jnp.float32(S), p_SE)
+    dN_EI = fast_approx_rbinom(key2, jnp.float32(E), p_EI)
+    dN_IR = fast_approx_rbinom(key3, jnp.float32(I), p_IR)
+    dN_RS = fast_approx_rbinom(key4, jnp.float32(R), p_RS)
+    return {"S": S - dN_SE + dN_RS,
+        "E": E + dN_SE - dN_EI,
+        "I": I + dN_EI - dN_IR,
+        "R": R + dN_IR - dN_RS,
+        "H": H + dN_IR}
+
+def dmeas(Y_, X_, theta_, covars, t):
+    mu = jnp.maximum(theta_["rho"] * X_["H"], 1e-6)
+    return nbinom_logpmf(Y_["cases"], theta_["k"], mu)
+
+def rmeas(X_, theta_, key, covars, t):
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = rho * H
+    reports = rnbinom(key, k, mu)
+    return jnp.array([reports])
+rmeas.ydim = ["cases"]
+
+# Log/Logit transforms
+def to_est(theta):
+    return {
+        **theta,
+        "Beta": jnp.log(theta["Beta"]),
+        "a": jax.scipy.special.logit(theta["a"]),
+        "phi": theta["phi"],
+        "mu_EI": jnp.log(theta["mu_EI"]),
+        "mu_IR": jnp.log(theta["mu_IR"]),
+        "mu_RS": jnp.log(theta["mu_RS"]),
+        "iota": jnp.log(theta["iota"]),
+        "rho": jax.scipy.special.logit(theta["rho"]),
+        "eta": jax.scipy.special.logit(theta["eta"]),
+        "k": jnp.log(theta["k"]),
+    }
+
+def from_est(theta):
+    return {
+        **theta,
+        "Beta": jnp.exp(theta["Beta"]),
+        "a": jax.scipy.special.expit(theta["a"]),
+        "phi": theta["phi"],
+        "mu_EI": jnp.exp(theta["mu_EI"]),
+        "mu_IR": jnp.exp(theta["mu_IR"]),
+        "mu_RS": jnp.exp(theta["mu_RS"]),
+        "iota": jnp.exp(theta["iota"]),
+        "rho": jax.scipy.special.expit(theta["rho"]),
+        "eta": jax.scipy.special.expit(theta["eta"]),
+        "k": jnp.exp(theta["k"]),
+    }
+
+
+par_trans = pp.ParTrans(to_est=to_est, from_est=from_est)
+```
+
+## Simulation at the initial guess
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+theta = {
+    "Beta": 1.5,
+    "a": 0.5, # Amplitude
+    "phi": 1.0, # Phase Change
+    "mu_EI": 7/3,
+    "mu_IR": 7/5,
+    "mu_RS": 1/52,
+    "iota": 0.35, # Comments
+    "N": 100000.0,
+    "eta": 0.9,
+    "rho": 0.001,
+    "k": 10.0
+}
+
+seir = pp.Pomp(
+    rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+    ys=ys, theta=theta, statenames=["S", "E", "I", "R", "H"],
+    accumvars=("H",), t0=0.0, nstep=7, ydim = 1, par_trans=par_trans
+)
+n_sims = 20
+key = jax.random.key(42)
+X_sims, Y_sims = seir.simulate(key=key, nsim=n_sims)
+sim_df = Y_sims.pivot_table(
+index="time", columns="sim", values="obs_0"
+)
+sim_df.columns = [f"sim_{i+1}" for i in range(sim_df.shape[1])]
+plt.figure(figsize=(8, 4))
+for col in sim_df.columns:
+    plt.plot(sim_df.index,sim_df[col],color="red",alpha=0.3,linewidth=0.5)
+plt.plot(ys["time"], ys["cases"], "k-", label="Data")
+plt.xlabel("Week")
+plt.ylabel("RSV pseudo-counts")
+plt.title("Seasonal SEIRS Simulations (red) vs Data (black)")
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+Twenty simulations from the initial guess produce seasonal peaks of roughly the right height and frequency, but the phase is clearly off and the simulated peaks are noisier than the observed series. This is expected from an unfitted guess; the point is just to check that the model is capable of producing the right shape.
+
+## Particle filter at the initial guess
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#LIKELIHOOD
+J_pf = 5000
+seir.pfilter(key=jax.random.key(88), J=J_pf, reps=10)
+result_pf = seir.results_history.last()
+print(f"Mean Log-Likelihood: {result_pf.logLiks.values.mean():.1f}")
+```
+
+Using the initial parameter guess ($\beta_0 = 1.5, a = 0.5, \phi = 1, \mu_{EI} = 7/3, \mu_{IR} = 7/5, \mu_{RS} = 1/52, \iota = 0.35, \eta = 0.9, \rho = 0.001, k = 10$), we ran 10 replicate particle filters with $J = 5000$ particles. We set $\mu_{EI}$, $\mu_{IR}$, and $\mu_{RS}$ based on the inverse of the incubation period (3-5 days), infectious period (3-8 days), and re-susceptible period (52 weeks) [@periods]. The resulting mean log-likelihood was -866.3. This is a weak starting point but gives a baseline for the iterated filtering searches below.
+
+## Local search
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# LOCAL SEARCH
+# Set Up
+import time as timer_module
+
+RL = 2
+statenames = ["S", "E", "I", "R", "H"]
+
+theta_good = {
+    "Beta": 1.5,
+    "a": 0.5, # Amplitude
+    "phi": 1.0, # Phase Change
+    "mu_EI": 7/3,
+    "mu_IR": 7/5,
+    "mu_RS": 1/52,
+    "iota": 0.35,
+    "N": 100000.0,
+    "eta": 0.9,
+    "rho": 0.001,
+    "k": 10.0
+}
+
+rw_sd = pp.RWSigma(
+    sigmas={
+        "Beta":  0.02, "a":    0.02, "phi":  0.5,
+        "mu_EI": 0.02, "mu_IR":0.02, "mu_RS":0.0,
+        "iota":  0.02, "rho":  0.02, "eta":  0.02,
+        "k":     0.02, "N":    0.0,
+    },
+    init_names=["eta"],
+)
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+cache_file = cache_dir + "/local-mif.pkl"
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        mif_local = pickle.load(f)
+else:
+    n_local = 20
+    theta_list = [theta_good.copy() for _ in range(n_local)]
+    mod_local = pp.Pomp(
+        rinit=rinit, rproc=rproc,
+        dmeas=dmeas, rmeas=rmeas,
+        ys=ys, theta=theta_list,
+        statenames=statenames,
+        par_trans=par_trans,
+        t0=0.0, nstep=7,
+        accumvars=("H",),
+        ydim=1, covars=None,
+    )
+    M_local = [10, 50, 100][RL]
+    J_local = [500, 2000, 5000][RL]
+    t0 = timer_module.time()
+    mod_local.mif(J=J_local, M=M_local, rw_sd=rw_sd, a=0.5,
+                  key=jax.random.key(123))
+    t1 = timer_module.time()
+    print(f"Local search time: {t1 - t0:.1f} s")
+    mif_local = mod_local.results_history.last()
+    with open(cache_file, "wb") as f:
+        pickle.dump(mif_local, f)
+
+traces = mif_local.traces_da
+if "variable" in traces.dims:
+    var_dim, rep_dim = "variable", "replicate"
+elif "param" in traces.dims:
+    var_dim, rep_dim = "param", "rep"
+else:
+    dn = list(traces.dims)
+    var_dim, rep_dim = dn[2], dn[0]
+var_names = traces.coords[var_dim].values
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Trace Plot
+plot_params = ["Beta", "a", "phi", "mu_EI", "mu_IR", "iota", "rho", "eta", "k"]
+fig, axes = plt.subplots(3, 4, figsize=(10, 6))
+axes = axes.flatten()
+
+ax = axes[0]
+ll_name = [v for v in var_names if "loglik" in str(v).lower()]
+if ll_name:
+    ll_trace = traces.sel({var_dim: ll_name[0]})
+    for r in traces.coords[rep_dim].values:
+        ax.plot(ll_trace.sel({rep_dim: r}).values, alpha=0.4)
+ax.set_title("Log-likelihood")
+ax.set_xlabel("Iteration")
+
+for i, p in enumerate(plot_params):
+    ax = axes[i + 1]
+    if p in var_names:
+        p_trace = traces.sel({var_dim: p})
+        for r in traces.coords[rep_dim].values:
+            ax.plot(p_trace.sel({rep_dim: r}).values, alpha=0.4)
+    ax.set_title(p)
+    ax.set_xlabel("Iteration")
+for j in range(len(plot_params)+1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| eval: false
+#| echo: false
+#| warning: false
+#| message: false
+# Local Endpoint pfilter
+cache_file2 = cache_dir + "/local-pf.pkl"
+if os.path.exists(cache_file2):
+    with open(cache_file2, "rb") as f:
+        local_pf = pickle.load(f)
+else:
+    theta_ends = []
+    for r in traces.coords[rep_dim].values:
+        th = {}
+        for v in var_names:
+            if "loglik" not in str(v).lower():
+                th[str(v)] = float(
+                    traces.sel({var_dim: v, rep_dim: r}).values[-1]
+                )
+        theta_ends.append(th)
+
+    mod_eval = pp.Pomp(
+        rinit=rinit, rproc=rproc,
+        dmeas=dmeas, rmeas=rmeas,
+        ys=ys, theta=theta_ends,
+        statenames=statenames,
+        par_trans=par_trans,
+        t0=0.0, nstep=7,
+        accumvars=("H",),
+        ydim=1, covars=None,
+    )
+    J_eval = [2000, 5000, 10000][RL]
+    mod_eval.pfilter(key=jax.random.key(456), J=J_eval, reps=3)
+    local_pf = mod_eval.results_history.last()
+    with open(cache_file2, "wb") as f:
+        pickle.dump(local_pf, f)
+
+logliks_local = local_pf.logLiks.values.mean(axis=1)
+best_local = float(np.nanmax(logliks_local))
+print(f"Best local log-likelihood: {best_local:.1f}")
+```
+
+We ran IF2 from 20 starting points around the initial guess, with $M = 100$ iterations, $J = 5000$ particles, a cooling factor of 0.5, and random-walk standard deviations of 0.02 on all estimated parameters (0.5 on $\phi$). The parameters $\mu_{RS}$ and $N$ were held fixed. The search took about 165 seconds on a Colab GPU and reached a best endpoint log-likelihood of roughly $-275$, a clear jump from the starting value near $-866$.
+
+The trace plots are informative in a different way. Across many replicates, $\mu_{EI}$ drifts above 1000 and $\mu_{IR}$ above 300, which is not biologically reasonable: these values imply individuals pass through the Exposed and Infectious compartments almost instantly. Known RSV biology says the latent period is roughly 4 days and the infectious period around 5 days. This is a classic case of weak identifiability. Weekly incidence data alone do not carry enough information to separate the latent and infectious period durations, so MIF inflates both rates to gain likelihood without recovering meaningful values. The phase $\phi$ also drifts to large negative values across runs, but that is harmless: $\phi$ enters the model only inside $\cos(2\pi(t+\phi)/52)$, so it is identifiable only modulo 52, and different replicates simply converge to equivalent phases.
+
+## Global search
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# GLOBAL SEARCH
+# Golbal MIF
+cache_file3 = cache_dir + "/global-mif.pkl"
+if os.path.exists(cache_file3):
+    with open(cache_file3, "rb") as f:
+        results_df = pickle.load(f)
+else:
+    n_global = [10, 40, 100][RL]
+    rng = np.random.default_rng(2026)
+    theta_starts = []
+    for _ in range(n_global):
+        th = {
+            "Beta":  float(rng.uniform(1, 50)),
+            "a":     float(rng.uniform(0.05, 0.9)),
+            "phi":   float(rng.uniform(0, 52)),
+            "mu_EI": float(rng.uniform(7/5, 7/3)),
+            "mu_IR": float(rng.uniform(7/8, 7/3)),
+            "mu_RS": 1/52,
+            "iota":  float(rng.uniform(0.05, 1.0)),
+            "N":     100_000.0,
+            "eta":   float(rng.uniform(0.01, 0.3)),
+            "rho":   float(rng.uniform(0.05, 0.6)),
+            "k":     float(rng.uniform(1, 30)),
+        }
+        theta_starts.append(th)
+
+    mod_global = pp.Pomp(
+        rinit=rinit, rproc=rproc,
+        dmeas=dmeas, rmeas=rmeas,
+        ys=ys, theta=theta_starts,
+        statenames=statenames,
+        par_trans=par_trans,
+        t0=0.0, nstep=7,
+        accumvars=("H",),
+        ydim=1, covars=None,
+    )
+    M_global = [10, 50, 100][RL]
+    J_global = [500, 2000, 5000][RL]
+    t0 = timer_module.time()
+    mod_global.mif(J=J_global, M=M_global, rw_sd=rw_sd, a=0.5,
+                   key=jax.random.key(789))
+    t1 = timer_module.time()
+    print(f"Global search time: {t1 - t0:.1f} s")
+    mif_global = mod_global.results_history.last()
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Global endpoint Pfilter + results_df
+if not os.path.exists(cache_file3):
+    g_traces = mif_global.traces_da
+    if "variable" in g_traces.dims:
+        g_var_dim, g_rep_dim = "variable", "replicate"
+    elif "param" in g_traces.dims:
+        g_var_dim, g_rep_dim = "param", "rep"
+    else:
+        dn = list(g_traces.dims)
+        g_var_dim, g_rep_dim = dn[2], dn[0]
+    g_var_names = g_traces.coords[g_var_dim].values
+
+    theta_g_ends = []
+    for r in g_traces.coords[g_rep_dim].values:
+        th = {}
+        for v in g_var_names:
+            if "loglik" not in str(v).lower():
+                th[str(v)] = float(
+                    g_traces.sel({g_var_dim: v, g_rep_dim: r}).values[-1]
+                )
+        theta_g_ends.append(th)
+
+    mod_g_eval = pp.Pomp(
+        rinit=rinit, rproc=rproc,
+        dmeas=dmeas, rmeas=rmeas,
+        ys=ys, theta=theta_g_ends,
+        statenames=statenames,
+        par_trans=par_trans,
+        t0=0.0, nstep=7,
+        accumvars=("H",),
+        ydim=1, covars=None,
+    )
+    J_g_eval = [2000, 5000, 10000][RL]
+    mod_g_eval.pfilter(key=jax.random.key(999), J=J_g_eval, reps=3)
+    g_pf = mod_g_eval.results_history.last()
+    g_logliks = g_pf.logLiks.values.mean(axis=1)
+
+    rows = []
+    for i, r in enumerate(g_traces.coords[g_rep_dim].values):
+        row = {}
+        for v in g_var_names:
+            if "loglik" not in str(v).lower():
+                row[str(v)] = float(
+                    g_traces.sel({g_var_dim: v, g_rep_dim: r}).values[-1]
+                )
+        row["loglik"] = g_logliks[i]
+        rows.append(row)
+    results_df = pd.DataFrame(rows)
+    with open(cache_file3, "wb") as f:
+        pickle.dump(results_df, f)
+
+best_global = results_df["loglik"].max()
+print(f"Best global log-likelihood: {best_global:.1f}")
+```
+
+For the global search we ran IF2 from 100 random starting points, drawn from the uniform ranges $\beta_0 \in [1, 50]$, $a \in [0.05, 0.9]$, $\phi \in [0, 52]$, $\mu_{EI} \in [7/5, 7/3]$, $\mu_{IR} \in [7/8, 7/3]$, $\iota \in [0.05, 1]$, $\eta \in [0.01, 0.3]$, $\rho \in [0.05, 0.6]$, and $k \in [1, 30]$. The IF2 schedule was kept the same as in the local search, and final log-likelihoods were evaluated with a particle filter at $J = 10{,}000$.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Global Scatter Plot
+plot_params = ["Beta", "a", "phi", "mu_EI", "mu_IR", "iota", "eta", "rho", "k"]
+fig, axes = plt.subplots(3, 3, figsize=(12, 6))
+axes = axes.flatten()
+for i, p in enumerate(plot_params):
+    ax = axes[i]
+    ax.scatter(results_df[p], results_df["loglik"], s=10, alpha=0.6)
+    ax.set_xlabel(p)
+    ax.set_ylabel("loglik")
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+results_clean = results_df.dropna(subset=["loglik"])
+best_idx = results_clean["loglik"].idxmax()
+print("Best parameters from global search:")
+for p in ["Beta", "a", "phi", "mu_EI", "mu_IR", "iota", "eta", "rho", "k"]:
+    print(f"  {p} = {results_clean.loc[best_idx, p]:.4f}")
+print(f"  loglik = {results_clean.loc[best_idx, 'loglik']:.1f}")
+```
+
+The best global result reached a log-likelihood of about $-305$. The corresponding parameters are $\beta_0 = 1.78$, $a = 0.33$, $\phi = 50.25$, $\mu_{EI} = 1.80$, $\mu_{IR} = 1.60$, $\iota = 0.047$, $\eta = 0.30$, $\rho = 0.27$, and $k = 51.4$. These are biologically sensible: $\mu_{EI} = 1.80$ per week corresponds to a latent period of about 3.9 days, and $\mu_{IR} = 1.60$ per week gives an infectious period of about 4.4 days. Both match what is reported in the RSV literature. The reporting fraction $\rho \approx 0.27$ is also in a plausible range for a surveillance rate relative to the $N = 100{,}000$ pseudo-population. The scatter plots show that high-likelihood points cluster in a reasonably narrow region of $\beta_0$, $a$, $\rho$, and $\eta$, while several other parameters remain weakly identified, which is consistent with what we saw in the local search.
+
+## Model Comparison
+The SARIMA and SEIRS models are fit on different scales, so their fit metrics are not directly comparable. SARIMA is fit on the interpolated log rate and reaches an AIC of about 806. The SEIRS model is fit on pseudo case counts and reaches a log-likelihood of about $-305$. A direct comparison of the two numbers would not be meaningful.
+
+What we can compare is what each model gives us. The SARIMA fit is tight in a statistical sense: the residuals behave like white noise at the displayed lags, the COVID-step regressors come out significant, and the model is simple to extend with more covariates. But it does not say anything about how RSV actually spreads in the population. The SEIRS model is looser in fit, but returns quantities we can interpret: a latent period of about 4 days, an infectious period of about 4.4 days, a seasonal amplitude, and a reporting fraction. These values are consistent with what is reported in the RSV literature. Which model is more useful depends on the question: SARIMA for description and short-term forecasting, SEIRS for mechanism.
+
+# Conclusions
+
+Michigan RSV hospitalizations from 2018 to 2026 follow a clear annual cycle, disrupted in the 2020--2022 period and with a rebound in 2022--2023. A SARIMA(4,0,1) $\times$ (1,1,1)$_{52}$ model with COVID-step regressors captures this structure well at a statistical level. A seasonally forced SEIRS POMP model, fit with iterated filtering, recovers parameter values close to known RSV biology: a latent period around 4 days, an infectious period around 4.4 days, and a reporting fraction of about 0.27. Both models point to the same main features of the data, namely the annual seasonality and the pandemic disruption. The SEIRS fit shows that a simple transmission model is at least consistent with the observed pattern, although the separation of the latent and infectious rates is only weakly identified from weekly incidence alone.
+
+## Limitations and Future Prospects {.unnumbered}
+
+The simpler SARIMA model is not directly comparable to the mechanistic SEIRS model because the two are fit on different scales (log rate vs. pseudo case counts), which limits how much the comparison can say about relative fit.
+
+The rebound in 2023 after a quiet 2020--2022 is also worth noting. It suggests that COVID may not have systematically changed RSV transmission, but rather that cases were underreported during the pandemic period. A SEIUR-type model with an unreported infected compartment, as introduced in [@model_reference], would probably handle this better and bring more explanatory power to the data.
+
+## Acknowledgments {.unnumbered}
+Data were sourced from the CDC RSV-NET surveillance system [@rsvdata]. The statistical methodology and core code patterns follow the STATS 531 course notes [@notes531].
+
+AI tools (Gemini, ChatGPT) were utilized for debugging code, clarifying modeling concepts, and refining the report's prose. All final modeling decisions, parameterizations, and interpretations were made by the authors.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+## Seasonal Plot
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+weekly_avg = df_weekly.groupby("week")["Rate"].mean()
+plt.figure(figsize=(10, 5))
+for year, group in df_weekly.groupby("year"):
+    plt.plot(group["week"], group["Rate"], label=year)
+plt.plot(weekly_avg.index, weekly_avg.values, marker="o", linewidth=1, label="Average")
+plt.title("Seasonal Plot of Weekly RSV Rate")
+plt.xlabel("Week of Year")
+plt.ylabel("RSV Rate")
+plt.xlim(1, 52)
+plt.legend(title="Year", loc="upper left")
+plt.tight_layout()
+plt.show()
+```
+
+The seasonal plot of the weekly RSV rate aligns with the seasonal pattern observed in the time plot. The peaks mostly happen around the ends and the beginnings of the years.
+
+## Spectral Density Plot
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Spectral Density Analysis
+series = df_weekly["Rate"].dropna().values
+series_centered = series - np.mean(series)
+freqs_welch, power_welch = welch(series_centered,fs=1,nperseg=min(156, len(series_centered)))
+freqs_nonzero = freqs_welch[1:]
+power_nonzero = power_welch[1:]
+max_idx = np.argmax(power_nonzero)
+max_freq = freqs_nonzero[max_idx]
+max_period = 1 / max_freq
+max_power = power_nonzero[max_idx]
+plt.figure(figsize=(8, 4))
+plt.plot(freqs_welch[1:], power_welch[1:])
+plt.axvline(1/52, linestyle="--", label="Annual frequency: 1/52")
+plt.title("Smoothed Spectrum of RSV Rate using Welch Method")
+plt.xlabel("Frequency")
+plt.ylabel("Power")
+plt.legend()
+plt.tight_layout()
+plt.show()
+print("Maximum smoothed spectral density:", max_power)
+print("Frequency at maximum:", max_freq, "cycles per week")
+print("Period at maximum:", max_period, "weeks")
+```
+
+The smoothed spectrum estimated using Welch's method shows its maximum spectral density at frequency 0.01923 cycles per week, corresponding to a period of approximately 52 weeks. This confirms that the dominant periodic component in the RSV series is annual. We therefore used a seasonal period of 52 weeks in the SARIMA modeling.
+
+## Methodology: SARIMA
+Following [@rsvdata], the weekly case rate is defined as as:
+$$
+\text{Rate} = \frac{\text{cases}_{\text{weekly}}}{100,000}
+$$
+
+**Model Selection**
+SARIMA models are selected based on the Akaike Information Criterion (AIC):
+$$
+\text{AIC} = 2k - 2\hat{\ell}
+$$
+where $\hat{\ell}$ is the maximized log-likelihood estimate and $k$ is the number of estimated parameters. 
+
+**SARIMA Model Specification**
+The $\text{SARIMA}(p,d,q) \times (P,D,Q)_{52}$ model, incorporating a quadratic time trend and COVID-19 indicators, is expressed as:
+$$
+\phi(B)\Phi(B^{52}) \left[ (1-B)^d(1-B^{52})^D Y_n - (\beta_0 + \beta_1 t_n + \beta_2 t_n^2 + \beta_3 C_n + \beta_4 t_n C_n + \beta_5 t_n^2 C_n) \right] = \theta(B)\Theta(B^{52})\epsilon_n
+$$
+
+The autoregressive and moving-average polynomials are defined as:
+$$
+\phi(x) = 1 - \phi_1 x - \dots - \phi_p x^p, \quad \theta(x) = 1 + \theta_1 x + \dots + \theta_q x^q
+$$
+$$
+\Phi(x) = 1 - \Phi_1 x - \dots - \Phi_P x^P, \quad \Theta(x) = 1 + \Theta_1 x - \dots - \Theta_Q x^Q
+$$
+where $\beta_n$ are regression coefficients, $t_n$ is the time index, and $C_n$ represents the COVID-19 time step. The parameter search space for the AIC table includes $p, q \in \{0,1,2,3,4\}$, $P, Q \in \{0,1\}$, and $d, D \in \{0,1\}$.
+
+**Autocorrelation Function**
+The autocorrelation function (ACF) at lag $h$ is defined as:
+$$
+\rho(h) = \frac{\gamma(h)}{\gamma(0)}, \quad \gamma(h) = \text{Cov}(Y_t, Y_{t+h})
+$$
+where $\gamma(h)$ is the autocovariance.
+
+## SARIMA AIC Tables
+
+The full SARIMA AIC tables below support the model choice in the SARIMA section. We searched $p, q \in \{0,1,2,3,4\}$, $P, Q \in \{0,1\}$, and $d, D \in \{0,1\}$[@malaria], with $s = 52$. The lowest AIC (about 806) is reached at $d=0$, $D=1$, $(P,Q)=(1,1)$, $(p,q)=(4,1)$.
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+# Regression Analysis on the influence of COVID time step on Log Case Counts
+lm_fit = ols('np.log(cases + 0.01) ~ time + time_sq + covid_step + time_covid + time_sq_covid',
+data=ys).fit()
+print(lm_fit.summary())
+```
+
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| eval: false
+    table_s = []
+    for d in range(d_max + 1):
+        for D in range(D_max + 1):
+            for P in range(P_max + 1):
+                for Q in range(Q_max + 1):
+                    table = np.full((p_max + 1, q_max + 1), np.nan)
+                    for p in range(p_max + 1):
+                        for q in range(q_max + 1):
+                            try:
+                                res = SARIMAX(
+                                    data,
+                                    xreg=X,
+                                    order=(p, d, q),
+                                    seasonal_order=(P, D, Q, s),
+                                    enforce_stationarity=False,
+                                    enforce_invertibility=False
+                                ).fit(maxiter=1000, disp=False)
+                                table[p, q] = res.aic
+                            except Exception as e:
+                                table[p, q] = np.nan
+                    df_table = pd.DataFrame(
+                        table,
+                        index=[f"AR{p}" for p in range(p_max + 1)],
+                        columns=[f"MA{q}" for q in range(q_max + 1)]
+                    )
+                    table_s.append((d, D, P, Q, df_table))
+    return table_s
+
+tables = aic_table(
+    data=np.log(ys["cases"] + 0.01),
+    p_max=4,
+    q_max=4,
+    P_max=1,
+    Q_max=1,
+    d_max=1,
+    D_max=1,
+    s=52
+)
+
+for d, D, P, Q, t in tables:
+    print(f"\n=== d={d}, D={D}, Seasonal (P,Q)=({P},{Q}) ===")
+    print(t)
+
+os.makedirs("cache", exist_ok=True)
+with open("cache/aic_tables.pkl", "wb") as f:
+    pickle.dump(tables, f)
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+with open("cache/aic_tables.pkl", "rb") as f:
+    tables = pickle.load(f)
+for d, D, P, Q, t in tables:
+    print(f"\n=== d={d}, D={D}, Seasonal (P,Q)=({P},{Q}) ===")
+    print(t)
+```
+
+## Additional Limitations
+
+Another issue is that using $N = 100{,}000$ and treating the rate as pseudo case counts may not be fully appropriate for a POMP model; actual case counts with a proper population denominator would be a more principled choice.
+
+Finally, although the selected SARIMA model produces interpretable fits and reasonable residual diagnostics, the regression term uses only time and a COVID step. Other covariates, such as temperature, humidity, school-term indicators, or age-stratified hospitalization, could plausibly explain more of the variation and could be added in future work.

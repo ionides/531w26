@@ -1,0 +1,430 @@
+---
+title: "Time Series Analysis of QQQ Risk Premium"
+date: "April 2026"
+date-format: "MMMM YYYY"
+bibliography: references.bib
+# Numeric in-text citations [1], [2], … and numbered reference list (IEEE style)
+csl: csl/ieee.csl
+link-citations: true
+output: pdf_document
+format:
+  pdf:
+    fig-pos: "ht"
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{placeins}
+        \usepackage{float}
+number-sections: true
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+---
+
+```{python}
+#| include: false
+from pathlib import Path
+import pandas as pd
+import numpy as np
+
+ART = Path("artifacts")
+
+
+def _fmt_num(x, nd=3, na=""):
+    if x is None or (isinstance(x, float) and np.isnan(x)):
+        return na
+    if abs(x) >= 1000 or (abs(x) < 1e-2 and x != 0):
+        return f"{x:.{nd}e}"
+    return f"{x:.{nd}f}"
+
+
+def _no_index(df):
+    """Pandoc escapes $ and \\ in table cells; hide index so row labels are not duplicated."""
+    return df.reset_index(drop=True).style.hide(axis="index")
+
+
+def tbl_params():
+    p = pd.read_csv(ART / "garch" / "params.csv").rename(columns={"Unnamed: 0": "Parameter"})
+    df = pd.DataFrame(
+        {
+            "Parameter": p["Parameter"],
+            "Estimate": p["estimate"].map(lambda v: f"{v:.4g}"),
+            "Std. error": p["std_err"].map(lambda v: f"{v:.4g}"),
+            "p-value": p["pvalue"].map(lambda v: "< 1e-4" if v < 1e-4 else f"{v:.4g}"),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_oos():
+    o = pd.read_csv(ART / "garch" / "oos_metrics.csv").iloc[0]
+    rows = [
+        ("Training days", f'{int(o["n_train"])}'),
+        ("Test days", f'{int(o["n_test"])}'),
+        ("Log-likelihood (train, total)", f'{o["loglik_train_sum"]:.2f}'),
+        ("Log-likelihood (test, total)", f'{o["loglik_test_sum"]:.2f}'),
+        ("Mean log-likelihood (train)", f'{o["mean_loglik_train"]:.4f}'),
+        ("Mean log-likelihood (test)", f'{o["mean_loglik_test"]:.4f}'),
+        ("QLIKE (test)", f'{o["qlike_test"]:.4f}'),
+        ("MSE (test, ann. variance)", f'{o["mse_test"]:.2e}'),
+        ("MZ intercept (a-hat)", f'{o["mz_a"]:.2e}'),
+        ("MZ slope (b-hat)", f'{o["mz_b"]:.3f}'),
+        ("SE(b-hat)", f'{o["mz_b_se"]:.3f}'),
+        ("t-statistic for H0: b = 1", f'{o["mz_b_tstat_vs_1"]:.3f}'),
+        ("MZ R-squared", f'{o["mz_r2"]:.3f}'),
+    ]
+    return _no_index(pd.DataFrame(rows, columns=["Quantity", "Value"]))
+
+
+def tbl_global_endpoints():
+    ge = pd.read_csv(ART / "heston" / "global_endpoints.csv").sort_values(
+        "loglik", ascending=False
+    )
+    # Unicode headers: Pandoc will not treat these as raw LaTeX (unlike $...$).
+    df = pd.DataFrame(
+        {
+            "start": ge["start"].astype(int),
+            "LogLik": ge["loglik"].round(2),
+            "μ × 10⁴": (ge["mu"] * 1e4).round(3),
+            "κ": ge["kappa"].round(4),
+            "θ × 10⁴": (ge["theta"] * 1e4).round(3),
+            "ξ × 10³": (ge["xi"] * 1e3).round(3),
+            "ρ": ge["rho"].round(3),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_ll_compare():
+    aic = pd.read_csv(ART / "garch" / "aic_ranking.csv").sort_values("aic", ascending=True).head(5)
+    aic = aic[["model", "loglik", "aic", "bic", "k_params"]].copy()
+    ll = pd.read_csv(ART / "heston" / "ll_comparison.csv")
+    row = ll[ll["model"].str.contains("POMP", na=False)].iloc[0]
+    pomp_df = pd.DataFrame(
+        [{"model": row["model"], "loglik": row["loglik"], "aic": row["aic"], "bic": row["bic"], "k_params": 6}]
+    )
+    out = pd.concat([aic, pomp_df], ignore_index=True)
+    out["Model"] = out["model"].str.replace("EGARCH", "EG").str.replace("Normal", "N")
+    df = pd.DataFrame(
+        {
+            "Model": out["Model"],
+            "Log-lik.": out["loglik"].round(2),
+            "AIC": out["aic"].round(1),
+            "BIC": out["bic"].round(1),
+            "k": out["k_params"].astype(int),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_regime():
+    rs = pd.read_csv(ART / "paper_tables" / "regime_summary.csv")
+    df = pd.DataFrame(
+        {
+            "Regime": rs["regime"],
+            "n": rs["n"].astype(int),
+            "Mean VRP": rs["mean_VRP"].round(4),
+            "Pct. days VRP < 0": rs["pct_negative"].round(1),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_predictive_fit():
+    pr = pd.read_csv(ART / "vrp" / "predictive_regressions.csv")
+    cols = list(pr.columns)
+    c_r2 = next(c for c in cols if c.startswith("R") and ("2" in c or "²" in c))
+    c_adj = next(c for c in cols if str(c).startswith("Adj"))
+    df = pd.DataFrame(
+        {
+            "Specification": pr["spec"].str.replace(r"\s+", " ", regex=True).str.strip(),
+            "R²": pr[c_r2].astype(float).round(3),
+            "Adj. R²": pr[c_adj].astype(float).round(3),
+            "n": pr["nobs"].astype(int),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_predictive_coefs():
+    pr = pd.read_csv(ART / "vrp" / "predictive_regressions.csv")
+    spec = pr["spec"].str.replace(r"\s+", " ", regex=True).str.strip()
+
+    def col(name):
+        return pr[name] if name in pr.columns else pd.Series([np.nan] * len(pr))
+
+    df = pd.DataFrame(
+        {
+            "Specification": spec,
+            "β (VXN)": col("β[eq_v]").map(lambda x: _fmt_num(x, 3)),
+            "t (VXN)": col("t[eq_v]").map(lambda x: _fmt_num(x, 2)),
+            "β (POMP)": col("β[V21_P]").map(lambda x: _fmt_num(x, 3)),
+            "t (POMP)": col("t[V21_P]").map(lambda x: _fmt_num(x, 2)),
+            "β (VRP)": col("β[VRP]").map(lambda x: _fmt_num(x, 3)),
+            "t (VRP)": col("t[VRP]").map(lambda x: _fmt_num(x, 2)),
+        }
+    )
+    return _no_index(df)
+
+
+def tbl_aic_full():
+    full = pd.read_csv(ART / "garch" / "aic_ranking.csv").sort_values("aic", ascending=True).reset_index(drop=True)
+    df = pd.DataFrame(
+        {
+            "Rank": range(1, len(full) + 1),
+            "Model": full["model"],
+            "Log-lik.": full["loglik"].round(2),
+            "AIC": full["aic"].round(1),
+            "ΔAIC": full["delta_aic"].round(2),
+        }
+    )
+    return _no_index(df)
+```
+
+# Introduction
+
+## Motivation and Background: The Role of Variance Risk
+Volatility is central to derivative pricing, risk management, and portfolio construction, yet it is latent: it must be inferred from return data under the physical measure $\mathbb{P}$ or from option prices under the risk-neutral measure $\mathbb{Q}$. Classical time-series treatments emphasize both linear dependence structures and nonlinear state-space representations for latent dynamics [@shumway17; @hamilton1994]. The wedge between $\mathbb{Q}$-implied variance and $\mathbb{P}$-expected realized variance is the **variance risk premium (VRP)**. A positive VRP is often interpreted as compensation demanded by sellers of volatility protection; its dynamics around stress episodes provide a useful empirical summary of how option markets price variance relative to return-based forecasts.
+
+## Research Question: POMP-Based VRP Estimation
+This project asks whether a Heston-style stochastic volatility model, estimated as a partially observed Markov process (POMP) on QQQ returns under $\mathbb{P}$, yields a credible 21-day variance forecast that, when compared to the VXN-implied $\mathbb{Q}$ expectation mapped to the same units, produces an interpretable VRP time series for the Nasdaq-100 exposure carried by QQQ.
+
+The empirical strategy is: (i) estimate a rich GARCH family as a benchmark; (ii) estimate the POMP specification by iterated filtering (IF2); (iii) filter latent variance on the full sample; (iv) construct $\mathbb{E}_t^{\mathbb{P}}[RV_{t+21}]$ in closed form; (v) contrast with $\mathbb{E}_t^{\mathbb{Q}}[RV_{t+21}]$ from VXN; (vi) invert the affine $\mathbb{Q}$ mapping to recover an implied price of variance risk $\lambda_t$; and (vii) document persistence and predictive regression evidence for the VRP.
+
+## Scholarly Context and Novel Contribution
+Course projects in this sequence have repeatedly found that GARCH-type models (often with Student-$t$ innovations) are difficult to beat in-sample on likelihood. That pattern matches the broader message that standard volatility models often forecast realized variation surprisingly well [@andersen1998]. We replicate it on QQQ. The contribution here is not a marginal likelihood gain, but the use of the POMP variance state as a **structural** $\mathbb{P}$ input to a VRP calculation that is aligned with the affine stochastic volatility logic underlying standard $\mathbb{Q}$-side representations. GARCH conditional variance is a deterministic function of past returns; the POMP treats variance as a latent Markov state with its own innovations, which is the object needed for a clean economic translation to $\lambda$ [@notes531].
+
+# Data Acquisition and Exploratory Analysis
+
+## Physical Measure ($\mathbb{P}$) Data: QQQ Returns and Realized Variance
+Daily adjusted closing prices for the Invesco QQQ Trust ETF are downloaded from Yahoo Finance (`yfinance`) from April 2019 through April 2026. Log returns are $r_t = \log(P_t/P_{t-1})$. For GARCH model comparison and AIC selection we use the first 1,255 trading days as the **training** sample; the final 504 days are reserved for out-of-sample evaluation of the selected EGARCH specification. POMP estimation and VRP construction follow the notebooks on the full sample once parameters are fixed.
+
+Realized variance is built from squared daily returns aggregated over 21 trading days, in the spirit of realized-volatility construction from return increments [@andersen2003]. The **backward** sum $RV^{\text{back}}_t = \sum_{s=t-20}^{t} r_s^2$ matches the information set at $t$; the **forward** sum $RV^{\text{fwd}}_t = \sum_{s=t+1}^{t+21} r_s^2$ aligns temporally with the horizon priced by VXN. When annualized as fractional variance, we apply the factor $252/21$.
+
+Summary moments and formal tests on the training window (heavy tails, volatility clustering, departures from Gaussianity) motivate both GARCH and stochastic volatility; stationarity of the log-price level is assessed with standard unit-root / stationarity tests [@kpss1992], while departures from Gaussian returns use normality diagnostics [@jarquebera1987]. The exploratory figures below visualize prices, returns, and second-moment persistence.
+
+## Risk-Neutral Measure ($\mathbb{Q}$) Data: The VXN Volatility Index
+The CBOE Nasdaq-100 Volatility Index (VXN) is a model-free, risk-neutral forward-looking measure of annualized volatility in percentage points, analogous in construction and interpretation to better-known volatility benchmarks discussed in the index-options literature [@whaley2000]. To express it as annualized **fractional variance** on the same scale as our $\mathbb{P}$ forecasts, we use
+$$
+\mathrm{eq\_v}_t = \frac{\mathrm{VXN}_t^2}{100^2},
+$$
+so that $\mathrm{eq\_v}_t$ corresponds to $\mathbb{E}_t^{\mathbb{Q}}[\,\overline{\sigma^2}_{t\to t+21}\,]$ in annualized variance units.
+
+Figure \ref{fig-vxn} plots the VXN series over the sample with stress intervals highlighted in the notebook. The figure situates subsequent VRP discussion relative to major volatility spikes.
+
+![VXN index (annualized \%, full sample) with stress episodes shaded.](artifacts/fig/fig_vxn_index.pdf){#fig-vxn width=80% fig-pos='H'}
+
+## Exploratory Data Analysis and Visualizing the VRP Motivation
+Figure \ref{fig-prices-returns} shows QQQ levels and log returns. Figure \ref{fig-return-dist} contrasts the empirical return density with a Gaussian benchmark and provides a Student-$t$ QQ plot. Figure \ref{fig-acf} reports autocorrelations for $r_t$, $r_t^2$, and $|r_t|$; portmanteau tests on squares are the standard way to document volatility clustering [@ljungbox1978]. Squared and absolute returns display the slow decay characteristic of long-memory features in financial volatility [@granger1996]. Together these panels document thick tails and persistent second moments—the stylized facts that motivate the specifications in Sections 3–4.
+
+![QQQ adjusted close and daily log returns.](artifacts/fig/fig_prices_returns.pdf){#fig-prices-returns width=80% fig-pos='H'}
+
+![Kernel density of log returns (log scale for frequency) and QQ plot against Student-$t$.](artifacts/fig/fig_return_dist.pdf){#fig-return-dist width=80% fig-pos='H'}
+
+![Sample ACFs (40 lags): $r_t$, $r_t^2$, and $|r_t|$.](artifacts/fig/fig_acf.pdf){#fig-acf width=80% fig-pos='H'}
+
+```{=latex}
+\FloatBarrier
+```
+
+# Benchmark Modeling under the Physical Measure
+
+We estimate a grid of GARCH-family models by maximum likelihood (`arch` package) on the training sample. The mean equation is $r_t = \mu + \epsilon_t$ with $\epsilon_t = \sigma_t z_t$ and $z_t$ i.i.d.\ standard Normal, Student-$t$, or skewed-$t$ as indicated for each specification.
+
+## EGARCH(2,1,1) with Normal Innovations
+Among EGARCH, GJR, and plain GARCH variants with orders $(p,o,q)$ as in the notebook grid, **EGARCH(2,1,1) with Normal innovations** minimizes AIC. The variance recursion is
+$$
+\log \sigma_t^2
+  = \omega
+  + \sum_{i=1}^{p} \alpha_i\bigl(|z_{t-i}| - \mathbb{E}|z_{t-i}|\bigr)
+  + \sum_{j=1}^{o} \gamma_j\, z_{t-j}
+  + \sum_{k=1}^{q} \beta_k \log \sigma_{t-k}^2,
+$$
+with $z_t = \epsilon_t/\sigma_t$. For the selected model, $(p,o,q)=(2,1,1)$. The leverage terms $\gamma_j$ allow negative returns to impact future variance asymmetrically.
+
+Figure \ref{fig-garch-aic} ranks training-set AIC across the top specifications. Table \ref{tbl-egarch-params} reports maximum-likelihood estimates exported from the fitting notebook.
+
+![Training-set AIC for leading GARCH-family candidates (EGARCH(2,1,1)-Normal at the top).](artifacts/fig/fig_garch_aic.pdf){#fig-garch-aic width=75% fig-pos='H'}
+
+```{python}
+#| label: tbl-egarch-params
+#| tbl-cap: "EGARCH(2,1,1)-Normal: maximum-likelihood estimates (training sample)."
+#| tbl-colwidths: [0.22, 0.22, 0.22, 0.34]
+tbl_params()
+```
+
+Figure \ref{fig-garch-cond-vol} overlays the model-implied 21-day-ahead annualized volatility with trailing realized volatility for visual comparison. Figure \ref{fig-garch-resid} summarizes standardized-residual diagnostics.
+
+![EGARCH(2,1,1)-Normal: 21-day-ahead annualized volatility vs trailing 21-day realized annualized volatility.](artifacts/fig/fig_garch_cond_vol.pdf){#fig-garch-cond-vol width=75% fig-pos='H'}
+
+![Standardized residual normal QQ plot and ACFs for $z_t$ and $z_t^2$.](artifacts/fig/fig_garch_resid.pdf){#fig-garch-resid width=75% fig-pos='H'}
+
+```{=latex}
+\FloatBarrier
+```
+
+## Summary of Benchmark Model Performance and Fit
+The held-out 504-day segment is used for out-of-sample comparison of 21-day variance forecasts to forward realized variance and for a Mincer–Zarnowitz style regression in the notebook, following the forecast-evaluation perspective emphasized in the volatility-forecasting literature [@andersen1998]. Figure \ref{fig-garch-oos} reproduces the corresponding figure; Table \ref{tbl-garch-oos} summarizes scalar OOS and MZ statistics in compact form.
+
+![Out-of-sample EGARCH evaluation: forecast vs realized variance and MZ scatter.](artifacts/fig/fig_garch_oos.pdf){#fig-garch-oos width=75% fig-pos='H'}
+
+```{python}
+#| label: tbl-garch-oos
+#| tbl-cap: "EGARCH(2,1,1)-Normal: out-of-sample likelihood, loss, and Mincer–Zarnowitz regression summary."
+#| tbl-colwidths: [0.52, 0.48]
+tbl_oos()
+```
+
+```{=latex}
+\FloatBarrier
+```
+
+# Stochastic Volatility via Partially Observed Markov Processes (POMP)
+
+## POMP Model Specification and Latent State Dynamics
+Let $Y_t$ denote daily log returns. Latent variance $V_t$ follows a discrete-time square-root (Heston-type) evolution with mean reversion $\kappa$, long-run level $\theta$, volatility-of-volatility $\xi$, and correlation $\rho$ between return and variance innovations. With Gaussian shocks $(dW^s_t, dW^v_t)$ i.i.d.\ $\mathcal{N}(0,1)$, the transition used in `03_heston_pomp.ipynb` is
+$$
+\begin{aligned}
+V_{t+1} &= V_t + \kappa(\theta - V_t)
+           + \xi \sqrt{V_t}\,\bigl(\rho\, dW^s_t + \sqrt{1-\rho^2}\, dW^v_t\bigr), \\
+Y_{t+1} &= \mu - \tfrac{1}{2} V_t + \sqrt{V_t}\, dW^s_t .
+\end{aligned}
+$$
+The measurement density is Gaussian with mean $\mu - V_t/2$ and variance $V_t$. The parameter vector is $(\mu,\kappa,\theta,\xi,\rho,V_0)$. The innovation $dW^s_t$ is constructed from the previous observation’s return residual as in the notebook and passed through `covars` for the variance update. This specification nests leverage (typically $\rho<0$ for equity index data) and delivers a filtered state $\hat V_t = \mathbb{E}[V_t \mid y_{1:t}]$ under $\mathbb{P}$ for use in Section 5.
+
+## Implementation Framework: The `pypomp` Environment
+Estimation uses `pypomp`: the usual POMP tuple (`rinit`, `rproc`, `dmeas`, `ParTrans`, data) with JAX compilation for `pfilter` and IF2 (`mif`). Parameters are optimized on a transformed scale (log/atanh) to enforce positivity and $\rho\in(-1,1)$. The iterated filtering and particle-filter likelihood framework follows the partially observed Markov process treatment in the course reference [@notes531].
+
+## Local Search and Convergence Diagnostics using IF2
+A local IF2 run from an informative starting value illustrates convergence of the log-likelihood and parameter traces at moderate particle count. Figure \ref{fig-if2-local} displays the trajectories used in the project.
+
+![Local IF2: log-likelihood and parameter traces vs iteration.](artifacts/fig/fig_if2_local_traces.pdf){#fig-if2-local width=75% fig-pos='H'}
+
+## Global Search and Parameter Identifiability Analysis
+Twelve independent IF2 runs from randomized starting points support the claim that the best-found mode is not an artifact of a single initialization. Figures \ref{fig-if2-global}–\ref{fig-global-endpoint-ll} visualize multi-start trajectories, endpoint scatter, and endpoint log-likelihood against each parameter. Table \ref{tbl-global-endpoints} lists terminal values sorted by likelihood (selected scale for $\mu$, $\theta$, $\xi$ keeps the table within the text block).
+
+![Global IF2 trajectories from twelve random starts (best replicate emphasized in notebook styling).](artifacts/fig/fig_if2_global_traces.pdf){#fig-if2-global width=72% fig-pos='H'}
+
+![Pairwise scatter of global endpoints; diagonal KDEs; star marks the MLE replicate.](artifacts/fig/fig_global_pairwise.pdf){#fig-global-pairwise width=50% fig-pos='H'}
+
+![Endpoint log-likelihood vs each parameter across starts (identifiability diagnostic).](artifacts/fig/fig_global_endpoint_ll.pdf){#fig-global-endpoint-ll width=72% fig-pos='H'}
+
+```{python}
+#| label: tbl-global-endpoints
+#| tbl-cap: "Global IF2 terminal log-likelihoods and parameters (sorted by LogLik)."
+#| tbl-colwidths: [0.07, 0.12, 0.12, 0.12, 0.12, 0.12, 0.12, 0.21]
+tbl_global_endpoints()
+```
+
+Figure \ref{fig-pomp-vs-rv} compares the particle-filter mean of $V_t$ at the MLE (converted to annualized volatility) to trailing realized volatility. Agreement indicates that the latent state tracks return-based volatility information.
+
+![POMP filter mean at MLE vs trailing 21-day realized annualized volatility (full sample).](artifacts/fig/fig_pomp_filtered_vs_rv_best.pdf){#fig-pomp-vs-rv width=75% fig-pos='H'}
+
+```{=latex}
+\FloatBarrier
+```
+
+## Comparative Likelihood Analysis: POMP vs. Benchmarks
+Table \ref{tbl-ll-compare} contrasts training-sample log-likelihood and information criteria for leading GARCH specifications and the POMP estimate (Monte Carlo standard error for the POMP likelihood from repeated `pfilter` runs is recorded in `ll_comparison.csv`).
+
+```{python}
+#| label: tbl-ll-compare
+#| tbl-cap: "Training-sample likelihood and information criteria: leading GARCH models and POMP Heston."
+#| tbl-colwidths: [0.38, 0.15, 0.15, 0.15, 0.17]
+tbl_ll_compare()
+```
+
+The POMP likelihood is competitive but does not dominate the best EGARCH specification on AIC; Section 6 discusses why the POMP remains the appropriate object for the VRP exercise despite this ranking.
+
+```{=latex}
+\FloatBarrier
+```
+
+# Extracting the Variance Risk Premium
+
+## Conditional Variance Forecasting under the Physical Measure ($\mathbb{P}$)
+Given filtered expectations $\hat V_t$ and estimated $(\kappa,\theta)$ under $\mathbb{P}$, the conditional mean of integrated variance over the next $h=21$ trading days follows from the affine structure. The annualized variance forecast used in the notebooks is
+$$
+\mathbb{E}_t^{\mathbb{P}}[RV_{t+21}]
+  = \frac{252}{21}\left[
+      21\,\theta + (\hat V_t - \theta)\,\frac{1 - e^{-21\kappa}}{\kappa}
+    \right].
+$$
+
+## Deriving Market Expectations from the Risk-Neutral Measure ($\mathbb{Q}$)
+Risk-neutral expected variance over the forward window is identified with $\mathrm{eq\_v}_t$ from VXN as in Section 2.2. This construction is model-free on the $\mathbb{Q}$ side and matches the units of the $\mathbb{P}$ forecast above.
+
+## The Extracted VRP Time Series and Macroeconomic Correlates
+Define the variance risk premium as
+$$
+\mathrm{VRP}_t = \mathrm{eq\_v}_t - \mathbb{E}_t^{\mathbb{P}}[RV_{t+21}].
+$$
+Figure \ref{fig-vrp-ts} plots $\mathbb{Q}$ and $\mathbb{P}$ forecasts in annualized volatility units ($100\times\sqrt{\text{variance}}$), overlays trailing realized volatility, and shades regions where $\mathrm{VRP}_t$ is positive versus negative. Table \ref{tbl-vrp-regimes} summarizes mean VRP and the fraction of negative-VRP days over coarse macroeconomic windows (values exported from `vrp.parquet` into `artifacts/paper_tables/regime_summary.csv` by `scripts/export_paper_tables.py`).
+
+![VXN-implied vs POMP $\mathbb{P}$ forecast (top); VRP with sign shading (bottom).](artifacts/fig/fig_vrp_timeseries.pdf){#fig-vrp-ts width=88% fig-pos='H'}
+
+```{python}
+#| label: tbl-vrp-regimes
+#| tbl-cap: "VRP summary statistics by regime."
+#| tbl-colwidths: [0.42, 0.1, 0.22, 0.26]
+tbl_regime()
+```
+
+## Mapping VRP to the Economic Price of Risk ($\lambda$)
+Under the affine change-of-measure used in the empirical VRP literature (see `04_vrp.ipynb` for the exact sign convention relative to the textbook Heston drift), the variance risk price $\lambda$ shifts the drift of $V$ so that $\kappa^{\mathbb{Q}} = \kappa^{\mathbb{P}} - \lambda$ and long-run $\mathbb{Q}$-variance is re-scaled accordingly. Holding $(\kappa^{\mathbb{P}},\theta^{\mathbb{P}},\hat V_t)$ fixed, we solve numerically for $\lambda_t$ such that the closed-form 21-day $\mathbb{Q}$ variance forecast equals $\mathrm{eq\_v}_t$. After running `04_vrp.ipynb`, include `artifacts/fig/fig_lambda.pdf` here for the implied $\lambda_t$ path and scatter against $\hat V_t$.
+
+## Statistical Persistence and Predictive Regressions
+Autocorrelation structure for $\mathrm{VRP}_t$ is reported in Figure \ref{fig-vrp-acf}; formal dependence diagnostics again follow the portmanteau principle [@ljungbox1978]. Predictive regressions for forward realized variance use Newey–West standard errors with 21 lags in the notebook to accommodate overlapping windows [@hamilton1994]. Table \ref{tbl-predictive-fit} shows fit statistics.
+
+![ACF and PACF of the VRP series (lags to 60).](artifacts/fig/fig_vrp_acf.pdf){#fig-vrp-acf width=75% fig-pos='H'}
+
+```{python}
+#| label: tbl-predictive-fit
+#| tbl-cap: "Predictive regressions: goodness of fit by specification."
+#| tbl-colwidths: [0.48, 0.14, 0.18, 0.2]
+tbl_predictive_fit()
+```
+
+The regression evidence indicates that VXN already encodes much of the predictable variation in forward realized variance at this horizon; incremental explanatory power from the raw VRP or from jointly including $\mathbb{P}$ and $\mathbb{Q}$ forecasts is limited once robust standard errors are used—consistent with overlapping windows and slow-moving implied volatility.
+
+```{=latex}
+\FloatBarrier
+```
+
+# Discussion and Comparative Synthesis
+
+## Structural Advantages of POMP for VRP Estimation
+Even when EGARCH achieves a slightly better in-sample AIC, the POMP supplies a latent variance process with stochastic innovations that maps directly into the affine $\mathbb{Q}$-variance algebra used to define and invert $\lambda_t$. That mapping is conceptually awkward under deterministic GARCH variance. For the economic question posed in the introduction, the POMP is therefore the more coherent statistical object, notwithstanding the likelihood ranking.
+
+## Comparison with Prior STATS 531 Projects
+Earlier final projects, such as the Bitcoin (W25) and the gold (W25) projects, comparing POMP Heston to GARCH on individual names or indices typically conclude that GARCH is hard to beat descriptively. Our results align with that pattern on QQQ. The present analysis extends the comparison by using the POMP filter output as an input to a VRP decomposition rather than stopping at the likelihood table.
+
+## Model Limitations and Future Extensions
+The single-factor Heston specification does not capture jump risk in returns or volatility that the VXN may embed; richer $\mathbb{Q}$-side models, Student-$t$ measurement errors, or fully Bayesian treatment of filtering uncertainty for $\lambda_t$ would be natural extensions.
+
+## AI Usage
+We used AI in synthesizing our findings into this paper in a formalized format. The findings and figure generation were done on our own but the placements and wordings in the paper were edited and reviewed by AI. 
+
+# Conclusions
+We document that a POMP-based Heston stochastic volatility model estimated on QQQ returns yields a $\mathbb{P}$ variance forecast that is statistically close to a strong EGARCH benchmark on likelihood, yet remains the appropriate building block for a VRP series and implied $\lambda_t$ constructed relative to VXN. Exploratory and formal time-series evidence characterize the VRP’s persistence and its limited incremental forecasting content for forward realized variance once VXN is included, which underscores interpreting the VRP as a **decomposition** of market-implied variance rather than as a standalone forecasting factor [@andersen2003; @whaley2000].
+
+## References {.unnumbered}
+
+::: {#refs}
+:::

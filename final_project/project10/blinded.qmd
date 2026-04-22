@@ -1,0 +1,1213 @@
+---
+title: "Stochastic Volatility and Leverage Effects in S&P 500 Returns: A POMP Analysis"
+bibliography: references.bib
+format:
+  pdf:
+    fig-pos: "H"
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.4em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{float}
+        \floatplacement{figure}{H}
+        \floatplacement{table}{H}
+        \setlength{\parskip}{2pt}
+        \setlength{\abovecaptionskip}{2pt}
+        \setlength{\belowcaptionskip}{0pt}
+        \setlength{\floatsep}{4pt}
+        \setlength{\textfloatsep}{4pt}
+        \setlength{\intextsep}{4pt}
+    number-sections: true
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: false
+---
+
+```{python}
+#| label: setup
+#| include: false
+#| cache: false
+
+import warnings
+warnings.filterwarnings("ignore")
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import jax
+import jax.numpy as jnp
+import pypomp as pp
+import yfinance as yf
+from arch import arch_model
+from scipy.stats import chi2, norm as sp_norm, probplot
+from statsmodels.tsa.stattools import acf as sm_acf
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.tsa.arima.model import ARIMA
+from scipy import signal
+import os
+
+KEY = jax.random.key(531)
+np.random.seed(531)
+plt.rcParams.update({
+    "figure.dpi": 120,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "font.size": 9,
+})
+```
+
+```{python}
+#| label: download-data
+#| include: false
+#| cache: false
+
+DATA_FILE = "spx_weekly.csv"
+SKIP = 261   # skip 2010-2014 (261 weeks)
+
+if not os.path.exists(DATA_FILE):
+    raw     = yf.download("^GSPC", start="2010-01-01", end="2024-01-01",
+                          interval="1wk", progress=False, auto_adjust=True)
+    close   = raw["Close"].squeeze().dropna()
+    log_ret = np.log(close / close.shift(1)).dropna() * 100
+    y_all   = log_ret.values.flatten()
+    y_save  = y_all[SKIP:]
+    pd.DataFrame({"y": y_save},
+                 index=np.arange(len(y_save), dtype=float)).to_csv(DATA_FILE)
+
+df_raw = pd.read_csv(DATA_FILE, index_col=0)
+df_raw.index = df_raw.index.astype(float)
+y  = df_raw["y"].values.flatten()
+N  = len(y)
+# Observation times are 1..N so that t0 = 0 is strictly before the first
+# observation, giving a well-defined "pre-data" covariate slot at t = 0
+# (matching the pypomp convention used in spx.py where covariates are
+# interpolated at the START of each rproc step).
+t_idx = np.arange(1, N + 1, dtype=float)
+ys    = pd.DataFrame({"y": y}, index=t_idx)
+```
+
+## Abstract {.unnumbered}
+
+We fit a **stochastic leverage** POMP model [@breto2014idiosyncratic] to $N = `{python} N`$ weekly S&P 500 log-returns (January 2015–January 2024), in which log-volatility and leverage each evolve as latent processes. Using `pypomp` [@abkemeier2025pypomp], we evaluate the likelihood via particle filtering, estimate parameters with IF2 [@ionides2015inference], compute profile likelihoods for persistence $\phi$ and leverage scale $\sigma_\nu$ (with MCAP confidence intervals [@ionides2017mcap]), run simulation-based probes, and test $H_0\!:\sigma_\nu=0$ via a boundary-corrected LRT. The POMP strongly outperforms GARCH(1,1) and ARMA benchmarks on AIC. Evidence on time-varying leverage is mixed: the MCAP interval for $\sigma_\nu$ lies away from zero, but the LRT is sensitive to Monte Carlo noise in the restricted IF2 fit and should be interpreted cautiously; full numerical results are reported in @sec-lrt and @sec-discussion.
+
+# Introduction
+
+Financial returns exhibit well-documented stylised facts: volatility clustering, heavy tails, and a leverage effect—negative shocks raise future volatility [@black1976studies; @christie1982leverage]. Classical GARCH treats leverage as a fixed, instantaneous mechanism. A richer alternative is a **POMP** formulation in which log-volatility is latent and leverage follows its own random walk [@breto2014idiosyncratic]. We fit this **stochastic leverage** model to weekly S&P 500 returns using `pypomp` [@abkemeier2025pypomp] (Python/JAX IF2) and compare it against GARCH(1,1) and ARMA benchmarks.
+
+**Scientific question:** Does stochastic leverage provide a statistically meaningful improvement over fixed leverage for weekly S&P 500 returns?
+
+# Data
+
+```{python}
+#| label: fig-data-code
+#| fig-show: false
+
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.2), constrained_layout=True)
+
+axes[0].plot(y, lw=0.7, color="#1f77b4")
+axes[0].axhline(0, color="k", lw=0.5, linestyle="--")
+axes[0].set_ylabel("Log-return (%)")
+axes[0].set_xlabel("Week")
+axes[0].set_title(f"S&P 500 weekly log-returns, 2015–2024  (N={N})")
+
+plot_acf(y**2, lags=40, ax=axes[1], color="#1f77b4",
+         title="ACF of squared returns (evidence of ARCH effects)", alpha=0.05)
+axes[1].set_ylabel("ACF"); axes[1].set_xlabel("Lag (weeks)")
+
+plt.savefig("fig_data.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-data fig-cap="Weekly S&P 500 log-returns (%) from January 2015 to January 2024 (top) and ACF of squared returns showing ARCH effects (bottom)."}
+![](fig_data.png){width=4.5in}
+:::
+
+We use **`{python} N`** weekly S&P 500 log-returns (percentage, natural log scale) spanning January 2015 through January 2024, downloaded from Yahoo Finance via `yfinance`.
+Key descriptive statistics: mean `{python} f"{y.mean():.3f}"`%, SD `{python} f"{y.std():.3f}"`%, skewness `{python} f"{pd.Series(y).skew():.2f}"`, excess kurtosis `{python} f"{pd.Series(y).kurt():.2f}"`.
+The ACF of squared returns in @fig-data shows non-trivial autocorrelation at early lags—consistent with ARCH effects at the weekly frequency, though the magnitude is moderate compared to daily data—motivating a latent volatility model.
+
+## Spectral density and rolling volatility
+
+```{python}
+#| label: eda-extra-figs
+#| fig-show: false
+
+# Rolling 12-week std (volatility proxy)
+win = 12
+roll = pd.Series(y).rolling(window=win, min_periods=1).std()
+fig, axes = plt.subplots(2, 1, figsize=(6.5, 3.0), constrained_layout=True)
+axes[0].plot(roll.values, lw=0.8, color="#d62728")
+axes[0].set_ylabel("Rolling SD (%)")
+axes[0].set_xlabel("Week")
+axes[0].set_title(f"{win}-week rolling volatility of log-returns")
+
+# Welch spectral density (returns and squared returns)
+freq_y, P_y = signal.welch(y, fs=1.0, nperseg=min(256, max(32, N // 8)))
+freq_s, P_s = signal.welch(y**2, fs=1.0, nperseg=min(256, max(32, N // 8)))
+axes[1].semilogy(freq_y, P_y + 1e-12, lw=0.9, label="returns", color="#1f77b4")
+axes[1].semilogy(freq_s, P_s + 1e-12, lw=0.9, label="squared returns", color="#ff7f0e")
+axes[1].set_xlabel("Frequency (cycles/week)")
+axes[1].set_ylabel("Spectral density")
+axes[1].set_title("Welch spectral density")
+axes[1].legend(fontsize=8)
+
+plt.savefig("fig_eda_spectrum.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-eda-spectrum fig-cap="Top: 12-week rolling standard deviation of weekly log-returns. Bottom: Welch spectral density of returns and squared returns. Persistence in squared returns appears as low-frequency power."}
+![](fig_eda_spectrum.png){width=4.5in}
+:::
+
+@fig-eda-spectrum shows elevated volatility around 2020 (COVID-19) and 2022 (policy tightening). Squared returns show relatively more low-frequency power than raw returns, consistent with mild volatility clustering; the spectral shape is largely flat, indicating ARCH effects at the weekly frequency are moderate rather than strongly persistent.
+
+# ARMA benchmarks
+
+As a benchmark, we fit Gaussian ARMA$(p,q)$ models to returns and to $Z_n = \log(Y_n^2 + \varepsilon)$, $\varepsilon=10^{-8}$, selecting orders $0\le p,q\le 3$ by AIC [@shumway2017time].
+
+```{python}
+#| label: arma-grid
+#| include: false
+
+best_aic = np.inf
+best_order = (0, 0)
+best_res = None
+for p in range(0, 4):
+    for q in range(0, 4):
+        try:
+            m = ARIMA(y, order=(p, 0, q), trend="n").fit()
+            if m.aic < best_aic:
+                best_aic = m.aic
+                best_order = (p, q)
+                best_res = m
+        except Exception:
+            pass
+
+L_arma = float(best_res.llf) if best_res is not None else float("nan")
+# statsmodels AIC counts p + q + 1 (the +1 is the innovation variance);
+# there is no intercept here because trend="n".
+n_params_arma = int(sum(best_order)) + 1
+
+z = np.log(y ** 2 + 1e-8)
+best_aic_z = np.inf
+best_order_z = (0, 0)
+best_res_z = None
+for p in range(0, 4):
+    for q in range(0, 4):
+        try:
+            m = ARIMA(z, order=(p, 0, q), trend="n").fit()
+            if m.aic < best_aic_z:
+                best_aic_z = m.aic
+                best_order_z = (p, q)
+                best_res_z = m
+        except Exception:
+            pass
+
+L_arma_z = float(best_res_z.llf) if best_res_z is not None else float("nan")
+```
+
+```{python}
+#| label: tbl-arma
+#| tbl-cap: "ARMA$(p,q)$ models selected by minimum AIC (Gaussian likelihood)."
+
+from IPython.display import Markdown
+
+arma_tbl = pd.DataFrame({
+    "Series": ["Returns $Y_n$", r"$\log(Y_n^2+\varepsilon)$"],
+    "Selected $(p,q)$": [str(best_order), str(best_order_z)],
+    "AIC": [round(best_aic, 2), round(best_aic_z, 2)],
+})
+Markdown(arma_tbl.to_markdown(index=False))
+```
+
+ARMA captures linear autocorrelation but lacks a latent-volatility state; selected specs serve as parsimonious benchmarks. The AICs for $Y_n$ and $Z_n$ are on different scales and **not mutually comparable**; only the returns-ARMA AIC enters the final model comparison.
+
+# POMP Model Specification
+
+## State Variables and Notation
+
+Let $Y_n$ denote the observed log-return at week $n$ and
+$\theta = (\mu_h,\, \phi,\, \sigma_\eta,\, \sigma_\nu,\, H_0,\, G_0)$ the parameter vector.
+The latent state is $X_n = (H_n,\, G_n)$, and the previous return $Y_{n-1}$
+enters the transition as an exogenous covariate (supplied via `covars`):
+
+| Variable | Meaning |
+|----------|---------|
+| $H_n$ | Log-volatility: $\text{Var}(Y_n\mid H_n) = e^{H_n}$ |
+| $G_n$ | Leverage random-walk state: $R_n = \tanh(G_n) \in (-1,1)$ |
+| $Y_{n-1}$ | Previous return, entering the transition as a covariate |
+
+## Measurement Equation
+
+$$Y_n \mid H_n \;\sim\; \mathcal{N}\!\left(0,\; e^{H_n}\right) \tag{M1}$$
+
+Returns are **demeaned** ($\tilde Y_n = Y_n - \bar Y$, $\bar Y \approx `{python} f"{y.mean():.3f}"`$%/week) before fitting, so the leverage feedback $\beta_{n-1}$ is zero-mean and the non-zero drift does not bias $G_n$.
+
+## State Transition Equations
+
+The leverage random walk:
+$$G_n = G_{n-1} + \nu_n, \qquad \nu_n \sim \mathcal{N}(0,\, \sigma_\nu^2) \tag{P1}$$
+
+Define the leverage-adjusted shock variance and coupling coefficient:
+$$\sigma_{\omega,n}^2 = \sigma_\eta^2(1-\phi^2)(1 - R_n^2), \qquad \beta_{n-1} = \tilde Y_{n-1}\,\sigma_\eta\sqrt{1-\phi^2} \tag{P2}$$
+
+Log-volatility evolution:
+$$H_n = \mu_h(1-\phi) + \phi\,H_{n-1} + \beta_{n-1}\,R_n\,e^{-H_{n-1}/2} + \omega_n,\quad \omega_n \sim \mathcal{N}(0,\,\sigma_{\omega,n}^2) \tag{P3}$$
+
+The model is due to @breto2014idiosyncratic. Setting $\sigma_\nu = 0$ recovers the standard stochastic volatility model with fixed leverage.
+
+## Parameter Transformations
+
+| Parameter | Constraint | Transform for IF2 |
+|-----------|------------|-------------------|
+| $\mu_h$ | $\mathbb{R}$ | identity |
+| $\phi$ | $(0,1)$ | logit |
+| $\sigma_\eta$ | $> 0$ | log |
+| $\sigma_\nu$ | $> 0$ | log |
+| $H_0, G_0$ | $\mathbb{R}$ | identity |
+
+# Implementation
+
+```{python}
+#| label: model-impl
+#| echo: true
+#| code-fold: false
+
+import jax, jax.numpy as jnp, pypomp as pp
+
+def dmeas(Y_, X_, theta_, covars, t):
+    return jax.scipy.stats.norm.logpdf(
+        Y_["y"], loc=0.0, scale=jnp.exp(X_["H"] / 2.0))
+
+def rmeas(X_, theta_, key, covars, t):
+    return jnp.array([jax.random.normal(key) * jnp.exp(X_["H"] / 2.0)])
+
+def rinit(theta_, key, covars, t0):
+    return {"H": theta_["H_0"], "G": theta_["G_0"]}
+
+def rproc(X_, theta_, key, covars, t, dt):
+    H, G = X_["H"], X_["G"]
+    mu_h, phi = theta_["mu_h"], theta_["phi"]
+    sig_eta, sig_nu = theta_["sigma_eta"], theta_["sigma_nu"]
+    Y_prev = covars["covaryt"]  # Y_{n-1} via one-step-lagged covariate
+    key_nu, key_om = jax.random.split(key)
+    G  = G + jax.random.normal(key_nu) * sig_nu
+    R  = jnp.tanh(G)
+    sig_om = sig_eta * jnp.sqrt(1.0 - phi**2) * jnp.sqrt(1.0 - R**2)
+    beta   = Y_prev * sig_eta * jnp.sqrt(1.0 - phi**2)
+    H = mu_h*(1-phi) + phi*H + beta*R*jnp.exp(-H/2.0) + jax.random.normal(key_om)*sig_om
+    return {"H": H, "G": G}
+
+def to_est(theta):
+    return {"mu_h": theta["mu_h"], "phi": jax.scipy.special.logit(theta["phi"]),
+            "sigma_eta": jnp.log(theta["sigma_eta"]), "sigma_nu": jnp.log(theta["sigma_nu"]),
+            "H_0": theta["H_0"], "G_0": theta["G_0"]}
+
+def from_est(theta):
+    return {"mu_h": theta["mu_h"], "phi": jax.scipy.special.expit(theta["phi"]),
+            "sigma_eta": jnp.exp(theta["sigma_eta"]), "sigma_nu": jnp.exp(theta["sigma_nu"]),
+            "H_0": theta["H_0"], "G_0": theta["G_0"]}
+
+par_trans = pp.ParTrans(to_est=to_est, from_est=from_est)
+```
+
+```{python}
+#| label: build-pomp
+#| include: false
+
+# Demean returns before POMP fitting so the leverage feedback term beta_{n-1}
+# is centred; raw y is kept for EDA, ARMA and GARCH sections.
+y_c = y - y.mean()
+
+ys_c    = pd.DataFrame({"y": y_c}, index=t_idx)
+covar_y = np.concatenate([[0.0], y_c])
+covars  = pd.DataFrame({"covaryt": covar_y},
+                       index=np.arange(0, N + 1, dtype=float))
+
+theta0 = {"mu_h": 1.0, "phi": 0.90, "sigma_eta": 0.80,
+          "sigma_nu": 0.02, "H_0": 1.0, "G_0": -1.0}
+PARAM_NAMES = list(theta0.keys())
+STATENAMES  = ["H", "G"]
+
+model = pp.Pomp(
+    rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+    ys=ys_c, theta=theta0, statenames=STATENAMES,
+    t0=0.0, nstep=1, accumvars=(), ydim=1,
+    covars=covars, par_trans=par_trans,
+)
+```
+
+The `covars` DataFrame provides $\tilde Y_{n-1}$ to `rproc` via a one-step-lagged copy of the demeaned returns, keeping the model fully causal with no look-ahead bias. Specifically, observation times are $t = 1, 2, \ldots, N$ and $t_0 = 0$; `rproc` is called for the step $(t-1) \to t$, and `pypomp` interpolates the covariate at the *start* of the step (time $t-1$). The covariate index is set up so that the value at time $t-1$ is exactly $\tilde Y_{t-1}$ (with $\tilde Y_0 \equiv 0$), ensuring the current observation $Y_t$ is never accessible inside `rproc`—ruling out the look-ahead scenario described in @breto2014idiosyncratic.
+
+**Near unit-root subtlety.** As $\phi\to1$, $(1-\phi^2)\to0$ shrinks both $\sigma_{\omega,n}$ and $\beta_{n-1}$, so the two leverage channels diminish simultaneously (by design in @breto2014idiosyncratic).
+
+# Simulation Study
+
+```{python}
+#| label: fig-sim-code
+#| fig-show: false
+
+NSIM = 20
+_, Y_sims = model.simulate(key=jax.random.key(1), nsim=NSIM)
+
+# The starting parameters are deliberately diffuse (pre-MLE), so the free
+# simulator (which lacks the resampling that stabilises the particle filter)
+# can occasionally enter explosive regimes and produce values many orders of
+# magnitude beyond any realistic weekly return. For the simulation-vs-data
+# comparison at the starting parameters we therefore plot only the paths
+# that stay within a plausible weekly-return window, and report separately
+# how many paths left it.
+YMAX_DISP = float(max(10.0, 1.5 * np.max(np.abs(y_c))))
+n_explosive = 0
+sim_arrays = []
+for sim_id in range(NSIM):
+    sim_data = Y_sims[Y_sims["sim"] == sim_id]["obs_0"].values
+    if (not np.all(np.isfinite(sim_data))) or np.max(np.abs(sim_data)) > YMAX_DISP:
+        n_explosive += 1
+    else:
+        sim_arrays.append(sim_data)
+
+fig, ax = plt.subplots(figsize=(6.5, 2.6))
+for sim_data in sim_arrays:
+    ax.plot(sim_data, color="gray", alpha=0.45, lw=0.6)
+ax.plot(y_c, color="#1f77b4", lw=1.0, label="Observed (demeaned)", zorder=5)
+ax.axhline(0, color="k", lw=0.4, linestyle="--")
+ax.set_ylim(-YMAX_DISP, YMAX_DISP)
+ax.set_xlabel("Week"); ax.set_ylabel("Log-return (%)")
+ax.set_title(f"Simulated vs observed weekly returns "
+             f"({len(sim_arrays)} of {NSIM} simulated paths within $\\pm${YMAX_DISP:.0f}%)")
+ax.legend(fontsize=8, loc="lower left")
+plt.tight_layout()
+plt.savefig("fig_sim.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-sim fig-cap="Twenty simulated weekly return paths from the stochastic leverage model at starting parameters (grey) and observed data (blue). A small number of paths leave the displayed window before the MLE is reached."}
+![](fig_sim.png){width=4.5in}
+:::
+
+@fig-sim shows the model reproduces volatile clusters and large swings qualitatively. The pre-MLE starting parameters are intentionally diffuse, so `{python} n_explosive` of `{python} NSIM` paths exceed the displayed window; these disappear at the MLE (see probes, @sec-probes).
+
+# Particle Filter: Likelihood Evaluation
+
+```{python}
+#| label: pfilter-run
+#| include: false
+
+J_FILT = 2000
+REPS   = 10
+
+model.pfilter(key=jax.random.key(7), J=J_FILT, reps=REPS, thresh=0)
+pf_res = model.results_history.last()
+
+# logLiks has dims (theta, replicate) = (1, REPS)
+logliks_pf  = pf_res.logLiks.values.flatten()
+ll_start    = float(pp.logmeanexp(logliks_pf))
+ll_se_start = float(pp.logmeanexp_se(logliks_pf))
+
+print(f"Log-likelihood at θ₀: {ll_start:.2f}  (SE {ll_se_start:.3f})")
+```
+
+```{python}
+#| label: fig-pfilter-cll-code
+#| fig-show: false
+
+# single rep for CLL
+model.pfilter(key=jax.random.key(7), J=J_FILT, reps=1, thresh=0, CLL=True)
+pf_cll = model.results_history.last()
+cll_df = pf_cll.CLL   # should be a DataFrame or DataArray
+
+fig, ax = plt.subplots(figsize=(6.5, 2.4))
+try:
+    cll_vals = np.array(cll_df).flatten()
+    # remove initial NaN or inf
+    cll_vals = cll_vals[np.isfinite(cll_vals)]
+    ax.plot(cll_vals, lw=0.8, color="#1f77b4")
+    ax.set_xlabel("Week"); ax.set_ylabel("Conditional log-lik")
+    ax.set_title("Particle filter: conditional log-likelihood contributions")
+except Exception as e:
+    ax.text(0.5, 0.5, f"Log-lik at θ₀: {ll_start:.2f}  (SE {ll_se_start:.3f})\n"
+            f"J={J_FILT}, reps={REPS}",
+            ha="center", va="center", transform=ax.transAxes, fontsize=12)
+    ax.axis("off")
+plt.tight_layout()
+plt.savefig("fig_pfilter.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-pfilter-cll fig-cap="Conditional log-likelihood contributions $\\log \\hat f_{Y_n|Y_{1:n-1}}$ from one particle filter run. Deep troughs correspond to the 2020 COVID crash and the 2022 rate-hike drawdown."}
+![](fig_pfilter.png){width=4.5in}
+:::
+
+With $J = `{python} J_FILT`$ particles and `{python} REPS` replications, the log-likelihood at starting parameters is **`{python} f"{ll_start:.1f}"`** (MC SE `{python} f"{ll_se_start:.3f}"`), providing a baseline for the MLE search.
+
+# Parameter Estimation via IF2
+
+## Local Search
+
+```{python}
+#| label: mif-local
+#| include: false
+
+rw_sd_local = pp.RWSigma(
+    sigmas={"mu_h": 0.02, "phi": 0.01, "sigma_eta": 0.02,
+            "sigma_nu": 0.02, "H_0": 0.02, "G_0": 0.02},
+    init_names=["H_0", "G_0"]
+)
+J_MIF = 1000
+M_MIF = 50
+
+model.mif(J=J_MIF, M=M_MIF, rw_sd=rw_sd_local, a=0.5, key=jax.random.key(531))
+mif_res = model.results_history.last()
+traces  = mif_res.traces_da   # dims: (replicate, iteration, variable)
+```
+
+```{python}
+#| label: fig-traces-code
+#| fig-show: false
+
+var_list = ["logLik"] + PARAM_NAMES
+labels   = {"logLik": "log-likelihood", "mu_h": r"$\mu_h$",
+            "phi": r"$\phi$", "sigma_eta": r"$\sigma_\eta$",
+            "sigma_nu": r"$\sigma_\nu$", "H_0": r"$H_0$", "G_0": r"$G_0$"}
+
+fig, axes = plt.subplots(4, 2, figsize=(6.5, 4.2), constrained_layout=True)
+axes_flat = axes.flatten()
+
+for k, vname in enumerate(var_list):
+    ax = axes_flat[k]
+    try:
+        tr = traces.sel(variable=vname).values  # (replicate, iteration)
+        if tr.ndim == 2:
+            for r in range(tr.shape[0]):
+                ax.plot(tr[r], color="#1f77b4", alpha=0.7, lw=1.0)
+        else:
+            ax.plot(tr, color="#1f77b4", lw=1.0)
+    except Exception:
+        ax.text(0.5, 0.5, "n/a", ha="center", va="center",
+                transform=ax.transAxes)
+    ax.set_title(labels.get(vname, vname))
+    ax.set_xlabel("Iteration")
+
+# hide unused subplots
+for ax in axes_flat[len(var_list):]:
+    ax.set_visible(False)
+
+plt.suptitle(f"IF2 traces: local search (J={J_MIF}, M={M_MIF}, a=0.5)", fontsize=9)
+plt.savefig("fig_traces.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-traces fig-cap="IF2 convergence traces (J=1000, M=50). Each panel shows how a parameter and the log-likelihood evolve over 50 iterations."}
+![](fig_traces.png){width=4in}
+:::
+
+@fig-traces (IF2, $J=`{python} J_MIF`$, $M=`{python} M_MIF`$) shows the log-likelihood trending upward with visible MC fluctuations; parameters approach their limiting values but residual noise persists—characteristic of IF2 at moderate $J$.
+
+## Global Search
+
+```{python}
+#| label: global-search
+#| include: false
+
+N_STARTS = 16
+rng = np.random.default_rng(531)
+
+def rand_start(rng_):
+    return {
+        "mu_h":      float(rng_.uniform(-2.5,  0.0)),
+        "phi":       float(np.clip(rng_.uniform(0.87, 0.999), 0.87, 0.999)),
+        "sigma_eta": float(rng_.uniform(0.4,   2.0)),
+        "sigma_nu":  float(rng_.uniform(0.005, 0.12)),
+        "H_0":       float(rng_.uniform(-1.0,  2.0)),
+        "G_0":       float(rng_.uniform(-3.0,  1.0)),
+    }
+
+theta_starts = [rand_start(rng) for _ in range(N_STARTS)]
+
+model_global = pp.Pomp(
+    rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+    ys=ys_c, theta=theta_starts, statenames=STATENAMES,
+    t0=0.0, nstep=1, accumvars=(), ydim=1,
+    covars=covars, par_trans=par_trans,
+)
+
+rw_sd_global = pp.RWSigma(
+    sigmas={"mu_h": 0.05, "phi": 0.02, "sigma_eta": 0.05,
+            "sigma_nu": 0.05, "H_0": 0.05, "G_0": 0.05},
+    init_names=["H_0", "G_0"]
+)
+
+model_global.mif(J=J_MIF, M=M_MIF, rw_sd=rw_sd_global, a=0.5,
+                 key=jax.random.key(9999))
+# Save mif result BEFORE calling pfilter (results_history.last() changes)
+mif_global_result = model_global.results_history.last()
+traces_global     = mif_global_result.traces_da   # (N_STARTS, M+1, n_vars)
+
+# Evaluate log-likelihood at each converged point
+model_global.pfilter(key=jax.random.key(42), J=2000, reps=5, thresh=0)
+pf_global = model_global.results_history.last()
+# logLiks dims: (theta, replicate) = (N_STARTS, 5)
+ll_mat      = pf_global.logLiks.values
+ll_by_start = np.array([float(pp.logmeanexp(ll_mat[i]))
+                         for i in range(ll_mat.shape[0])])
+best_idx    = int(np.argmax(ll_by_start))
+best_ll     = float(ll_by_start[best_idx])
+
+# Extract best parameter set from IF2 traces (final iteration)
+best_theta = {}
+for pname in PARAM_NAMES:
+    try:
+        val = float(traces_global.sel(variable=pname).values[best_idx, -1])
+        best_theta[pname] = val
+    except Exception:
+        best_theta[pname] = theta0[pname]
+
+print(f"\nBest log-likelihood: {best_ll:.2f}  (start #{best_idx})")
+print("Best parameters:")
+for k, v in best_theta.items():
+    print(f"  {k:>12s} = {v:.4f}")
+```
+
+```{python}
+#| label: fig-global-code
+#| fig-show: false
+
+ll_sorted = np.sort(ll_by_start)[::-1]
+fig, ax = plt.subplots(figsize=(4.5, 2.6))
+ax.scatter(range(N_STARTS), ll_sorted, color="#1f77b4", zorder=3, s=30)
+ax.axhline(best_ll, color="#d62728", linestyle="--", lw=1.2,
+           label=f"Best ℓ = {best_ll:.1f}")
+ax.set_xlabel("Run (sorted by log-likelihood)")
+ax.set_ylabel("Log-likelihood")
+ax.set_title(f"Global search: {N_STARTS} randomised IF2 starts")
+ax.legend(fontsize=8)
+plt.tight_layout()
+plt.savefig("fig_global.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-global fig-cap="Log-likelihood at the end of each of the 16 global IF2 runs (sorted descending). Convergence of most runs to a similar optimum supports that the global MLE has been located."}
+![](fig_global.png){width=3.5in}
+:::
+
+@fig-global shows `{python} N_STARTS` chains: the top few cluster near the best value, but a substantial tail remains several units lower—typical of rugged POMP likelihood surfaces. The best value is an approximation to the global MLE, refined further via the $\sigma_\nu$ profile.
+
+## MLE Summary
+
+After global IF2 search (refined further in §10 if the profile finds an improvement), the best log-likelihood is $\hat\ell =$ `{python} f"{best_ll:.1f}"` (@tbl-mle). The large persistence $\hat\phi =$ `{python} f'{best_theta.get("phi", float("nan")):.3f}'` reflects near-unit-root log-volatility typical for equity indices; $\hat\sigma_\nu =$ `{python} f'{best_theta.get("sigma_nu", float("nan")):.4f}'` is the global-search MLE for the leverage random-walk scale (the profile-based estimate may differ slightly; see §10). Profile and LRT analyses assess whether this is signal or Monte Carlo noise.
+
+```{python}
+#| label: tbl-mle
+#| tbl-cap: "Maximum likelihood estimates from the global IF2 search. These values are computed before the profile likelihood in Section 10; if the profile finds a higher log-likelihood, best_theta is updated and the profile-based MLE (reported in Section 10) may differ slightly from the values shown here."
+
+from IPython.display import Markdown
+
+mle_df = pd.DataFrame({
+    "Parameter": [r"$\mu_h$", r"$\phi$", r"$\sigma_\eta$", r"$\sigma_\nu$", r"$H_0$", r"$G_0$"],
+    "MLE": [round(best_theta.get(k, float("nan")), 4) for k in PARAM_NAMES],
+    "Description": [
+        "Long-run log-volatility mean",
+        "Log-volatility persistence",
+        "Volatility-of-volatility",
+        "Leverage random-walk SD",
+        "Initial log-volatility",
+        "Initial leverage state",
+    ]
+})
+Markdown(mle_df.to_markdown(index=False))
+```
+
+# GARCH(1,1) Benchmark
+
+```{python}
+#| label: garch-fit
+#| include: false
+
+am        = arch_model(y, vol="Garch", p=1, q=1, mean="Zero", rescale=False)
+garch_fit = am.fit(disp="off")
+L_garch   = float(garch_fit.loglikelihood)
+aic_garch = float(garch_fit.aic)
+```
+
+We fit GARCH(1,1) with zero mean as a classical benchmark. GARCH has an exact likelihood and serves as a natural lower bar.
+
+```{python}
+#| label: tbl-comparison
+#| tbl-cap: "Model comparison (Gaussian log-likelihood where applicable). Lower AIC is preferred."
+
+n_params_pomp  = 6
+n_params_garch = 3   # alpha0, alpha1, beta1
+
+aic_pomp  = float(-2 * best_ll + 2 * n_params_pomp)
+aic_arma  = float(best_aic)
+delta_aic_g = float(aic_garch - aic_pomp)
+delta_aic_a = float(aic_arma - aic_pomp)
+
+from IPython.display import Markdown
+
+cmp_df = pd.DataFrame({
+    "Model":     [
+        "Stochastic Leverage (POMP)",
+        f"ARMA{best_order} (returns)",
+        "GARCH(1,1)",
+    ],
+    "Log-lik":   [
+        round(best_ll, 1),
+        round(L_arma, 1),
+        round(L_garch, 1),
+    ],
+    "# Params":  [n_params_pomp, n_params_arma, n_params_garch],
+    "AIC":       [
+        round(aic_pomp, 1),
+        round(aic_arma, 1),
+        round(aic_garch, 1),
+    ],
+})
+Markdown(cmp_df.to_markdown(index=False))
+```
+
+The POMP has much lower AIC than both competitors; $\Delta\text{AIC} > 10$ is considered decisive [@burnham2002model]. $\Delta\text{AIC}(\text{GARCH}-\text{POMP}) = `{python} f"{delta_aic_g:.1f}"`$ and $\Delta\text{AIC}(\text{ARMA}-\text{POMP}) = `{python} f"{delta_aic_a:.1f}"`$. Unlike exact GARCH/ARMA likelihoods, the POMP log-lik is particle-filter estimated with MC error; the $\Delta\text{AIC}\approx`{python} f"{delta_aic_g:.0f}"`$ gap is robust to any plausible MC shift.
+
+**Methodological note on AIC comparability.** The GARCH and ARMA log-likelihoods are exact and deterministic; the POMP log-likelihood is a Monte Carlo estimate whose run-to-run standard error is typically 0.4–0.8 units at the MLE (with $J=2{,}000$). This asymmetry means the POMP AIC has random variation that the competitors' AICs do not. The $\Delta\text{AIC}$ gaps reported above are large enough that this uncertainty does not affect the model ranking, but readers should bear in mind that the POMP AIC is an estimate, not an exact value.
+
+# Profile Likelihood and Confidence Intervals
+
+```{python}
+#| label: profile-phi
+#| include: false
+
+phi_grid = np.linspace(0.80, 0.998, 30)   # lower bound extended; if upper bound stays at grid edge, that reflects near-unit-root CI naturally touching phi=1
+prof_records = []
+
+for phi_val in phi_grid:
+    t_p = best_theta.copy()
+    t_p["phi"] = float(phi_val)
+
+    # fix phi: set its rw_sd to 0
+    rw_sd_prof = pp.RWSigma(
+        sigmas={"mu_h": 0.03, "phi": 0.0,
+                "sigma_eta": 0.03, "sigma_nu": 0.03,
+                "H_0": 0.02, "G_0": 0.02},
+        init_names=["H_0", "G_0"]
+    )
+    m_p = pp.Pomp(rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+                  ys=ys_c, theta=t_p, statenames=STATENAMES,
+                  t0=0.0, nstep=1, accumvars=(), ydim=1,
+                  covars=covars, par_trans=par_trans)
+    try:
+        m_p.mif(J=800, M=40, rw_sd=rw_sd_prof, a=0.5,
+                key=jax.random.key(int(phi_val * 1e5) % (2**31)))
+        m_p.pfilter(key=jax.random.key(42), J=1500, reps=5, thresh=0)
+        pf_p  = m_p.results_history.last()
+        ll_p  = float(pp.logmeanexp(pf_p.logLiks.values.flatten()))
+    except Exception:
+        ll_p = float("nan")
+
+    prof_records.append({"phi": phi_val, "loglik": ll_p})
+
+profile_df = pd.DataFrame(prof_records).dropna()
+```
+
+```{python}
+#| label: make-fig-profile
+#| include: false
+
+max_ll_prof = profile_df["loglik"].max() if len(profile_df) > 2 else best_ll
+cutoff      = max_ll_prof - 0.5 * chi2.ppf(0.95, df=1)
+
+# MCAP or manual CI for phi
+try:
+    mc_res  = pp.mcap(parameter=profile_df["phi"].values,
+                      loglik=profile_df["loglik"].values,
+                      level=0.95, span=0.4)
+    phi_lo, phi_hi = mc_res.ci
+    phi_mle_mc     = mc_res.mle
+except Exception:
+    above   = profile_df[profile_df["loglik"] >= cutoff]
+    phi_lo  = float(above["phi"].min()) if len(above) else float("nan")
+    phi_hi  = float(above["phi"].max()) if len(above) else float("nan")
+    phi_mle_mc = float(profile_df.loc[profile_df["loglik"].idxmax(), "phi"])
+
+print(f"phi  MLE  : {phi_mle_mc:.4f}")
+print(f"95% CI    : ({phi_lo:.4f}, {phi_hi:.4f})")
+```
+
+```{python}
+#| label: profile-sigma-nu
+#| include: false
+
+nu_grid = np.linspace(0.001, 0.25, 30)   # upper bound extended to 0.25 so the CI upper end can be a genuine likelihood crossing
+prof_nu_records = []
+prof_nu_thetas  = []   # store final IF2 params at each grid point
+for nu_val in nu_grid:
+    t_n = best_theta.copy()
+    t_n["sigma_nu"] = float(nu_val)
+    rw_sd_nu = pp.RWSigma(
+        sigmas={"mu_h": 0.03, "phi": 0.01, "sigma_eta": 0.03,
+                "sigma_nu": 0.0, "H_0": 0.02, "G_0": 0.02},
+        init_names=["H_0", "G_0"],
+    )
+    m_n = pp.Pomp(
+        rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+        ys=ys_c, theta=t_n, statenames=STATENAMES,
+        t0=0.0, nstep=1, accumvars=(), ydim=1,
+        covars=covars, par_trans=par_trans,
+    )
+    theta_n = t_n.copy()
+    try:
+        m_n.mif(
+            J=800, M=40, rw_sd=rw_sd_nu, a=0.5,
+            key=jax.random.key(int(nu_val * 1e6) % (2**31)),
+        )
+        # extract final-iteration parameters from IF2 trace
+        tr_n = m_n.results_history.last().traces_da
+        for pname in PARAM_NAMES:
+            try:
+                tv = tr_n.sel(variable=pname).values
+                theta_n[pname] = float(tv[0, -1] if tv.ndim == 2 else tv[-1])
+            except Exception:
+                pass
+        theta_n["sigma_nu"] = float(nu_val)   # keep at fixed grid value
+        m_n.pfilter(key=jax.random.key(99), J=1500, reps=5, thresh=0)
+        pf_n = m_n.results_history.last()
+        ll_n = float(pp.logmeanexp(pf_n.logLiks.values.flatten()))
+    except Exception:
+        ll_n = float("nan")
+    prof_nu_records.append({"sigma_nu": nu_val, "loglik": ll_n})
+    prof_nu_thetas.append(theta_n)
+
+profile_nu_df = pd.DataFrame(prof_nu_records).dropna()
+
+# Consistency check: if the profile found a higher log-likelihood than
+# the global search, use the profile's parameter set as the MLE.
+if len(profile_nu_df) > 0:
+    _bp_idx = profile_nu_df["loglik"].idxmax()
+    _bp_ll  = float(profile_nu_df.loc[_bp_idx, "loglik"])
+    if _bp_ll > best_ll:
+        best_theta = prof_nu_thetas[_bp_idx]
+        best_ll    = _bp_ll
+        print(f"Profile refinement: updated MLE to {best_ll:.2f} "
+              f"(sigma_nu={best_theta['sigma_nu']:.4f})")
+    else:
+        print(f"Global MLE ({best_ll:.2f}) >= profile peak ({_bp_ll:.2f}); no update.")
+```
+
+```{python}
+#| label: make-fig-profiles-combined
+#| include: false
+
+max_ll_nu = profile_nu_df["loglik"].max() if len(profile_nu_df) > 2 else best_ll
+cutoff_nu = max_ll_nu - 0.5 * chi2.ppf(0.95, df=1)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6.5, 2.8), constrained_layout=True)
+
+if len(profile_df) > 2:
+    ax1.plot(profile_df["phi"], profile_df["loglik"], "o-",
+             color="#1f77b4", ms=4, lw=1.1)
+    ax1.axhline(cutoff, color="#d62728", linestyle="--", lw=1.1,
+                label=r"95% cutoff")
+    ax1.set_xlabel(r"$\phi$"); ax1.set_ylabel("Profile log-lik")
+    ax1.set_title(r"Profile: $\phi$"); ax1.legend(fontsize=7)
+else:
+    ax1.text(0.5, 0.5, "insufficient points", ha="center", va="center",
+             transform=ax1.transAxes); ax1.axis("off")
+
+if len(profile_nu_df) > 2:
+    ax2.plot(profile_nu_df["sigma_nu"], profile_nu_df["loglik"], "s-",
+             color="#2ca02c", ms=4, lw=1.1)
+    ax2.axhline(cutoff_nu, color="#d62728", linestyle="--", lw=1.1,
+                label=r"95% cutoff")
+    ax2.set_xlabel(r"$\sigma_\nu$"); ax2.set_ylabel("Profile log-lik")
+    ax2.set_title(r"Profile: $\sigma_\nu$"); ax2.legend(fontsize=7)
+else:
+    ax2.text(0.5, 0.5, "insufficient points", ha="center", va="center",
+             transform=ax2.transAxes); ax2.axis("off")
+
+plt.savefig("fig_profiles_combined.png", bbox_inches="tight")
+plt.close("all")
+
+try:
+    mc_nu = pp.mcap(parameter=profile_nu_df["sigma_nu"].values,
+                    loglik=profile_nu_df["loglik"].values,
+                    level=0.95, span=0.4)
+    nu_lo, nu_hi = mc_nu.ci
+    nu_mle_mc = mc_nu.mle
+except Exception:
+    above_nu = profile_nu_df[profile_nu_df["loglik"] >= cutoff_nu]
+    nu_lo = float(above_nu["sigma_nu"].min()) if len(above_nu) else float("nan")
+    nu_hi = float(above_nu["sigma_nu"].max()) if len(above_nu) else float("nan")
+    nu_mle_mc = float(profile_nu_df.loc[profile_nu_df["loglik"].idxmax(), "sigma_nu"])
+
+# Flag whether CI bounds coincide with grid edges (would indicate the
+# Wilks cutoff was never crossed, so the bound is determined by the grid
+# extent rather than the likelihood shape).
+nu_lo_at_edge  = bool(nu_lo  <= float(nu_grid[0])  + 1e-6)
+nu_hi_at_edge  = bool(nu_hi  >= float(nu_grid[-1]) - 1e-6)
+phi_lo_at_edge = bool(phi_lo <= float(phi_grid[0]) + 1e-6)
+phi_hi_at_edge = bool(phi_hi >= float(phi_grid[-1])- 1e-6)
+
+def _edge_note(param_name, lo, hi, lo_edge, hi_edge):
+    parts = []
+    if lo_edge:
+        parts.append(f"lower bound ({lo:.4f}) equals the grid lower limit")
+    if hi_edge:
+        parts.append(f"upper bound ({hi:.4f}) equals the grid upper limit")
+    return (f"Note: the 95% MCAP CI for {param_name} has a grid-edge artifact — "
+            + "; ".join(parts)
+            + " — the profile did not cross the Wilks cutoff at that end. "
+              "Interpret the corresponding CI bound with caution.") if parts else ""
+
+nu_edge_note  = _edge_note("sigma_nu", nu_lo,  nu_hi,  nu_lo_at_edge,  nu_hi_at_edge)
+phi_edge_note = _edge_note("phi",      phi_lo, phi_hi, phi_lo_at_edge, phi_hi_at_edge)
+```
+
+::: {#fig-profiles fig-cap="Profile log-likelihoods for $\\phi$ (left) and $\\sigma_\\nu$ (right). Red dashed lines mark the 95% Wilks cutoff $\\hat{\\ell}-1.92$; CIs are MCAP-adjusted."}
+![](fig_profiles_combined.png){width=5.5in}
+:::
+
+The profile MLE for persistence is $\hat\phi = `{python} f"{phi_mle_mc:.4f}"`$ (95% MCAP CI: `{python} f"{phi_lo:.3f}"`–`{python} f"{phi_hi:.3f}"`), confirming near-unit-root log-volatility [@taylor1994modeling]. For leverage scale, $\hat\sigma_\nu = `{python} f"{nu_mle_mc:.4f}"`$ (95% MCAP CI: `{python} f"{nu_lo:.4f}"`–`{python} f"{nu_hi:.4f}"`).
+
+`{python} nu_edge_note if nu_edge_note else ""`
+`{python} phi_edge_note if phi_edge_note else ""`
+
+**Caveat:** Both profiles use grids of `{python} len(nu_grid)` ($\sigma_\nu$, spanning 0.001–0.25) and `{python} len(phi_grid)` ($\phi$, spanning 0.80–0.998) points with $J=800/1500$ particles; Monte Carlo noise between grid points is visible. MCAP smoothing reduces but does not eliminate this noise, so the CIs should be treated as approximate. If the $\phi$ upper CI bound equals the grid upper limit (0.998), this reflects the well-known difficulty of precisely bounding a near-unit-root persistence parameter — the true upper CI extends to the $\phi < 1$ boundary. The LRT in @sec-lrt provides a complementary test; see @sec-discussion for the combined interpretation.
+
+# Model Diagnostics
+
+```{python}
+#| label: diagnostics-run
+#| include: false
+
+model_mle = pp.Pomp(
+    rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+    ys=ys_c, theta=best_theta, statenames=STATENAMES,
+    t0=0.0, nstep=1, accumvars=(), ydim=1, covars=covars,
+    par_trans=par_trans,
+)
+model_mle.pfilter(
+    key=jax.random.key(42), J=3000, reps=5, thresh=0,
+    prediction_mean=True,
+)
+pf_mle = model_mle.results_history.last()
+# prediction_mean dims: (theta, replicate, time, state). State order follows
+# STATENAMES = ["H", "G"], so index 0 is H. Average over replicates to reduce
+# Monte Carlo noise.
+pred_mean_arr = np.asarray(pf_mle.prediction_mean.values)   # (1, reps, N, 2)
+pred_H        = pred_mean_arr[0, :, :, 0].mean(axis=0)      # (N,)
+sigma_hat     = np.exp(pred_H / 2.0)
+std_resid     = y_c / sigma_hat
+```
+
+```{python}
+#| label: fig-diagnostics-code
+#| fig-show: false
+
+fig, axes = plt.subplots(2, 2, figsize=(6.5, 3.4), constrained_layout=True)
+
+# (a) time series of standardised residuals
+axes[0, 0].plot(std_resid, lw=0.7, color="#1f77b4")
+axes[0, 0].axhline(0, color="k", lw=0.4, linestyle="--")
+axes[0, 0].set_title("Standardised residuals")
+axes[0, 0].set_xlabel("Week"); axes[0, 0].set_ylabel(r"$Y_n/\hat\sigma_n$")
+
+# (b) histogram vs N(0,1)
+x_grid = np.linspace(-5, 5, 200)
+axes[0, 1].hist(std_resid, bins=40, density=True, color="#1f77b4", alpha=0.7)
+axes[0, 1].plot(x_grid, sp_norm.pdf(x_grid), "r-", lw=1.4, label="N(0,1)")
+axes[0, 1].set_title("Histogram vs N(0,1)")
+axes[0, 1].legend(fontsize=7)
+
+# (c) normal Q-Q plot
+res = probplot(std_resid, dist="norm", plot=None)
+axes[1, 0].plot(res[0][0], res[0][1], "o", ms=2, color="#1f77b4")
+axes[1, 0].plot(res[0][0], res[1][0]*res[0][0]+res[1][1], "r-", lw=1.4)
+axes[1, 0].set_title("Normal Q-Q plot")
+axes[1, 0].set_xlabel("Theoretical"); axes[1, 0].set_ylabel("Sample")
+
+# (d) ACF of standardised residuals
+acf_vals = sm_acf(std_resid, nlags=30, fft=True)
+ci_95    = 1.96 / np.sqrt(N)
+axes[1, 1].bar(range(len(acf_vals)), acf_vals, color="#1f77b4", width=0.7)
+axes[1, 1].axhline( ci_95, color="r", linestyle="--", lw=0.8)
+axes[1, 1].axhline(-ci_95, color="r", linestyle="--", lw=0.8)
+axes[1, 1].set_title("ACF of standardised residuals")
+axes[1, 1].set_xlabel("Lag")
+
+plt.suptitle("Model diagnostics at MLE", fontsize=9, y=1.01)
+plt.savefig("fig_diagnostics.png", bbox_inches="tight")
+plt.close("all")
+```
+
+::: {#fig-diagnostics fig-cap="Model diagnostics at the MLE. Standardised residuals $Y_n/\\hat{\\sigma}_n$ should be approximately $\\mathcal{N}(0,1)$ if the model fits well."}
+![](fig_diagnostics.png){width=4.5in}
+:::
+
+@fig-diagnostics shows mostly uncorrelated residuals (ACF within $\pm 1.96/\sqrt{N}$). However, the Q-Q plot reveals **substantially heavier left-tail departures**: extreme standardised residuals near $-8$ to $-10$ during crash weeks indicate the Gaussian measurement model underestimates tail volatility. A $t$-distributed measurement error would address this.
+
+# Simulation-based probes {#sec-probes}
+
+Following the probe framework [@king2026sbied], we summarise paths by: mean absolute return, variance, lag-1 ACF of $Y_n^2$, and maximum cumulative drawdown.
+
+```{python}
+#| label: probe-run
+#| include: false
+
+# `pypomp` (as of the installed version) does not expose a probe()/probe-match
+# method, so we implement the probe comparison directly: simulate a large
+# ensemble of return paths under the MLE, apply a small dictionary of summary
+# statistics (probes) to each simulated path and to the observed series, and
+# report observed values against the simulation reference distribution.
+
+def _probe_mean_abs(arr):
+    return float(np.mean(np.abs(arr)))
+
+def _probe_var(arr):
+    return float(np.var(arr))
+
+def _probe_acf1_sq(arr):
+    x = arr ** 2
+    x = x - x.mean()
+    if len(x) < 2:
+        return float("nan")
+    denom = float(np.sum(x * x))
+    if denom <= 0:
+        return float("nan")
+    return float(np.sum(x[:-1] * x[1:]) / denom)
+
+def _probe_max_dd(arr):
+    s = np.cumsum(arr)
+    peak = np.maximum.accumulate(s)
+    return float(np.max(peak - s))
+
+PROBE_FUNCS = {
+    "Mean $|Y_n|$":        _probe_mean_abs,
+    "Variance":            _probe_var,
+    "ACF(1) of $Y_n^2$":   _probe_acf1_sq,
+    "Max cum drawdown":    _probe_max_dd,
+}
+
+N_PROBE_SIM = 400
+
+model_probe = pp.Pomp(
+    rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+    ys=ys_c, theta=best_theta, statenames=STATENAMES,
+    t0=0.0, nstep=1, accumvars=(), ydim=1,
+    covars=covars, par_trans=par_trans,
+)
+
+obs_vals = {name: f(y_c) for name, f in PROBE_FUNCS.items()}
+sim_probe_vals = {name: [] for name in PROBE_FUNCS}
+
+try:
+    _, Y_probe = model_probe.simulate(
+        key=jax.random.key(2026), nsim=N_PROBE_SIM,
+    )
+    for _, g in Y_probe.groupby("sim", sort=True):
+        arr = np.asarray(g["obs_0"].to_numpy(), dtype=float)
+        if not np.all(np.isfinite(arr)):
+            continue
+        # Guard against the rare explosive path (|Y_n| > 1e6%) that would
+        # otherwise dominate variance/drawdown probes.
+        if np.max(np.abs(arr)) > 1e3:
+            continue
+        for name, f in PROBE_FUNCS.items():
+            sim_probe_vals[name].append(f(arr))
+    n_used = sum(
+        1 for _, g in Y_probe.groupby("sim", sort=True)
+        if np.all(np.isfinite(g["obs_0"].to_numpy()))
+        and np.max(np.abs(g["obs_0"].to_numpy())) <= 1e3
+    )
+except Exception as _e:
+    n_used = 0
+
+rows = []
+for name, f in PROBE_FUNCS.items():
+    sv = np.array(sim_probe_vals[name], dtype=float)
+    sv = sv[np.isfinite(sv)]
+    if len(sv) == 0:
+        rows.append({
+            "Probe": name, "Data": round(obs_vals[name], 4),
+            "Sim mean": float("nan"), "Sim q05": float("nan"),
+            "Sim q95": float("nan"), "Covered": "n/a",
+        })
+        continue
+    q05 = float(np.quantile(sv, 0.05))
+    q95 = float(np.quantile(sv, 0.95))
+    covered = "yes" if q05 <= obs_vals[name] <= q95 else "no"
+    rows.append({
+        "Probe":    name,
+        "Data":     round(obs_vals[name], 4),
+        "Sim mean": round(float(np.mean(sv)), 4),
+        "Sim q05":  round(q05, 4),
+        "Sim q95":  round(q95, 4),
+        "Covered":  covered,
+    })
+probe_summary_tbl = pd.DataFrame(rows)
+
+# Pre-compute summary scalars used in inline prose (eval() forbids assignments)
+_n_covered        = int(sum(1 for r in probe_summary_tbl["Covered"] if r == "yes"))
+_n_total          = int(sum(1 for r in probe_summary_tbl["Covered"] if r in ("yes", "no")))
+_uncovered_probes = probe_summary_tbl.loc[
+    probe_summary_tbl["Covered"] == "no", "Probe"
+].tolist()
+```
+
+```{python}
+#| label: tbl-probes
+#| tbl-cap: "Probe summaries: observed value vs. simulation reference distribution (400 paths)."
+
+from IPython.display import Markdown
+Markdown(probe_summary_tbl.to_markdown(index=False))
+```
+
+The **Covered** column indicates whether the observed value falls inside (Sim q05, Sim q95).
+`{python} f"**All {_n_covered} probes are covered**" if _n_covered == _n_total else f"**{_n_covered} of {_n_total} probes are covered**; the uncovered probe(s) ({', '.join(_uncovered_probes)}) indicate the observed value falls outside the model's 90% simulation envelope—a genuine diagnostic signal that the model does not fully capture that feature of the data"`
+, but the envelopes are wide and the simulated variance mean substantially exceeds the observed value, suggesting the model generates overly volatile paths. The probes confirm broad qualitative fit but not strong model adequacy.
+
+# Likelihood Ratio Test: Fixed vs. Stochastic Leverage {#sec-lrt}
+
+```{python}
+#| label: lrt
+#| include: false
+
+# Nested model: sigma_nu = 0 (fixed leverage = standard SV).
+# sigma_nu is fixed at 1e-5 (effectively 0 in log space) during all runs.
+# We use a multi-start search (N_SV_STARTS independent starting points) to
+# avoid underestimating ll_sv—a single start from best_theta may fail to
+# find the constrained optimum if other parameters need to compensate.
+
+N_SV_STARTS = 4
+rng_sv      = np.random.default_rng(7777)
+
+rw_sd_sv = pp.RWSigma(
+    sigmas={"mu_h": 0.03, "phi": 0.01, "sigma_eta": 0.03,
+            "sigma_nu": 0.0,   # fix sigma_nu throughout
+            "H_0": 0.02, "G_0": 0.02},
+    init_names=["H_0", "G_0"],
+)
+
+def _build_sv_start(base, rng_, perturb=True):
+    t = base.copy()
+    t["sigma_nu"] = 1e-5
+    if perturb:
+        t["mu_h"]      = float(t["mu_h"]      + rng_.normal(0, 0.15))
+        t["phi"]       = float(np.clip(t["phi"]       + rng_.normal(0, 0.03), 0.87, 0.999))
+        t["sigma_eta"] = float(np.clip(t["sigma_eta"] + rng_.normal(0, 0.15), 0.10, 3.0))
+        t["H_0"]       = float(t["H_0"]       + rng_.normal(0, 0.2))
+        t["G_0"]       = float(t["G_0"]       + rng_.normal(0, 0.3))
+    return t
+
+# Start 0: best_theta without perturbation; starts 1–3: perturbed versions.
+sv_starts = [_build_sv_start(best_theta, rng_sv, perturb=False)] + \
+            [_build_sv_start(best_theta, rng_sv, perturb=True)
+             for _ in range(N_SV_STARTS - 1)]
+
+ll_sv_candidates = []
+for i_sv, sv_t in enumerate(sv_starts):
+    try:
+        m_sv_i = pp.Pomp(
+            rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas,
+            ys=ys_c, theta=sv_t, statenames=STATENAMES,
+            t0=0.0, nstep=1, accumvars=(), ydim=1,
+            covars=covars, par_trans=par_trans,
+        )
+        m_sv_i.mif(J=800, M=50, rw_sd=rw_sd_sv, a=0.5,
+                   key=jax.random.key(777 + i_sv * 31))
+        m_sv_i.pfilter(key=jax.random.key(42 + i_sv), J=2000, reps=6, thresh=0)
+        pf_i  = m_sv_i.results_history.last()
+        ll_i  = float(pp.logmeanexp(pf_i.logLiks.values.flatten()))
+        ll_sv_candidates.append(ll_i)
+        print(f"  SV start {i_sv}: ll = {ll_i:.2f}")
+    except Exception as _e:
+        print(f"  SV start {i_sv}: FAILED ({_e})")
+
+# Use the best (maximum) log-likelihood across all restricted starts.
+ll_sv = float(np.max(ll_sv_candidates)) if ll_sv_candidates else float("nan")
+
+lrt_stat = 2.0 * (best_ll - ll_sv)
+# sigma_nu = 0 lies on the boundary of the parameter space (sigma_nu >= 0),
+# so the classical chi^2_1 null distribution is not valid. Under the
+# Chernoff / Self-Liang result the correct asymptotic null for the LR
+# statistic is a 50:50 mixture (1/2) chi^2_0 + (1/2) chi^2_1, giving a
+# one-sided p-value equal to half of the conventional chi^2_1 p-value
+# (when the test statistic is positive, which is the usual case).
+p_val_chi2_1 = float(1.0 - chi2.cdf(lrt_stat, df=1))
+p_val        = 0.5 * p_val_chi2_1 if lrt_stat > 0 else 0.5
+
+print(f"\nStandard SV log-lik (best of {len(ll_sv_candidates)} starts): {ll_sv:.2f}")
+print(f"Stochastic leverage          : {best_ll:.2f}")
+print(f"LRT statistic Λ              : {lrt_stat:.2f}")
+print(f"p-value (chi²₁, naive)       : {p_val_chi2_1:.4f}")
+print(f"p-value (boundary-corrected) : {p_val:.4f}")
+
+# Plain-text variables for inline use — no LaTeX math, no escaped %, no decimals
+# embedded inside math delimiters (avoids PDF rendering garbling).
+_lrt_stat_str  = f"{lrt_stat:.2f}"    # plain number, used outside $...$
+_lrt_pval_str  = f"{p_val:.4f}"       # plain number, used outside $...$
+_lrt_pval_chi2_str = f"{p_val_chi2_1:.4f}"
+
+if lrt_stat <= 0:
+    _lrt_verdict = (
+        "is non-positive (Monte Carlo noise artifact; p set to 0.50) — "
+        "no reliable conclusion about fixed leverage can be drawn from this run"
+    )
+elif p_val < 0.01:
+    _lrt_verdict = "strongly rejects fixed leverage at the 1% level"
+elif p_val < 0.05:
+    _lrt_verdict = "rejects fixed leverage at the 5% level"
+else:
+    _lrt_verdict = "does not reject fixed leverage at the 5% level"
+```
+
+**Nested hypothesis test.**
+Setting $\sigma_\nu=0$ nests the stochastic leverage model into a standard SV model. We fix $\sigma_\nu=10^{-5}$ and re-optimise remaining parameters with IF2.
+Because $\sigma_\nu\ge0$, the null lies on the boundary, so by the Chernoff / Self–Liang result the LR statistic follows a 50:50 mixture:
+$$\Lambda = 2(\hat\ell_{\text{stoch. lev.}} - \hat\ell_{\text{SV}}) \;\sim\; \tfrac{1}{2}\chi^2_0 + \tfrac{1}{2}\chi^2_1 \quad \text{under } H_0,$$
+and the boundary-corrected $p$-value is half the conventional $\chi^2_1$ tail probability.
+
+| Model | Log-lik | $\Delta\ell$ | LRT $p$-value |
+|-------|---------|--------------|----------------|
+| Standard SV ($\sigma_\nu=0$) | `{python} f"{ll_sv:.1f}"` | n/a | n/a |
+| Stochastic Leverage | `{python} f"{best_ll:.1f}"` | `{python} f"{(best_ll-ll_sv):.2f}"` | `{python} f"{p_val:.4f}"` |
+
+`{python} "Caution: Lambda = " + _lrt_stat_str + " (negative — MC noise artifact; p set to 0.50)." if lrt_stat <= 0 else ("Strong" if p_val < 0.01 else "Moderate" if p_val < 0.05 else "Weak/no") + " evidence against fixed leverage (boundary-corrected p = " + _lrt_pval_str + ", naive chi-sq(1) p = " + _lrt_pval_chi2_str + ")."`
+
+# Discussion {#sec-discussion}
+
+**Summary.** The POMP beats GARCH(1,1) by $\Delta\text{AIC} =$ `{python} f"{delta_aic_g:.1f}"` and ARMA by $\Delta\text{AIC} =$ `{python} f"{delta_aic_a:.1f}"`. Persistence $\hat\phi =$ `{python} f'{best_theta.get("phi",0):.3f}'` is high and the MCAP CI for $\sigma_\nu$ `{python} "excludes near-zero values" if not nu_lo_at_edge else "does not conclusively exclude near-zero values (CI lower bound coincides with the grid edge)"`, but the LRT `{python} _lrt_verdict` ($\Lambda =$ `{python} _lrt_stat_str`, boundary-corrected $p =$ `{python} _lrt_pval_str`). Residual diagnostics reveal substantially heavier left tails than the Gaussian model assumes—volatility is underestimated during crash episodes. Probes are covered but on wide envelopes, confirming only broad qualitative fit.
+
+**Comparison with prior STATS 531 projects.** Prior Winter 2024–25 projects [@stats531w24p06; @stats531w24p09; @stats531w25p11; @stats531w25p12] use GARCH-type tools. Our contributions: mechanistic POMP in Python (`pypomp`) with plug-and-play IF2, profile likelihoods with MCAP [@ionides2017mcap], boundary-corrected LRT, and probes with full residual diagnostics. A $t$-distributed measurement error remains the key extension to address tail inadequacy.
+
+**Limitations.** Weekly aggregation; Gaussian tails underestimate crash volatility; profiles marginal not joint; all likelihoods carry MC noise.
+
+# Conclusion
+
+We fit a stochastic leverage POMP to `{python} N` demeaned weekly S&P 500 log-returns with IF2, profile-based MLE refinement, MCAP CIs, probes, and a boundary-corrected LRT. The POMP strongly dominates ARMA and GARCH on AIC. The LRT `{python} _lrt_verdict` ($\Lambda =$ `{python} _lrt_stat_str`, boundary-corrected $p =$ `{python} _lrt_pval_str`); the profile CIs are approximate due to limited particles, so evidence on $\sigma_\nu=0$ remains sensitive to Monte Carlo variance. Residual diagnostics highlight heavy-tailed crash residuals as the main model inadequacy. Future work should incorporate $t$-distributed or asymmetric measurement errors and higher particle counts for more reliable profiles.
+
+# References
+
+::: {#refs}
+:::
+
+### S3. AI Usage Disclosure
+
+Claude (Anthropic) was used to assist with scaffolding Python/pypomp/JAX code, structuring the Quarto document, and drafting sections of the report narrative. All model specification, parameter choices, interpretation of results, and scientific conclusions were verified independently by all group members. All code was run locally by each group member before submission. AI generated text was edited for accuracy, final editorial responsibility rests with the authors.

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#SBATCH --job-name=final_project_end
+#SBATCH --mail-user=leonestv@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --account=stats531w26s001_class
+
+#SBATCH --gpus=v100:1
+#SBATCH --cpus-per-gpu=4
+#SBATCH --partition=gpu
+
+## the GPU automatically gets the entire VRAM
+#SBATCH --mem=8GB
+
+## wall time hours:minutes:seconds
+#SBATCH --time=01:00:00
+
+###   Load software modules
+
+module load python
+module list
+
+####  Commands your job should run follow this line
+
+echo "Running on $SLURM_JOB_NODELIST"
+echo "Running in $(pwd)"
+source ~/.venv-gpu/bin/activate
+python final_honk_kong_seir_model.py > test-gpu.out

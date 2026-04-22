@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --job-name=poliopomp_robust
+#SBATCH --time=12:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64g
+#SBATCH --account=lsa3
+#SBATCH --partition=standard
+#SBATCH --output=poliopomp_robust_%j.out
+#SBATCH --mail-type=END,FAIL
+
+module purge
+module load python/3.12
+
+cd ~/polio_project
+source ~/polio_project/poliopomp_env/bin/activate
+
+python poliopomp_robust.py   --data data/aggregated_monthly_polio_1930_1964.csv   --outdir poliopomp_robust_outputs

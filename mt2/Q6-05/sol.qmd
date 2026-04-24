@@ -1,0 +1,29 @@
+
+\color{blue}
+
+**Solution**. D\
+
+Suppose a single data point, $y^*$, modeled as a realization of a density $f_Y(y)$.
+Let $z^*=\log{y^*}$, $z=\log(y)$ and $Z=\log(Y)$.
+Since $z$ is a monotone increasing function of $y$, the Jacobian formula gives 
+
+$$f_Z(z) = f_Y\big y \big) dy/dz = f_Y(y) \, y$$
+
+The log-likelihood is therefore
+
+$$\log f_Z(z^*) = \log f_Y(y^*) + log(y^*) =  \log f_Y(y^*) + z^*.$$
+
+Intuitively, if $y^*$ has a big scale, its density should be very small since the density integrates to 1. On a log scale, the density will be higher. By contrast, when $y^*$ has a small scale, it must have a higher density than the log transform, and $z^*$ is negative. 
+
+Mathematically, to compare $\log f_Z(z^*)$ with a log-likelihood on the natural scale, we have to subtract $z^*$. The same principle applies for each conditional log-likelihood in a factorization of $N$ joint likelihoods. Thus, the appropriate comparison for $\ell_2$ is
+
+$$\ell_1 - \sum_{n=1}^N z_n^*.$$
+
+Mapped to AIC, this becomes an appropriate comparison of $\mathrm{AIC}_2$ and
+
+$$\mathrm{AIC}_1 + 2\sum_{n=1}^N z_n^*.$$
+
+
+
+\color{black}
+

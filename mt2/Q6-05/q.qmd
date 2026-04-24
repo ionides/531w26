@@ -1,0 +1,25 @@
+
+
+Positive data, $y_{1:N}^*$, can be analyzed on the natural scale or on a log scale by considering $z^*_n = \log(y_n^*)$.
+Suppose we determine that the log scale is appropriate for an ARMA benchmark model, so we fit ARMA(2,2) to $z^*_{1:N}$ and obtain a log-likelihood value $\ell_1$ on $D_1=6$ degrees of freedom,
+ and an AIC value $\mathrm{AIC}_1=-2\ell_1+2D_1$.
+Next, we develop a mechanistic model on the natural scale, giving rise to a log-likelihood value $\ell_2$ for a model with $D_2$ parameters and an AIC value $\mathrm{AIC}_2=-2\ell_2+2D_2$.
+What is the appropriate treatment of these quantities?
+
+(A). We should only compare log-likelihood and AIC values between different models for the same data on the same scale. We can learn by looking at residual diagnostics for these two models, but we should not draw conclusions by comparing $\mathrm{AIC}_1$ and $\mathrm{AIC}_2$.
+
+(B). It is appropriate to make an AIC comparison between $\mathrm{AIC}_2$ and $\mathrm{AIC}_1 + 2\sum_{n=1}^N y^*_n$.
+
+(C). It is appropriate to make an AIC comparison between $\mathrm{AIC}_2$ and $\mathrm{AIC}_1 - 2\sum_{n=1}^N y^*_n$.
+
+(D). It is appropriate to make an AIC comparison between $\mathrm{AIC}_2$ and $\mathrm{AIC}_1 + 2\sum_{n=1}^N z^*_n$.
+
+(E. It is appropriate to make an AIC comparison between $\mathrm{AIC}_2$ and $\mathrm{AIC}_1 - 2\sum_{n=1}^N z^*_n$.
+
+  
+
+
+
+
+
+

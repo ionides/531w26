@@ -1,0 +1,1226 @@
+---
+title: "Stochastic Volatility Modeling of the NASDAQ Composite"
+author: ""
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+    fig-width: 4.4
+    fig-height: 2
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+  message: false
+  freeze: auto
+bibliography: references.bib
+---
+## Abstract: 
+This paper develops a stochastic-volatility model for daily NASDAQ Composite returns using two observable signals: close-to-close log returns and a high-low range-based volatility proxy. Estimation is carried out with particle filtering and iterated filtering, and model selection proceeds through a screening-and-refinement search over multiple random starts. Several richer alternatives were explored during development, including a dynamic return mean, a dynamic range-bias process, and a leverage state, but these additions typically weakened convergence or produced poorly identified parameter paths. The final specification therefore combines a parsimonious latent log-volatility process with a static range-bias correction and heavy-tailed measurement errors. It was selected because it delivered strong held-out likelihood, stable convergence behavior, and acceptable residual diagnostics. The results suggest that range information materially improves volatility inference for the NASDAQ, while additional latent structure is not well supported by the data in this setting.
+
+## 1 Introduction
+
+This project models daily NASDAQ Composite volatility with a partially observed stochastic-volatility model in the broad stochastic-volatility tradition [@taylor1982]. The main objective is to estimate a latent log-volatility process that explains both close-to-close returns and intraday volatility information from daily high-low ranges.
+
+The final model is deliberately parsimonious. Richer alternatives, including dynamic mean terms, dynamic range bias, leverage effects, and more flexible volatility dynamics, were retained only if they improved held-out likelihood without weakening convergence. The selected specification uses one latent volatility state, a static range-bias correction, and heavy-tailed observation errors.
+
+```{python}
+#| label: setup
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+import jax.numpy as jnp
+import jax.scipy as jsp
+import jax
+import pandas as pd
+import numpy as np
+import pypomp as pp
+import matplotlib.pyplot as plt
+import pickle
+import os
+import time
+import arch
+import itertools
+import yfinance as yf
+
+def markdown_table(df):
+    headers = [str(c) for c in df.columns]
+    rows = [[str(x) for x in row] for row in df.to_numpy()]
+    lines = []
+    lines.append("| " + " | ".join(headers) + " |")
+    lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+    for row in rows:
+        lines.append("| " + " | ".join(row) + " |")
+    return "\n".join(lines)
+
+```
+
+## 2 Data
+
+The data @yahoo_finance are daily NASDAQ Composite open, high, low, close, and volume observations from January 2006 through January 2026. The model uses two observed series. The first is the daily log return,
+
+$$
+r_t = \log(C_t) - \log(C_{t-1}),
+$$
+
+where $C_t$ is the closing price. The second is the log Parkinson high-low volatility proxy [@parkinson1980],
+
+$$
+q_t = \log\left(\frac{(\log H_t - \log L_t)^2}{4\log 2}\right),
+$$
+
+where $H_t$ and $L_t$ are the daily high and low prices. The high-low range gives direct information about intraday volatility, which close-to-close returns alone do not provide.
+
+Observations through December 31, 2020 are used for training. Later observations are held out for model evaluation.
+
+```{python}
+#| label: data-preparation
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+csv_path = "nasdaq_ohlcv_2006_2026.csv"
+
+if os.path.exists(csv_path):
+    ohlcv = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+else:
+    data = yf.download(
+        "^IXIC",
+        start="2006-01-01",
+        end="2026-01-01",
+        auto_adjust=True,
+        progress=False,
+    )
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+    ohlcv = data[["Open", "High", "Low", "Close", "Volume"]].dropna().copy()
+    ohlcv.to_csv(csv_path)
+
+prices = ohlcv["Close"]
+
+log_open = np.log(ohlcv["Open"])
+log_high = np.log(ohlcv["High"])
+log_low = np.log(ohlcv["Low"])
+log_close = np.log(ohlcv["Close"])
+
+log_return = log_close.diff()
+parkinson_var = ((log_high - log_low) ** 2) / (4.0 * np.log(2.0))
+log_range_var = np.log(parkinson_var.clip(lower=1e-10))
+log_volume = np.log1p(ohlcv["Volume"])
+
+obs = pd.DataFrame(
+    {
+        "log_return": log_return,
+        "log_range_var": log_range_var,
+        "log_volume": log_volume,
+    },
+    index=ohlcv.index,
+).dropna()
+
+obs["log_volume_z"] = (
+    (obs["log_volume"] - obs["log_volume"].mean()) / obs["log_volume"].std()
+).astype(np.float32)
+
+ys_all = pd.DataFrame(
+    {
+        "log_return": obs["log_return"].astype(np.float32).values,
+        "log_range_var": obs["log_range_var"].astype(np.float32).values,
+    }
+)
+ys_all.index = pd.Index(np.arange(1, len(ys_all) + 1), name="time")
+
+TRAIN_END_DATE = "2020-12-31"
+train_mask = obs.index <= TRAIN_END_DATE
+n_train = int(train_mask.sum())
+
+ys_train = ys_all.iloc[:n_train].copy()
+ys_test = ys_all.iloc[n_train:].copy()
+ys_train.index = pd.Index(np.arange(1, len(ys_train) + 1), name="time")
+ys_test.index = pd.Index(np.arange(1, len(ys_test) + 1), name="time")
+
+ys = ys_train
+y = ys["log_return"]
+```
+
+```{python}
+#| label: data-summary
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+data_summary = pd.DataFrame({
+    "sample": ["training", "held-out", "total"],
+    "n_obs": [len(ys_train), len(ys_test), len(ys_all)],
+    "return_mean": [ys_train["log_return"].mean(), ys_test["log_return"].mean(), ys_all["log_return"].mean()],
+    "return_sd": [ys_train["log_return"].std(), ys_test["log_return"].std(), ys_all["log_return"].std()],
+    "range_mean": [ys_train["log_range_var"].mean(), ys_test["log_range_var"].mean(), ys_all["log_range_var"].mean()],
+})
+data_summary
+```
+
+The return means are small relative to their standard deviations, which supports using a simple conditional mean and focusing the model on volatility. The range proxy is on a log-variance scale, so its level is not directly comparable to returns; instead, it serves as a noisy measurement of latent log volatility.
+
+## 3 Exploratory Data Analysis
+
+The first exploratory plot shows daily log returns. The series is centered near zero, but its variance is clearly time-varying, with calm periods alternating with clusters of large positive and negative returns. This is the main empirical motivation for a stochastic-volatility model: the conditional variance evolves over time while the conditional mean remains small.
+
+```{python}
+#| label: eda-log-returns
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 4.6
+#| fig-height: 2.3
+#| out-width: 82%
+#| fig-cap: "Daily NASDAQ log returns. The dashed red line marks the training/test split."
+fig, ax = plt.subplots(figsize=(10, 2.5), constrained_layout=True)
+ax.plot(ys_all.index, ys_all["log_return"], linewidth=0.6)
+ax.axvline(len(ys_train), color="red", linestyle="--", linewidth=0.8)
+ax.axhline(0.0, color="black", linewidth=0.6)
+ax.set_title("NASDAQ daily log returns")
+ax.set_xlabel("trading day index")
+ax.set_ylabel("log return")
+plt.show()
+```
+
+The return plot supports a volatility model with a simple conditional mean. Returns fluctuate around zero with no persistent trend, while their magnitude changes sharply over time. This clustering, together with occasional large moves, motivates a latent stochastic-volatility process with heavy-tailed measurement errors.
+
+The next plot shows the log Parkinson range variance. This series is much more directly tied to daily volatility than the raw return series. It has persistent high-volatility episodes, which indicates that the range proxy contains serial dependence that the latent volatility process should explain.
+
+```{python}
+#| label: eda-range-proxy
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 4.6
+#| fig-height: 2.3
+#| out-width: 82%
+#| fig-cap: "Log Parkinson range variance. The dashed red line marks the training/test split."
+fig, ax = plt.subplots(figsize=(10, 2.5), constrained_layout=True)
+ax.plot(ys_all.index, ys_all["log_range_var"], linewidth=0.6)
+ax.axvline(len(ys_train), color="red", linestyle="--", linewidth=0.8)
+ax.set_title("Log Parkinson range variance")
+ax.set_xlabel("trading day index")
+ax.set_ylabel("log range variance")
+plt.show()
+```
+
+The range proxy plot provides a clearer view of volatility persistence than the return series. High values of log range variance cluster over time, indicating that volatility has memory, precisely the dependence the latent state is designed to capture. The plot also shows why the high-low range is useful: volatility can be elevated even when close-to-close returns are modest. Including the range proxy as a second measurement equation therefore adds meaningful information about the latent volatility path.
+
+This persistence also defines a diagnostic target. After fitting, standardized range-measurement residuals should exhibit little serial correlation; otherwise, the model has failed to capture the observed dependence.
+
+## 4 Model Specification
+
+The latent state is daily log volatility, denoted $h_t$. The transition equation is
+
+$$
+h_t = \mu_h + \phi(h_{t-1} - \mu_h) + \sigma_h \eta_t, \qquad \eta_t \sim N(0,1).
+$$
+
+The initial state is fixed at the long-run mean,
+
+$$
+h_0 = \mu_h,
+$$
+
+which avoids estimating a weakly identified initial-state parameter.
+
+The return equation is
+
+$$
+r_t \mid h_t \sim t_7\left(\mu_0, \exp(h_t/2)\right),
+$$
+
+and the range-volatility measurement equation is
+
+$$
+q_t \mid h_t \sim t_5\left(h_t + b, \sigma_q\right).
+$$
+
+The parameter $b$ is a static range-bias correction. It accounts for the systematic difference between the Parkinson range proxy and the latent log volatility scale, an issue that became clear both in exploratory analysis and in the course case study on volatility modeling [@Ionides2026lecture17].
+
+| Parameter | Description |
+|------------------------------------|------------------------------------|
+| $\mu_0$ | Constant location of daily log returns |
+| $\mu_h$ | Long-term mean of latent log volatility |
+| $\phi$ | Volatility persistence coefficient |
+| $\sigma_h$ | Innovation standard deviation of the latent log-volatility process |
+| $b$ | Static range-bias correction between the range proxy and latent log volatility |
+| $\sigma_q$ | Measurement-error scale for the log Parkinson range-volatility proxy |
+| $h_0$ | Initial latent log volatility, fixed at $\mu_h$ |
+
+The persistence and volatility innovation scale are regularized by smooth transformations:
+
+$$
+\phi = 0.75 + 0.249\operatorname{logit}^{-1}(\phi_{raw}),
+\qquad
+\sigma_h = 0.01 + 0.49\operatorname{logit}^{-1}(\sigma_{h,raw}).
+$$
+
+Thus $0.75 < \phi < 0.999$ and $0.01 < \sigma_h < 0.50$. These bounds keep the latent volatility process from becoming too jumpy and absorbing short-term measurement noise.
+
+```{python}
+#| label: model-functions
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+def student_t_logpdf(x, loc, scale, df):
+    z = (x - loc) / scale
+    return (
+        jsp.special.gammaln((df + 1.0) / 2.0)
+        - jsp.special.gammaln(df / 2.0)
+        - 0.5 * jnp.log(df * jnp.pi)
+        - jnp.log(scale)
+        - ((df + 1.0) / 2.0) * jnp.log1p((z**2) / df)
+    )
+
+
+
+def bounded_sigmoid(raw, low, high):
+    return low + (high - low) * jax.nn.sigmoid(jnp.asarray(raw))
+
+
+def rinit(theta_, key, covars, t0):
+    return {
+        "h": jnp.asarray(theta_["mu_h"], dtype=jnp.float32),
+    }
+
+
+def rproc(X_, theta_, key, covars, t, dt):
+    h = jnp.asarray(X_["h"])
+
+    sigma_h = bounded_sigmoid(theta_["sigma_h_raw"], 0.01, 0.50)
+    mu_h = jnp.asarray(theta_["mu_h"])
+    phi = 0.75 + 0.249 * jax.nn.sigmoid(jnp.asarray(theta_["phi_raw"]))
+
+    h_next = mu_h + phi * (h - mu_h) + sigma_h * jax.random.normal(key)
+
+    return {
+        "h": h_next,
+    }
+
+
+def dmeas(Y_, X_, theta_, covars, t):
+    y_return = jnp.asarray(Y_["log_return"])
+    y_range = jnp.asarray(Y_["log_range_var"])
+
+    h = jnp.asarray(X_["h"])
+
+    mu0 = jnp.asarray(theta_["mu0"])
+    range_bias_mean = jnp.asarray(theta_["range_bias_mean"])
+    range_sd = jnp.clip(jnp.exp(jnp.asarray(theta_["log_sigma_range_meas"])), 1e-4, 10.0)
+    return_sd = jnp.maximum(jnp.exp(h / 2.0), 1e-8)
+
+    return_ll = student_t_logpdf(
+        y_return,
+        loc=mu0,
+        scale=return_sd,
+        df=7.0,
+    )
+    range_ll = student_t_logpdf(
+        y_range,
+        loc=h + range_bias_mean,
+        scale=range_sd,
+        df=5.0,
+    )
+
+    return return_ll + range_ll
+
+
+def rmeas(X_, theta_, key, covars, t):
+    h = jnp.asarray(X_["h"])
+
+    mu0 = jnp.asarray(theta_["mu0"])
+    range_bias_mean = jnp.asarray(theta_["range_bias_mean"])
+    range_sd = jnp.clip(jnp.exp(jnp.asarray(theta_["log_sigma_range_meas"])), 1e-4, 10.0)
+    return_sd = jnp.maximum(jnp.exp(h / 2.0), 1e-8)
+
+    key_return_n, key_return_g, key_range_n, key_range_g = jax.random.split(key, 4)
+    return_df = 7.0
+    range_df = 5.0
+    return_t = (
+        jax.random.normal(key_return_n)
+        / jnp.sqrt((2.0 * jax.random.gamma(key_return_g, return_df / 2.0)) / return_df)
+    )
+    range_t = (
+        jax.random.normal(key_range_n)
+        / jnp.sqrt((2.0 * jax.random.gamma(key_range_g, range_df / 2.0)) / range_df)
+    )
+
+    y_return = mu0 + return_sd * return_t
+    y_range = h + range_bias_mean + range_sd * range_t
+
+    return jnp.array([y_return, y_range], dtype=jnp.float32)
+```
+
+```{python}
+#| label: initial-parameters
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+def logit(p):
+    return np.log(p / (1.0 - p))
+
+
+return_mean = float(y.mean())
+return_std = float(y.std())
+h_init = float(np.log(max(return_std**2, 1e-8)))
+range_bias_init = float(ys["log_range_var"].mean() - h_init)
+phi_init = 0.98
+phi_raw_init = float(logit((phi_init - 0.75) / (0.999 - 0.75)))
+sigma_h_init = 0.10
+sigma_h_raw_init = float(logit((sigma_h_init - 0.01) / (0.50 - 0.01)))
+
+theta = {
+    "mu0": return_mean,
+    "mu_h": h_init,
+    "phi_raw": phi_raw_init,
+    "sigma_h_raw": sigma_h_raw_init,
+    "range_bias_mean": range_bias_init,
+    "log_sigma_range_meas": np.log(0.75),
+}
+statenames = ["h"]
+```
+
+```{python}
+#| label: pomp-object
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+model = pp.Pomp(
+        rinit=rinit,
+        rproc=rproc,
+        dmeas=dmeas,
+        rmeas=rmeas,
+        ys=ys,
+        theta=theta,
+        statenames=statenames,
+        t0=0.0,
+        nstep=1,
+        covars=None
+    )
+```
+
+## 5 Estimation Procedure
+
+The model is estimated as a partially observed Markov process using particle filtering and iterated filtering [@breto2009; @ionides2015; @Ionides2026lecture15]. Because latent volatility is not observed directly, the likelihood is approximated numerically by propagating particles through the volatility transition equation and weighting them by the joint return-range measurement density.
+
+For a fixed parameter vector, the particle filter produces a Monte Carlo likelihood estimate, while iterated filtering perturbs parameters across repeated filtering passes to search for high-likelihood regions. To reduce sensitivity to starting values, estimation proceeds in two stages: a broad screening step evaluates many random parameter draws with a relatively cheap particle filter, and a refinement step applies iterated filtering to the best screened candidates using larger particle counts. The final candidates are then reevaluated with more particles and replicated likelihood estimates, and the best training fit is assessed on the held-out sample.
+
+```{python}
+#| label: run-settings
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+RUN_LEVEL = 3
+RUN_SEARCHES = True
+
+NFITR = 20
+NP_FITR = 1000
+NP_EVAL = 1500
+NREPS_EVAL = 5
+
+NREPS_GLOBAL_SCREEN = 75
+NKEEP_GLOBAL = 8
+NP_SCREEN = 400
+NP_MIF_GLOBAL = 1000
+NP_EVAL_GLOBAL = 2000
+NFITR_GLOBAL = 100
+
+COOLING_RATE = 0.7
+
+
+SEASON_PERIOD = 5
+
+KEY = jax.random.key(70982)
+```
+
+The main computational settings are summarized below.
+
+```{python}
+#| label: estimation-settings-table
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+pd.DataFrame({
+    "setting": [
+        "NREPS_GLOBAL_SCREEN", "NKEEP_GLOBAL", "NP_SCREEN",
+        "NP_MIF_GLOBAL", "NP_EVAL_GLOBAL", "NFITR_GLOBAL", "NREPS_EVAL"
+    ],
+    "value": [
+        NREPS_GLOBAL_SCREEN, NKEEP_GLOBAL, NP_SCREEN,
+        NP_MIF_GLOBAL, NP_EVAL_GLOBAL, NFITR_GLOBAL, NREPS_EVAL
+    ],
+})
+```
+
+The global search boxes define the parameter region explored during screening while excluding clearly degenerate regions found in earlier experiments.
+
+```{python}
+#| label: global-search-setup
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+GLOBAL_box = {
+    "mu0": (return_mean - 0.001, return_mean + 0.001),
+    "mu_h": (-12.0, -6.5),
+    "phi_raw": (-4.0, 5.5),
+    "sigma_h_raw": (-4.0, 4.0),
+    "range_bias_mean": (range_bias_init - 2.0, range_bias_init + 2.0),
+    "log_sigma_range_meas": (np.log(0.15), np.log(2.5)),
+}
+
+GLOBAL_RW_SD = pp.RWSigma(
+    sigmas={
+        "mu0": 0.00005,
+        "mu_h": 0.02,
+        "phi_raw": 0.03,
+        "sigma_h_raw": 0.03,
+        "range_bias_mean": 0.02,
+        "log_sigma_range_meas": 0.03,
+    }
+)
+```
+
+```{python}
+#| label: global-box-table
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+global_box_table = pd.DataFrame(
+    [(k, v[0], v[1]) for k, v in GLOBAL_box.items()],
+    columns=["parameter", "lower", "upper"]
+)
+global_box_table
+```
+
+The initial screening step samples `NREPS_GLOBAL_SCREEN` candidate parameter vectors from these boxes and ranks them using a low-cost particle filter. Only the best candidates are retained for refinement. Full screening results are reported in Appendix @sec-appendix-screen.
+
+```{python}
+#| label: screening-search
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+key, subkey = jax.random.split(KEY)
+global_params_list = pp.Pomp.sample_params(GLOBAL_box, NREPS_GLOBAL_SCREEN, key=subkey)
+
+screen_model = pp.Pomp(
+    rinit=rinit,
+    rproc=rproc,
+    dmeas=dmeas,
+    rmeas=rmeas,
+    ys=ys,
+    theta=global_params_list,
+    statenames=statenames,
+    t0=0.0,
+    nstep=1,
+    covars=None
+)
+
+screen_start = time.time()
+key, subkey = jax.random.split(key)
+screen_model.pfilter(J=NP_SCREEN, reps=1, key=subkey)
+screen_runtime = time.time() - screen_start
+print(f"Global screening runtime (sec): {screen_runtime:.3f}")
+
+```
+
+The second stage refines the retained candidates with iterated filtering and records parameter paths after each iteration for convergence assessment. After refinement, the candidates are reevaluated with larger particle counts and replicated likelihood estimates to obtain final training log likelihoods and Monte Carlo standard errors. The best training candidate is then evaluated on the held-out sample. Full refined results are reported in Appendix @sec-appendix-global.
+
+```{python}
+#| label: refinement-and-evaluation
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 3.2
+#| fig-height: 2.7
+#| out-width: 33%
+#| fig-cap: "Global search convergence diagnostics for the final model."
+def add_transformed_search_columns(results_df):
+    out = results_df.copy()
+    if "sigma_h_raw" in out.columns:
+        out["sigma_h"] = 0.01 + 0.49 / (1 + np.exp(-out["sigma_h_raw"]))
+    if "log_sigma_range_meas" in out.columns:
+        out["sigma_range_meas"] = np.exp(out["log_sigma_range_meas"])
+    if "phi_raw" in out.columns:
+        out["phi"] = 0.75 + 0.249 / (1 + np.exp(-out["phi_raw"]))
+    return out
+
+
+def plot_search_convergence(history_df, param_cols=None, group_col="candidate"):
+    if param_cols is None:
+        param_cols = [
+            "mu0",
+            "mu_h",
+            "phi",
+            "sigma_h",
+            "range_bias_mean",
+            "sigma_range_meas",
+            "logLik",
+        ]
+    param_cols = [c for c in param_cols if c in history_df.columns]
+    ncols = 3
+    nrows = int(np.ceil(len(param_cols) / ncols))
+
+    fig, axes = plt.subplots(
+        nrows=nrows,
+        ncols=ncols,
+        figsize=(13, 2.0 * nrows),
+        constrained_layout=True,
+    )
+    axes = np.asarray(axes).ravel()
+
+    for ax, col in zip(axes, param_cols):
+        if group_col in history_df.columns:
+            for _, grp in history_df.groupby(group_col):
+                grp = grp.sort_values("iteration")
+                ax.plot(grp["iteration"], grp[col], alpha=0.75, linewidth=1.0)
+        else:
+            ax.plot(history_df["iteration"], history_df[col], alpha=0.75, linewidth=1.0)
+        ax.set_title(col)
+        ax.set_xlabel("iteration")
+        ax.set_ylabel("value")
+
+    for ax in axes[len(param_cols):]:
+        ax.axis("off")
+
+    fig.suptitle("Global Search Convergence Diagnostics", y=1.02)
+    plt.show()
+    
+screen_results = screen_model.results().copy()
+screen_results["sigma_h"] = 0.01 + 0.49 / (1 + np.exp(-screen_results["sigma_h_raw"]))
+screen_results["sigma_range_meas"] = np.exp(screen_results["log_sigma_range_meas"])
+screen_results["phi"] = 0.75 + 0.249 / (1 + np.exp(-screen_results["phi_raw"]))
+
+NKEEP = min(NKEEP_GLOBAL, len(screen_results))
+screen_top = screen_results.sort_values("logLik", ascending=False).head(NKEEP)
+
+global_refine_theta = [
+    {k: float(row[k]) for k in theta.keys()}
+    for _, row in screen_top.iterrows()
+]
+
+global_model = pp.Pomp(
+    rinit=rinit,
+    rproc=rproc,
+    dmeas=dmeas,
+    rmeas=rmeas,
+    ys=ys,
+    theta=global_refine_theta,
+    statenames=statenames,
+    t0=0.0,
+    nstep=1,
+    covars=None
+    
+)
+global_start = time.time()
+
+mif_history = []
+history_eval_particles = min(NP_SCREEN, NP_EVAL_GLOBAL)
+
+for m in range(NFITR_GLOBAL):
+    key, subkey = jax.random.split(key)
+    global_model.mif(
+        rw_sd=GLOBAL_RW_SD,
+        M=1,
+        a=COOLING_RATE,
+        J=NP_MIF_GLOBAL,
+        key=subkey
+    )
+
+    # A cheap filter pass after each MIF step records comparable likelihoods
+    # and parameter paths for convergence diagnostics.
+    key, subkey = jax.random.split(key)
+    global_model.pfilter(J=history_eval_particles, reps=1, key=subkey)
+
+    iter_results = add_transformed_search_columns(global_model.results())
+    iter_results["iteration"] = m + 1
+    if "candidate" not in iter_results.columns:
+        iter_results["candidate"] = np.arange(len(iter_results))
+    mif_history.append(iter_results)
+
+mif_history = pd.concat(mif_history, ignore_index=True)
+plot_search_convergence(mif_history)
+
+key, subkey = jax.random.split(key)
+global_model.pfilter(J=NP_EVAL_GLOBAL, reps=NREPS_EVAL, key=subkey)
+
+global_runtime = time.time() - global_start
+print(f"Global refinement runtime (sec): {global_runtime:.3f}")
+
+global_results = add_transformed_search_columns(global_model.results())
+
+
+best_row = global_results.sort_values("logLik", ascending=False).iloc[0]
+best_theta = {k: float(best_row[k]) for k in theta.keys()}
+
+test_model = pp.Pomp(
+    rinit=rinit,
+    rproc=rproc,
+    dmeas=dmeas,
+    rmeas=rmeas,
+    ys=ys_test,
+    theta=best_theta,
+    statenames=statenames,
+    t0=0.0,
+    nstep=1,
+    covars=None
+)
+
+key, subkey = jax.random.split(key)
+test_model.pfilter(J=NP_EVAL_GLOBAL, reps=NREPS_EVAL, key=subkey)
+test_results = add_transformed_search_columns(test_model.results())
+
+```
+
+The convergence figure should be interpreted cautiously because each line is based on particle-filter likelihood estimates. Some short-run variation is expected. What matters is whether the parameter paths stabilize into plausible regions and whether the likelihood traces avoid catastrophic collapses. The final model was selected partly because its convergence behavior was more stable than richer alternatives such as dynamic range bias or latent leverage models.
+
+## 6 Analysis and Model Comparison
+
+The final model was chosen by combining three criteria: held-out log likelihood, convergence stability, and residual diagnostics. Held-out likelihood measures predictive performance, while convergence and diagnostics guard against selecting a model that fits well only because of weak identification or numerical degeneracy.
+
+### 6.1 Final Model Performance
+
+The tables below summarize the refined training candidates and the held-out evaluation for the selected model. Parameters are shown on transformed, interpretable scales with slightly shorter labels to keep the full summary on the page.
+
+```{python}
+#| label: training-results
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| results: asis
+train_top = (
+    global_results
+    .sort_values("logLik", ascending=False)
+    .reset_index(drop=True)
+    .head(5)
+    [["logLik", "se", "mu0", "mu_h", "phi", "sigma_h", "range_bias_mean", "sigma_range_meas"]]
+    .rename(columns={
+        "se": "SE",
+        "range_bias_mean": "bias",
+        "sigma_range_meas": "sigma_q",
+    })
+    .round({
+        "logLik": 2,
+        "SE": 3,
+        "mu0": 4,
+        "mu_h": 3,
+        "phi": 3,
+        "sigma_h": 3,
+        "bias": 3,
+        "sigma_q": 3,
+    })
+)
+
+print(markdown_table(train_top))
+```
+
+The training results are interpreted together with the final-model convergence figure from the estimation section. The leading candidates agree on the main structural features: a stable long-run volatility level, a static range-bias correction, and a plausible range-measurement scale.
+
+```{python}
+#| label: heldout-results
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| results: asis
+heldout_top = (
+    test_results
+    .sort_values("logLik", ascending=False)
+    .reset_index(drop=True)
+    [["logLik", "se", "mu0", "mu_h", "phi", "sigma_h", "range_bias_mean", "sigma_range_meas"]]
+    .rename(columns={
+        "se": "SE",
+        "range_bias_mean": "bias",
+        "sigma_range_meas": "sigma_q",
+    })
+    .round({
+        "logLik": 2,
+        "SE": 3,
+        "mu0": 4,
+        "mu_h": 3,
+        "phi": 3,
+        "sigma_h": 3,
+        "bias": 3,
+        "sigma_q": 3,
+    })
+)
+
+print(markdown_table(heldout_top))
+```
+
+Held-out likelihood evaluates the model on data not used for estimation and is the main safeguard against overfitting. Earlier variants added flexibility, but they often led to weaker convergence or poorer held-out performance. The final model preserves the gain from range-based volatility information without reintroducing weakly identified dynamic bias or leverage components.
+
+The static range-bias term is a key result. The Parkinson proxy is systematically offset from the latent volatility scale, requiring a correction, but the data do not support a dynamic specification. This indicates that the high–low range is informative about volatility, with its relationship to latent volatility adequately captured by a constant offset.
+
+The convergence plot should be interpreted parameter by parameter. Stable horizontal bands across starting values indicate convergence to a common region of the likelihood surface, while drift, boundary behavior, or likelihood collapses suggest weak identification. In the final model, key parameters exhibit greater stability than in earlier specifications. Although some Monte Carlo noise remains due to particle filtering, the traces avoid the severe instability observed in more complex alternatives.
+
+### 6.2 Comparison With Alternatives
+
+Several richer or more flexible specifications were tested and rejected. A latent return-mean process was weakly identified, consistent with the STL decomposition showing little persistent trend in daily returns. A dynamic range-bias process also failed to justify itself, with innovation variance collapsing toward zero and persistence behaving erratically. Allowing a free initial volatility state improved speed but worsened held-out likelihood, suggesting that it mainly fit the start of the training sample rather than improving generalization. The final model therefore fixes $h_0 = \mu_h$.
+
+#### 6.2.1 Leverage Candidate
+
+A richer two-state leverage stochastic-volatility model was also tested, motivated both by the course case study on observation-driven latent volatility dynamics [@Ionides2026lecture17] and by the related student project that implemented a similar idea for Apple stock data [@stats531project2024]. In that specification, a latent leverage state allowed lagged returns to affect next-period volatility, making it possible to capture the common asymmetry in which negative returns are followed by higher volatility.
+
+Despite that motivation, the leverage model did not converge convincingly. The global-search parameter paths often drifted toward boundaries rather than stabilizing in a common interior region, and some likelihood traces showed abrupt collapses. The leverage-related state summaries and innovation parameters behaved erratically, suggesting weak identification rather than a stable estimate of a leverage mechanism.
+
+```{python}
+#| label: leverage-data-preparation
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| output: false
+
+leverage_return_center = float(ys_train["log_return"].mean())
+ys_train_leverage = pd.DataFrame({"log_return": (ys_train["log_return"] - leverage_return_center).astype(np.float32).to_numpy()})
+ys_test_leverage = pd.DataFrame({"log_return": (ys_test["log_return"] - leverage_return_center).astype(np.float32).to_numpy()})
+ys_train_leverage.index = pd.Index(np.arange(1, len(ys_train_leverage) + 1), name="time")
+ys_test_leverage.index = pd.Index(np.arange(1, len(ys_test_leverage) + 1), name="time")
+
+def make_lag_covars(y_values, first_lag=0.0):
+    y_values = np.asarray(y_values, dtype=np.float32)
+    lag = np.empty_like(y_values)
+    if len(lag) > 0:
+        lag[0] = np.float32(first_lag)
+        lag[1:] = y_values[:-1]
+    covars_df = pd.DataFrame({"lag_return": lag.astype(np.float32)})
+    covars_df.index = pd.Index(np.arange(1, len(covars_df) + 1), name="time")
+    return covars_df
+
+covars_train_leverage = make_lag_covars(ys_train_leverage["log_return"].to_numpy(), first_lag=0.0)
+first_test_lag_leverage = float(ys_train_leverage["log_return"].iloc[-1]) if len(ys_train_leverage) > 0 and len(ys_test_leverage) > 0 else 0.0
+covars_test_leverage = make_lag_covars(ys_test_leverage["log_return"].to_numpy(), first_lag=first_test_lag_leverage)
+```
+
+```{python}
+#| label: leverage-model-code
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| output: false
+
+def covar_value_leverage(covars_, name, t, default=0.0):
+    if covars_ is None:
+        return jnp.asarray(default, dtype=jnp.float32)
+    if isinstance(covars_, dict):
+        if name not in covars_:
+            return jnp.asarray(default, dtype=jnp.float32)
+        col = covars_[name]
+    elif hasattr(covars_, "columns"):
+        if name not in covars_.columns:
+            return jnp.asarray(default, dtype=jnp.float32)
+        col = covars_[name]
+    else:
+        return jnp.asarray(default, dtype=jnp.float32)
+    if hasattr(col, "to_numpy"):
+        col = col.to_numpy(dtype=np.float32)
+    arr = jnp.asarray(col, dtype=jnp.float32)
+    if arr.ndim == 0:
+        return arr
+    idx = jnp.clip(jnp.asarray(t, dtype=jnp.int32) - 1, 0, arr.shape[0] - 1)
+    return jnp.take(arr, idx)
+
+def transformed_leverage_params(theta_):
+    phi = bounded_sigmoid(theta_["phi_raw"], 0.01, 0.995)
+    sigma_eta = jnp.clip(jnp.exp(jnp.asarray(theta_["log_sigma_eta"])), 1e-5, 5.0)
+    sigma_nu = jnp.clip(jnp.exp(jnp.asarray(theta_["log_sigma_nu"])), 1e-6, 5.0)
+    h0_offset = 2.0 * jnp.tanh(jnp.asarray(theta_["h0_offset_raw"]))
+    return phi, sigma_eta, sigma_nu, h0_offset
+
+def rinit_leverage(theta_, key, covars, t0):
+    _, _, _, h0_offset = transformed_leverage_params(theta_)
+    return {"G": jnp.asarray(theta_["G0"], dtype=jnp.float32), "H": jnp.asarray(theta_["mu_h"], dtype=jnp.float32) + h0_offset}
+
+def rproc_leverage(X_, theta_, key, covars, t, dt):
+    G_prev = jnp.asarray(X_["G"]); H_prev = jnp.asarray(X_["H"]); mu_h = jnp.asarray(theta_["mu_h"])
+    phi, sigma_eta, sigma_nu, _ = transformed_leverage_params(theta_)
+    y_lag = covar_value_leverage(covars, "lag_return", t, default=0.0)
+    key_g, key_h = jax.random.split(key, 2)
+    G_next = G_prev + sigma_nu * jax.random.normal(key_g)
+    R_next = jnp.tanh(G_next)
+    one_minus_phi2 = jnp.maximum(1.0 - phi**2, 1e-8)
+    one_minus_R2 = jnp.maximum(1.0 - R_next**2, 1e-8)
+    beta_lag = y_lag * sigma_eta * jnp.sqrt(one_minus_phi2)
+    omega_sd = sigma_eta * jnp.sqrt(one_minus_phi2 * one_minus_R2)
+    leverage_term = beta_lag * R_next * jnp.exp(jnp.clip(-0.5 * H_prev, -20.0, 20.0))
+    H_next = mu_h * (1.0 - phi) + phi * H_prev + leverage_term + omega_sd * jax.random.normal(key_h)
+    H_next = jnp.clip(H_next, -25.0, 10.0)
+    return {"G": G_next, "H": H_next}
+
+def dmeas_leverage(Y_, X_, theta_, covars, t):
+    y_return = jnp.asarray(Y_["log_return"])
+    H = jnp.asarray(X_["H"])
+    return_sd = jnp.maximum(jnp.exp(jnp.clip(H / 2.0, -20.0, 5.0)), 1e-8)
+    return jsp.stats.norm.logpdf(y_return, loc=0.0, scale=return_sd)
+
+def rmeas_leverage(X_, theta_, key, covars, t):
+    H = jnp.asarray(X_["H"])
+    return_sd = jnp.maximum(jnp.exp(jnp.clip(H / 2.0, -20.0, 5.0)), 1e-8)
+    y_return = return_sd * jax.random.normal(key)
+    return jnp.array([y_return], dtype=jnp.float32)
+```
+
+```{python}
+#| label: leverage-search-and-convergence
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 5.0
+#| fig-height: 4.0
+#| out-width: 50%
+#| fig-cap: "Convergence diagnostics for the candidate leverage stochastic-volatility model."
+#| fig-pos: "H"
+
+def logit(p):
+    p = np.asarray(p)
+    return np.log(p / (1.0 - p))
+
+def add_transformed_leverage_columns(results_df):
+    out = results_df.copy()
+    if "phi_raw" in out.columns:
+        out["phi"] = 0.01 + 0.985 / (1 + np.exp(-out["phi_raw"]))
+    if "log_sigma_eta" in out.columns:
+        out["sigma_eta"] = np.exp(out["log_sigma_eta"])
+    if "log_sigma_nu" in out.columns:
+        out["sigma_nu"] = np.exp(out["log_sigma_nu"])
+    if "h0_offset_raw" in out.columns:
+        out["h0_offset"] = 2.0 * np.tanh(out["h0_offset_raw"])
+    if "G0" in out.columns:
+        out["R0"] = np.tanh(out["G0"])
+    return out
+
+def plot_leverage_search_convergence(history_df):
+    param_cols = ["mu_h", "h0_offset", "phi", "sigma_eta", "sigma_nu", "G0", "R0", "logLik"]
+    param_cols = [c for c in param_cols if c in history_df.columns]
+    fig, axes = plt.subplots(3, 3, figsize=(13, 9), constrained_layout=True)
+    axes = axes.ravel()
+    for ax, col in zip(axes, param_cols):
+        for _, grp in history_df.groupby("candidate"):
+            grp = grp.sort_values("iteration")
+            ax.plot(grp["iteration"], grp[col], alpha=0.75, linewidth=1.0)
+        ax.set_title(col); ax.set_xlabel("iteration"); ax.set_ylabel("value")
+    for ax in axes[len(param_cols):]:
+        ax.axis("off")
+    fig.suptitle("Leverage SV Global Search Convergence Diagnostics", y=1.02)
+    plt.show()
+
+return_std_leverage = float(ys_train_leverage["log_return"].std())
+h_init_leverage = float(np.log(max(return_std_leverage**2, 1e-8)))
+phi_init_leverage = 0.98
+phi_raw_init_leverage = float(logit((phi_init_leverage - 0.01) / (0.995 - 0.01)))
+theta_leverage = {"mu_h": h_init_leverage, "h0_offset_raw": 0.0, "phi_raw": phi_raw_init_leverage, "log_sigma_eta": np.log(0.20), "log_sigma_nu": np.log(0.05), "G0": 0.0}
+statenames_leverage = ["G", "H"]
+LEVERAGE_BOX = {"mu_h": (-12.0, -6.5), "h0_offset_raw": (-2.0, 2.0), "phi_raw": (-4.0, 5.5), "log_sigma_eta": (np.log(0.02), np.log(1.00)), "log_sigma_nu": (np.log(0.002), np.log(0.50)), "G0": (-2.0, 2.0)}
+LEVERAGE_RW_SD = pp.RWSigma(sigmas={"mu_h": 0.02, "h0_offset_raw": 0.02, "phi_raw": 0.03, "log_sigma_eta": 0.03, "log_sigma_nu": 0.03, "G0": 0.02})
+leverage_key = jax.random.fold_in(KEY, 16)
+leverage_key, subkey = jax.random.split(leverage_key)
+leverage_params_list = pp.Pomp.sample_params(LEVERAGE_BOX, NREPS_GLOBAL_SCREEN, key=subkey)
+leverage_screen_model = pp.Pomp(rinit=rinit_leverage, rproc=rproc_leverage, dmeas=dmeas_leverage, rmeas=rmeas_leverage, ys=ys_train_leverage, theta=leverage_params_list, statenames=statenames_leverage, t0=0.0, nstep=1, covars=covars_train_leverage)
+leverage_key, subkey = jax.random.split(leverage_key)
+leverage_screen_model.pfilter(J=NP_SCREEN, reps=1, key=subkey)
+leverage_screen_results = add_transformed_leverage_columns(leverage_screen_model.results().copy())
+leverage_nkeep = min(NKEEP_GLOBAL, len(leverage_screen_results))
+leverage_screen_top = leverage_screen_results.sort_values("logLik", ascending=False).head(leverage_nkeep)
+leverage_refine_theta = [{k: float(row[k]) for k in theta_leverage.keys()} for _, row in leverage_screen_top.iterrows()]
+leverage_global_model = pp.Pomp(rinit=rinit_leverage, rproc=rproc_leverage, dmeas=dmeas_leverage, rmeas=rmeas_leverage, ys=ys_train_leverage, theta=leverage_refine_theta, statenames=statenames_leverage, t0=0.0, nstep=1, covars=covars_train_leverage)
+leverage_mif_history = []
+leverage_history_eval_particles = min(NP_SCREEN, NP_EVAL_GLOBAL)
+for m in range(NFITR_GLOBAL):
+    leverage_key, subkey = jax.random.split(leverage_key)
+    leverage_global_model.mif(rw_sd=LEVERAGE_RW_SD, M=1, a=COOLING_RATE, J=NP_MIF_GLOBAL, key=subkey)
+    leverage_key, subkey = jax.random.split(leverage_key)
+    leverage_global_model.pfilter(J=leverage_history_eval_particles, reps=1, key=subkey)
+    leverage_iter_results = add_transformed_leverage_columns(leverage_global_model.results())
+    leverage_iter_results["iteration"] = m + 1
+    if "candidate" not in leverage_iter_results.columns:
+        leverage_iter_results["candidate"] = np.arange(len(leverage_iter_results))
+    leverage_mif_history.append(leverage_iter_results)
+leverage_mif_history = pd.concat(leverage_mif_history, ignore_index=True)
+plot_leverage_search_convergence(leverage_mif_history)
+leverage_key, subkey = jax.random.split(leverage_key)
+leverage_global_model.pfilter(J=NP_EVAL_GLOBAL, reps=NREPS_EVAL, key=subkey)
+leverage_global_results = add_transformed_leverage_columns(leverage_global_model.results())
+leverage_best_row = leverage_global_results.sort_values("logLik", ascending=False).iloc[0]
+leverage_best_theta = {k: float(leverage_best_row[k]) for k in theta_leverage.keys()}
+leverage_test_model = pp.Pomp(rinit=rinit_leverage, rproc=rproc_leverage, dmeas=dmeas_leverage, rmeas=rmeas_leverage, ys=ys_test_leverage, theta=leverage_best_theta, statenames=statenames_leverage, t0=0.0, nstep=1, covars=covars_test_leverage)
+leverage_key, subkey = jax.random.split(leverage_key)
+leverage_test_model.pfilter(J=NP_EVAL_GLOBAL, reps=NREPS_EVAL, key=subkey)
+leverage_test_results = add_transformed_leverage_columns(leverage_test_model.results())
+```
+
+For the main paper, the leverage model mainly serves as a cautionary comparison: it could sometimes improve held-out likelihood, but the convergence behavior was poor enough that the extra flexibility was difficult to defend. Full leverage result tables are reported in Appendix @sec-appendix-leverage and Appendix @sec-appendix-leverageglobal.
+
+### Final Selection Rationale
+
+The model-selection results show that the final specification is not simply the most flexible. Although several extensions—especially the leverage model—were appealing, they introduced weak identification, boundary behavior, or unstable likelihood trajectories. The final model was chosen for its balance of predictive performance, convergence stability, residual behavior, and interpretability. It retains the most informative signal, the high–low range proxy, while excluding unsupported dynamic features.
+
+The leverage comparison highlights the central tradeoff: increased flexibility can improve apparent fit but is not desirable when parameters are weakly identified. A simpler negative-return leverage term was also tested but did not improve held-out likelihood and added convergence noise. Accordingly, leverage effects were excluded. The final model instead uses Student-$t$ measurement errors, a static range-bias adjustment, bounded volatility persistence, and a range-based measurement equation. While less flexible, this specification is more robust, with clearer parameter interpretation, more stable convergence, and reduced dependence on unstable latent-state interactions.
+
+## 7 Diagnostics
+
+After fitting the model, the held-out filtered volatility path is estimated with a bootstrap particle filter. The standardized volatility measurement residual is
+
+$$
+e_t = \frac{q_t - (\hat h_t + \hat b)}{\hat\sigma_q}.
+$$
+
+If the range measurement equation is adequate, these residuals should be centered near zero and show little serial correlation.
+
+```{python}
+#| label: diagnostics
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 2.2
+#| fig-height: 2.0
+#| out-width: 33%
+#| fig-cap: "Held-out filtered latent volatility and standardized volatility measurement residual diagnostics."
+#| fig-pos: "H"
+def _norm_logpdf_np(x, loc, scale):
+    return -0.5 * np.log(2.0 * np.pi) - np.log(scale) - 0.5 * ((x - loc) / scale) ** 2
+
+
+def _student_t_logpdf_np(x, loc, scale, df):
+    from scipy.special import gammaln
+
+    z = (x - loc) / scale
+    return (
+        gammaln((df + 1.0) / 2.0)
+        - gammaln(df / 2.0)
+        - 0.5 * np.log(df * np.pi)
+        - np.log(scale)
+        - ((df + 1.0) / 2.0) * np.log1p((z**2) / df)
+    )
+
+
+def _systematic_resample(weights, rng):
+    n = len(weights)
+    positions = (rng.random() + np.arange(n)) / n
+    cumulative_sum = np.cumsum(weights)
+    cumulative_sum[-1] = 1.0
+    return np.searchsorted(cumulative_sum, positions)
+
+
+def bootstrap_filter_h_path(theta_, ys_, J=2000, seed=271828):
+    """Return filtered h_t using the static range-bias model."""
+    rng = np.random.default_rng(seed)
+    obs_values = ys_[["log_return", "log_range_var"]].to_numpy()
+    n = len(obs_values)
+
+    h = np.full(J, float(theta_["mu_h"]), dtype=float)
+
+    mu0 = float(theta_["mu0"])
+    mu_h = float(theta_["mu_h"])
+    range_bias_mean = float(theta_["range_bias_mean"])
+    phi = 0.75 + 0.249 / (1.0 + np.exp(-float(theta_["phi_raw"])))
+    sigma_h = 0.01 + 0.49 / (1.0 + np.exp(-float(theta_["sigma_h_raw"])))
+    sigma_range = np.clip(np.exp(float(theta_["log_sigma_range_meas"])), 1e-4, 10.0)
+
+    h_filt = np.empty(n, dtype=float)
+    range_bias_filt = np.full(n, range_bias_mean, dtype=float)
+    ess = np.empty(n, dtype=float)
+
+    for t, (y_return, y_range) in enumerate(obs_values):
+        if t > 0:
+            h = mu_h + phi * (h - mu_h) + sigma_h * rng.normal(size=J)
+
+        return_sd = np.maximum(np.exp(h / 2.0), 1e-8)
+        range_mean = h + range_bias_mean
+
+        logw = (
+            _student_t_logpdf_np(y_return, mu0, return_sd, df=7.0)
+            + _student_t_logpdf_np(y_range, range_mean, sigma_range, df=5.0)
+        )
+        logw = logw - np.max(logw)
+        weights = np.exp(logw)
+        weights = weights / np.sum(weights)
+
+        h_filt[t] = np.sum(weights * h)
+        ess[t] = 1.0 / np.sum(weights**2)
+
+        idx = _systematic_resample(weights, rng)
+        h = h[idx]
+
+    return h_filt, range_bias_filt, ess
+
+
+def acf_values(x, nlags=40):
+    x = np.asarray(x, dtype=float)
+    x = x[np.isfinite(x)]
+    x = x - x.mean()
+    denom = np.dot(x, x)
+    return np.array([1.0] + [np.dot(x[:-lag], x[lag:]) / denom for lag in range(1, nlags + 1)])
+
+
+def ljung_box_table(x, lags=(5, 10, 20)):
+    try:
+        from statsmodels.stats.diagnostic import acorr_ljungbox
+
+        return acorr_ljungbox(x, lags=list(lags), return_df=True)
+    except Exception:
+        from scipy.stats import chi2
+
+        x = np.asarray(x, dtype=float)
+        x = x[np.isfinite(x)]
+        n = len(x)
+        max_lag = max(lags)
+        acf = acf_values(x, max_lag)
+        rows = []
+        for lag in lags:
+            q_stat = n * (n + 2.0) * np.sum((acf[1 : lag + 1] ** 2) / (n - np.arange(1, lag + 1)))
+            p_value = 1.0 - chi2.cdf(q_stat, df=lag)
+            rows.append({"lb_stat": q_stat, "lb_pvalue": p_value})
+        return pd.DataFrame(rows, index=pd.Index(lags, name="lag"))
+
+
+def volatility_residual_diagnostics(theta_, ys_, label, J=2000, lags=(5, 10, 20), acf_lags=40):
+    h_filt, range_bias_filt, ess = bootstrap_filter_h_path(theta_, ys_, J=J, seed=271828)
+    sigma_range = np.clip(np.exp(float(theta_["log_sigma_range_meas"])), 1e-4, 10.0)
+    vol_resid = ys_["log_range_var"].to_numpy() - (h_filt + range_bias_filt)
+    vol_resid_std = vol_resid / sigma_range
+
+    acf = acf_values(vol_resid_std, acf_lags)
+    conf = 1.96 / np.sqrt(len(vol_resid_std))
+
+    fig, axes = plt.subplots(3, 1, figsize=(10, 8), constrained_layout=True)
+    axes[0].plot(h_filt, linewidth=0.8)
+    axes[0].set_title(f"{label}: filtered latent log volatility")
+
+    axes[1].plot(vol_resid_std, linewidth=0.8)
+    axes[1].axhline(0.0, color="black", linewidth=0.8)
+    axes[1].set_title(f"{label}: standardized volatility measurement residuals")
+
+    axes[2].bar(np.arange(acf_lags + 1), acf)
+    axes[2].axhline(conf, color="red", linestyle="--", linewidth=0.8)
+    axes[2].axhline(-conf, color="red", linestyle="--", linewidth=0.8)
+    axes[2].set_title(f"{label}: ACF of standardized volatility residuals")
+    axes[2].set_xlabel("Lag")
+    plt.show()
+
+    return {
+        "h_filt": h_filt,
+        "range_bias_filt": range_bias_filt,
+        "ess": ess,
+        "vol_resid": vol_resid,
+        "vol_resid_std": vol_resid_std,
+        "acf": acf,
+    }
+
+
+best_row = global_results.sort_values("logLik", ascending=False).iloc[0]
+best_theta = {k: float(best_row[k]) for k in theta.keys()}
+
+if len(ys_test) > 0:
+    test_vol_diag = volatility_residual_diagnostics(best_theta, ys_test, "Held-out sample")
+```
+
+The diagnostic figure has three main components. The filtered latent log-volatility path shows the model-implied evolution of volatility over time. A useful volatility filter should rise during turbulent market episodes and fall during calmer periods rather than remaining flat or moving erratically without connection to the data. In this model, the filtered path is allowed to change over time, but the regularized transition prevents it from becoming an arbitrary high-frequency fit to the range proxy.
+
+The standardized volatility measurement residuals compare the observed log range variance with the fitted range measurement mean, after scaling by the estimated range measurement error. These residuals should be centered near zero. Persistent runs above or below zero would suggest that the range-bias term or volatility level is misspecified. Isolated large residuals are less concerning because the range equation uses a Student-t distribution, which explicitly allows occasional outlying range observations.
+
+The residual ACF is the most direct check for remaining serial dependence in the volatility measurement equation. The lag-zero bar is always equal to one and is not interpreted. The important question is whether the bars at positive lags remain large or decay slowly. Large positive autocorrelations across many lags would imply that the latent volatility process failed to capture persistent structure in the range proxy. In the final model, the residual autocorrelations are much smaller than in earlier specifications, indicating that the fitted latent volatility state captures most of the serial dependence in the high-low volatility measure. This is one of the main pieces of evidence supporting the final static range-bias specification.
+
+## 8 Conclusion
+
+The final specification uses the information that was most consistently supported by the data: mean-reverting latent volatility, a static range-bias correction, and heavy-tailed observation errors. More complex components, including dynamic range bias and leverage terms, were considered but did not provide a stable improvement. The resulting model is simpler than some alternatives, but it is more interpretable and better supported by convergence and residual diagnostics.
+
+
+## 9 Appendix
+
+### STL Decomposition of Returns
+
+The STL decomposition is included in the appendix because it serves mainly as supporting exploratory evidence rather than a central result. It supports the decision to avoid a dynamic return-mean process: the trend component is small relative to the variability in the raw and residual series, and the seasonal component is also minor. What stands out most is the changing residual scale, which is consistent with volatility clustering rather than time variation in the conditional mean.
+
+```{python}
+#| label: eda-stl-log-returns
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+#| fig-width: 3.0
+#| fig-height: 2.6
+#| out-width: 33%
+#| fig-cap: "STL decomposition of training-sample log returns with a five-day seasonal period."
+#| #| fig-pos: "H"
+
+from statsmodels.tsa.seasonal import STL
+
+stl = STL(y, period=5)
+res = stl.fit()
+fig = res.plot()
+fig.set_size_inches(10, 7)
+plt.show()
+```
+
+The STL decomposition supports focusing on volatility rather than a dynamic return mean. The trend component is negligible relative to the variation in the raw and residual series, indicating that time variation arises from changing dispersion rather than a drifting mean. The seasonal component is also small, suggesting that a deterministic weekly effect is not important. In contrast, the residuals show periods of varying variability, reinforcing the presence of stochastic volatility. Accordingly, the final model uses a constant return mean and assigns the latent state to log volatility.
+
+### A.Screened Candidates {#sec-appendix-screen}
+
+```{python}
+
+print("Top screened candidates:")
+print(screen_results.sort_values("logLik", ascending=False).head(10))
+```
+
+### B. Global Search Results {#sec-appendix-global}
+
+```{python}
+print("Final refined global-search results:")
+print(global_results.sort_values("logLik", ascending=False))
+
+
+print("Held-out test results from the best training fit:")
+print(test_results.sort_values("logLik", ascending=False))
+
+```
+
+### C. Top Screened Leverage Candidates {#sec-appendix-leverage}
+
+```{python}
+print("Top screened leverage candidates:")
+print(leverage_screen_results.sort_values("logLik", ascending=False).head(10))
+```
+
+### D. Final Refined Leverage Global-search Results {#sec-appendix-leverageglobal}
+
+```{python}
+print("Held-out test results from the best leverage training fit:")
+print(leverage_test_results.sort_values("logLik", ascending=False))
+```
+
+
+# References

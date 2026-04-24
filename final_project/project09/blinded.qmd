@@ -1,0 +1,1097 @@
+---
+title: "STATS 531 final project"
+bibliography: references.bib
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{python}
+# import package
+import jax
+import jax.numpy as jnp
+import jax.scipy.special
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import pypomp as pp
+import time
+from scipy.stats import chi2
+from statsmodels.tsa.arima.model import ARIMA
+try:
+    from arch import arch_model
+    has_arch = True
+except ImportError:
+    has_arch = False
+    print("Package 'arch' not installed; GARCH benchmark will be skipped.")
+from scipy.special import logsumexp
+
+# helper function
+def logmeanexp(x):
+    x = np.asarray(x, dtype=float)
+    return float(logsumexp(x) - np.log(x.size))
+```
+
+## Abstract {.unnumbered}
+
+This project develops a mechanistic SEIR model with a latent serotype switching state to analyze dengue fever outbreaks in Taiwan during 2014–2016. Weekly confirmed case counts are modeled using iterated filtering (IF2) within the POMP framework, implemented in Python via pypomp and JAX. The model incorporates seasonal transmission via covariates, serotype specific transmission effects, and a negative binomial model. A two-stage estimation procedure consisting of a global search over 60 random starts and a local refinement successfully identifies a high likelihood parameter region, with the serotype switching rate omega estimated via MCAP profile maximum likelihood estimate at 0.0392 (95% CI: 0.0123, 0.0434). Probe diagnostics reveal systematic model misfit, particularly in epidemic peak magnitude and overall trend, suggesting the model over predicts outbreak size. Comparison against ARMA and GARCH benchmarks shows the fitted SEIR particle filter achieves a modestly higher log-likelihood than the best GARCH competitor, though the margin is narrow. These results suggest that while the latent serotype mechanism provides a biologically interpretable framework for dengue fever outbreaks, further model refinement is needed to adequately capture the scale and structure of consecutive outbreaks.
+
+# Introduction
+
+## Background
+
+Dengue fever is a mosquito transmitted disease and is not transmissible between humans, but rather can be transmitted from mosquito to mosquito directly or between two mosquitoes via an infected human [@cornellchronicle2018mosquito]. It comes in four serotype strains: DENV1-4. DENV-2 is considered to be the most associated with severe dengue cases [@dinkar2026dengue]. This disease is more common in tropical climates like Taiwan where there were significant outbreaks in 2014, 2015, and 2023 [@taiwancdc_dengue]. It may become more pervasive with environmental changes due to climate change. Since Taiwan is an advanced economy with a robust health system, the death rate due to dengue fever is consistently below 1% [@wei2016characteristics], but learning to model the disease is useful as it could possibly worsen in years to come. This research focuses on the back to back outbreaks of 2014 and 2015.
+
+## Research Questions
+
+We are interested in examining if serotype can effectively simulate dengue outbreaks and how often a dominant serotype switches in a given time frame. To do this, compare simulations from our SEIR model against the observed data of the outbreaks to see if it can reasonably approximate using the disease serotype as a latent state. Also, assessing the serotype switch parameter via profile likelihood is also desired. To further examine the effectiveness of our mechanistic model, we compare against the simpler benchmarks of ARMA and GARCH models.
+
+# Data Aggregation and Interval Selection
+
+Our dataset comes from Kaggle [@taweilo2024kaggle]. We aggregate cases on a weekly level to reflect dengue fever's recovery period of three to eight days [@ligon2005dengue]. This also reduces some of the noise compared with aggregating on a daily interval. The 2014 and 2015 outbreaks are of greater interest to us due to how close together they are. With the possibility of dengue fever becoming more and more common with time, back to back outbreaks could become more frequent and it is important to be prepared. Simply modeling single outbreak every couple of years may not be sufficient for the epidemiological reality in the future.
+
+```{python}
+# import data
+population = np.array([[2000, 22332870], [2001, 22446257], [2002, 22566901], [2003, 22664125], [2004, 22745431],
+    [2005, 22824931], [2006, 22914634], [2007, 23006924], [2008, 23086239], [2009, 23164361], [2010, 23224049],
+    [2011, 23273076], [2012, 23345961], [2013, 23416875], [2014, 23472816], [2015, 23529254], [2016, 23586143],
+    [2017, 23632948], [2018, 23659305], [2019, 23674138], [2020, 23663459], [2021, 23558333], [2022, 23420111],
+    [2023, 23317145], [2024, 23213962]
+])
+population = pd.DataFrame(population, columns=["year", "N"])
+
+dengue = pd.read_csv("dengue.csv")
+
+# interval selection
+full_dates = pd.DataFrame({
+    "Date_Confirmation": pd.date_range(start="2014-01-01", end="2016-05-31", freq="D")
+})
+
+# convert to weekly count
+dengue["Date_Confirmation"] = pd.to_datetime(dengue["Date_Confirmation"], errors="coerce")
+daily_cases = (
+    dengue.groupby("Date_Confirmation", as_index=False)["Number_of_confirmed_cases"]
+    .sum()
+    .sort_values("Date_Confirmation")
+    .reset_index(drop=True)
+)
+daily_cases = (
+    full_dates.merge(daily_cases, on="Date_Confirmation", how="left")
+    .fillna({"Number_of_confirmed_cases": 0})
+    .reset_index(drop=True)
+)
+daily_cases = daily_cases.set_index("Date_Confirmation")
+
+weekly_cases = (
+    daily_cases["Number_of_confirmed_cases"]
+    .resample("W-MON", label="left", closed="left")
+    .sum()
+    .reset_index()
+    .rename(columns={"Date_Confirmation": "week_start", "Number_of_confirmed_cases": "reports"})
+)
+
+# handle imports the same way (if the column exists)
+if "Imported" in dengue.columns:
+    dengue["Imported"] = pd.to_numeric(dengue["Imported"], errors="coerce").fillna(0)
+    daily_imports = (
+        dengue.groupby("Date_Confirmation", as_index=False)["Imported"]
+        .sum()
+        .rename(columns={"Imported": "imports"})
+    )
+    daily_imports["Date_Confirmation"] = pd.to_datetime(daily_imports["Date_Confirmation"])
+    daily_imports = daily_imports.set_index("Date_Confirmation")
+    weekly_imports = (
+        daily_imports["imports"]
+        .resample("W-MON", label="left", closed="left")
+        .sum()
+        .reset_index()
+        .rename(columns={"Date_Confirmation": "week_start"})
+    )
+    weekly_cases = weekly_cases.merge(weekly_imports, on="week_start", how="left")
+    weekly_cases["imports"] = weekly_cases["imports"].fillna(0.0)
+else:
+    weekly_cases["imports"] = 0.0
+
+# visual inspection of time series
+print("First week:", weekly_cases["week_start"].min())
+print("Last week:", weekly_cases["week_start"].max())
+print("Number of weeks:", len(weekly_cases))
+
+plt.plot(weekly_cases["week_start"], weekly_cases["reports"])
+plt.xlabel("Week")
+plt.ylabel("Weekly dengue cases")
+plt.title("Time Series of Weekly Dengue Cases (2014–2016)")
+plt.xticks(rotation=45)
+plt.show()
+```
+
+# Model Setup
+
+## Parameters
+
+SIR model is common in epidemiological studies. Since dengue is not transmitted directly between humans but between mosquitoes [@cornellchronicle2018mosquito], we include $E(t)$ to control the infection time between mosquitoes. The SEIR model we use is based on the simpler SEIR presented in the lectures [@notes531]. Our SEIR included a latent serotype state $K(t)$ and a time variant transmission rate $\beta(t)$ to include effects of seasonality. Specifically, the latent states are:
+
+$$ 
+X(t) = (S(t), E(t), I(t), R(t), H(t), K(t)) 
+$$
+
+where $S(t), E(t), I(t), R(t)$ are the standard susceptible, exposed, infectious, and recovered counts, respectively. $H(t)$ is an accumulator counting new infections in week $t$. $K(t) \in \{1, 2, 3, 4\}$ is a latent indicator representing serotype. The relationship $S(t) + E(t) + I(t) + R(t) \leq N(t)$ holds for all $t$. Also, our serotype state evolves as a Markov chain at each time step.
+
+$$
+P(K_{t+1} = j \mid K_t = i) =
+\begin{cases}
+1 - \omega, & \text{if } j = i \\
+\omega/3, & \text{if } j \neq i
+\end{cases}
+$$
+
+where $\omega \in (0, 1)$ is the weekly rate of serotype switching. We assume equal switching probability, that no serotype is inherently more likely to appear than another. Smaller values of $\omega$ suggest longer dominating periods of one serotype, while larger values would indicated more frequent switching of the dominant serotype.
+
+We use a time dependent baseline transmission rate as dengue fever transmission is driven by mosquito populations, which are seasonal since they depend highly on rainfall and temperature patterns. The transmission rate is given by a seasonal component as well as a serotype specific effect. 
+
+$$
+\log \beta(t) = b_0 + b_1 \sin \left( \frac{2 \pi (t + \phi)}{52.18} \right)
+                    + b_2 \cos \left( \frac{2 \pi (t + \phi)}{52.18} \right)
+                    + b_3 \sin \left( \frac{4 \pi (t + \phi)}{52.18} \right)
+                    + b_4 \cos \left( \frac{4 \pi (t + \phi)}{52.18} \right)
+                    + \kappa_{K_t}
+$$
+
+where $t$ is the week of the year, $\phi = 20$ is a phase offset chosen to align the seasonal cycle with the observed timings of the outbreaks, $52.18$ is the average number of weeks in a year, and $\kappa_k$ is a serotype specific effect with $\kappa_1 = 0$ as the reference level. 
+
+Given that the outbreaks span 2.5 years, we allow time variation in $N(t)$ to account for population change in Taiwan [@unpd2024wpp]. Specifically, the sampling population varies by year:
+
+```{python}
+# population plot
+plt.plot(population["year"], population["N"], marker="o")
+plt.xlabel("Year")
+plt.ylabel("Population")
+plt.title("Population (2000–2024)")
+plt.grid()
+plt.show()
+```
+
+In this research, the effective sample size is $ESS = N(t)\times0.01$.
+
+Stochastic transition equations are drawn over each daily sub-step $\Delta t = 1/7$ week as:
+
+$$
+\begin{aligned}
+\Delta N_{SE} &\sim \text{Binomial} \left( S(t), 1 - e^{- \beta_t I_t/N_t \Delta t} \right) \\
+\Delta N_{EI} &\sim \text{Binomial} \left( E(t), 1 - e^{- \mu_{EI} \Delta t} \right) \\
+\Delta N_{I, R+D} &\sim \text{Binomial} \left( I(t), 1 - e^{- (\mu_{IR} + \mu_{ID}) \Delta t} \right) \\
+\Delta N_{IR} &\sim \text{Binomial} \left( \Delta N_{I, out}, \frac{\mu_{IR}}{\mu_{IR} + \mu_{ID}} \right)\\
+\Delta N_{ID} &= \Delta N_{I, R+D} - \Delta N_{IR}\\
+\end{aligned}
+$$
+
+where $\mu_{EI}$ is the transmission rate from $E(t)$ to $I(t)$, $\mu_{IR}$ is the recovery rate, and $\mu_{ID}$ is the mortality rate from dengue. Under the assumption that recovery and dengue mortality are independent exponential processes, the probability that an individual leaving $I(t)$ recovers rather than dies is given by $\mu_{IR}/(\mu_{IR} + \mu_{ID})$. The state update then is given by:
+
+$$
+\begin{aligned}
+S_{t+1} &= S_t - \Delta N_{SE} \\
+E_{t+1} &= E_t + \Delta N_{SE} - \Delta N_{EI} \\
+I_{t+1} &= I_t + \Delta N_{EI} + \iota_t - \Delta N_{IR} - \Delta N_{ID} \\
+R_{t+1} &= R_t + \Delta N_{IR} \\
+H_{t+1} &= \Delta N_{EI}
+\end{aligned}
+$$
+
+where $\iota_t = \iota_{\text{const}} + \text{imports}_t$ is the weekly flow of infected individuals coming in from outside the modeled population.
+
+At $t = 0$, the susceptible category is initialized as $S_0 = \eta N_0$ where $\eta \in (0,1)$ is the initial proportion of the population that is susceptible. It is treated as a free parameter. This allows the model to take into account prior immunity which is important in the context of Taiwan, as dengue has a long history in the region [@taiwancdc_dengue]. $E_0$ and $I_0$ are also treated as free parameters, and $R_0 = \max (N_0 - S_0 - E_0 - I_0, 0)$. The latent serotype is initialized as serotype DENV-1 ($K_0 = 1$).
+
+Finally, reported weekly case counts $Y_t$ are assumed to follow a negative binomial distrubution conditional on the latent state following from [@notes531]
+
+$$
+Y_t \mid X_t \sim \text{NegBin} (\mu_t, k)
+$$
+
+where
+
+$$
+\mu_t = \max(\rho \times (H + 0.01 \times I), 0.01)
+$$
+
+with $\rho \in (0,1)$ as the reporting probability and $k$ the overdispersion parameter. The $0.01 \times I_t$ term is a floor for when $H_t = 0$ to prevent degeneracy.
+
+```{python}
+# build ys and covariates
+ys = weekly_cases[["week_start", "reports", "imports"]].copy()
+ys["year"] = ys["week_start"].dt.year.astype(int)
+population["year"] = population["year"].astype(int)
+ys = ys.merge(population, on="year", how="left")
+
+# drop any weeks outside 2014–2016 (e.g. late-Dec 2013 ISO weeks)
+ys = ys[ys["year"].isin([2014, 2015, 2016])].reset_index(drop=True)
+ys["time"] = np.arange(len(ys), dtype=float)
+
+# week-of-year for Fourier terms (1–52)
+ys["woy"] = ys["week_start"].dt.isocalendar().week.astype(float)
+
+# seasonal Fourier terms — period is 52.18 weeks per year
+phi = 20
+ys["sin1"] = np.sin(2 * np.pi * (ys["woy"] + phi) / 52.18)
+ys["cos1"] = np.cos(2 * np.pi * (ys["woy"] + phi) / 52.18)
+ys["sin2"] = np.sin(4 * np.pi * (ys["woy"] + phi) / 52.18)
+ys["cos2"] = np.cos(4 * np.pi * (ys["woy"] + phi) / 52.18)
+
+# effective susceptible population (1% scaling)
+ys["N_eff"] = ys["N"] * 0.01
+
+# covariates
+covars = ys[["time", "N_eff", "sin1", "cos1", "sin2", "cos2", "imports"]].copy()
+covars = covars.rename(columns={"N_eff": "N"})
+
+# negative binomial pmf
+def nbinom_logpmf(x, k, mu):
+    x = jnp.asarray(x)
+    k = jnp.asarray(k)
+    mu = jnp.asarray(mu)
+    logp_zero = jnp.where(x == 0, 0.0, -jnp.inf)
+    safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+    core = (
+        jax.scipy.special.gammaln(k + x)
+        - jax.scipy.special.gammaln(k)
+        - jax.scipy.special.gammaln(x + 1)
+        + k * jnp.log(k / (k + safe_mu))
+        + x * jnp.log(safe_mu / (k + safe_mu))
+    )
+    return jnp.where(mu == 0.0, logp_zero, core)
+
+# negative binomial sampling
+def rnbinom(key, k, mu):
+    key_g, key_p = jax.random.split(key)
+    lam = jax.random.gamma(key_g, k) * (mu / k)
+    return jax.random.poisson(key_p, lam)
+
+# initial setup with K being the initial serotype
+def rinit(theta_, key, covars, t0):
+    N0 = covars["N"]
+    eta = theta_["eta"]
+    I0 = theta_["I0"]
+    E0 = theta_["E0"]
+    S0 = jnp.round(N0 * eta)
+    R0 = jnp.maximum(N0 - S0 - E0 - I0, 0.0)
+    H0 = 0.0
+    K0 = jnp.float32(theta_["K0"])
+    return {"S": S0, "E": E0, "I": I0, "R": R0, "H": H0, "K": K0}
+
+# markov process
+def rproc(X_, theta_, key, covars, t, dt):
+    S = X_["S"]
+    E = X_["E"]
+    I = X_["I"]
+    R = X_["R"]
+    H = X_["H"]
+    K = jnp.int32(X_["K"])
+    N_t = covars["N"]
+    imports_t = covars["imports"] + theta_.get("iota", 0.0)
+    sin1 = covars["sin1"]
+    cos1 = covars["cos1"]
+    sin2 = covars["sin2"]
+    cos2 = covars["cos2"]
+    mu_EI = theta_["mu_EI"]
+    mu_IR = theta_["mu_IR"]
+    mu_ID = theta_["mu_ID"]
+    omega = theta_["omega"]
+    kappa = jnp.array([theta_["kappa1"], theta_["kappa2"], theta_["kappa3"], theta_["kappa4"]])
+
+    key_K, key_SE, key_EI, key_IR, key_ID = jax.random.split(key, 5)
+    
+    stay_prob = 1.0 - omega
+    switch_prob = omega / 3.0
+    probs = jnp.full((4,), switch_prob)
+    probs = probs.at[K].set(stay_prob)
+    K_new = jax.random.choice(key_K, jnp.arange(4), p=probs)
+
+    log_beta_base = (theta_["b0"] + theta_["b1"] * sin1 + theta_["b2"] * cos1 + theta_["b3"] * sin2 + theta_["b4"] * cos2)
+    log_beta_t = log_beta_base + kappa[K_new]
+    Beta_t = jnp.exp(log_beta_t)
+
+    p_SE = 1.0 - jnp.exp(-Beta_t * I / N_t * dt)
+    p_EI = 1.0 - jnp.exp(-mu_EI * dt)
+
+    p_total = 1.0 - jnp.exp(-(mu_IR + mu_ID) * dt)
+    p_IR = (mu_IR / (mu_IR + mu_ID)) * p_total
+    p_ID = (mu_ID / (mu_IR + mu_ID)) * p_total
+    p_SE = jnp.clip(p_SE, 0.0, 1.0)
+    p_EI = jnp.clip(p_EI, 0.0, 1.0)
+    p_IR = jnp.clip(p_IR, 0.0, 1.0)
+    p_ID = jnp.clip(p_ID, 0.0, 1.0)
+
+    dN_SE = jax.random.binomial(key_SE, n=jnp.int32(jnp.maximum(S, 0)), p=p_SE)
+    dN_EI = jax.random.binomial(key_EI, n=jnp.int32(jnp.maximum(E, 0)), p=p_EI)
+    dN_leave = jax.random.binomial(key_IR, n=jnp.int32(jnp.maximum(I, 0)), p=p_total)
+    dN_IR = jax.random.binomial(key_IR, n=dN_leave, p=mu_IR / (mu_IR + mu_ID))
+    dN_ID = dN_leave - dN_IR
+
+    S_new = S - dN_SE
+    E_new = E + dN_SE - dN_EI
+    I_new = I + dN_EI + imports_t - dN_IR - dN_ID
+    I_new = jnp.maximum(I_new, 0.0)
+    E_new = jnp.maximum(E_new, 0.0)
+    R_new = R + dN_IR
+    H_new = dN_EI
+
+    return {"S": S_new, "E": E_new, "I": I_new, "R": R_new, "H": H_new, "K": jnp.float32(K_new)}
+
+# measurement density
+def dmeas(Y_, X_, theta_, covars, t):
+    I = X_["I"]
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = jnp.maximum(rho * (H + 0.01 * I), 0.01)   # prevent zero mu caused by H = 0
+    return nbinom_logpmf(Y_["reports"], k, mu)
+
+# resampling density
+def rmeas(X_, theta_, key, covars, t):
+    I = X_["I"]
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = jnp.maximum(rho * (H + 0.01 * I), 0.01)   # prevent zero mu caused by H = 0
+    reports = rnbinom(key, k, mu)
+    return jnp.array([reports])
+```
+
+## Simulation
+
+Based on plug and play model simulations, serotype appears to be able to simulate the dengue outbreaks effectively. The $\kappa$ values are derived from the data as serotypes one and two are equally dominant in quantity compared to serotypes three and four, which are far less common. The values of $\kappa_3$ and $\kappa_4$ are exponentially transformed proportionally to the baseline of $\kappa_1 = \kappa_2 = 0$. The simulations are as follow:
+
+```{python}
+# simulation POMP model parameters
+theta = {
+   "mu_EI": 1/4,    # justified, rate from compartment E to I
+   "mu_IR": 1/4,    # justified, rate from compartment I to R
+   "mu_ID": 0.002,  # justified death rate
+
+   "kappa1": 0.0,   # transmission rate of serotype 1, 0.0 is reference level
+   "kappa2": 0.0,   # transmission rate of serotype 2, equally donminated in the data as serotype 1
+   "kappa3": -1.2,  # transmission rate of serotype 3, calculated base on ratio to serotype 1
+   "kappa4": -2.3,  # transmission rate of serotype 4, calculated base on ratio to serotype 1
+
+   "I0": 400.0,  # initial compartment I, doesn't matter much if small
+   "E0": 400.0,  # initial compartment E, doesn't matter much if small
+   "K0": 0.0,  # initial latent serotype state
+
+   "eta": 0.90,    # initial susceptible pool proportion
+   "b0": -0.6,     # intercept (baseline transmission)
+   "b1":  1.6,    # coefficient for sin 1 (control the timing and broad annual pattern of peaks)
+   "b2":  1.6,    # coefficient for cos 1 (control the timing and broad annual pattern of peaks)
+   "b3":  0.1,   # coefficient for sin 2 (fine-tune the shape of the seasonal curve)
+   "b4":  0.1,   # coefficient for cos 2 (fine-tune the shape of the seasonal curve)   
+
+   "iota": 0.03,   # constant background trickle of infected importations
+   "omega": 0.01,  # frequency of latent serotype switches
+   "rho": 0.65,    # reporting probability
+   "k": 40.0       # controls overdispersion in reported counts
+}
+
+statenames = ["S", "E", "I", "R", "H", "K"]
+
+# POMP model implementation
+statenames = ["S", "E", "I", "R", "H", "K"]
+seir_obj = pp.Pomp(
+    rinit=rinit,
+    rproc=rproc,
+    dmeas=dmeas,
+    rmeas=rmeas,
+    ys=ys[["time", "reports"]],
+    theta=theta,
+    statenames=statenames,
+    t0=0.0,
+    nstep=7,
+    accumvars=("H",),
+    ydim=1,
+    covars=covars
+)
+
+key = jax.random.key(42977895)
+X_sims, Y_sims = seir_obj.simulate(key=key, nsim=20)
+sim_df = Y_sims.pivot_table(index="time", columns="sim", values="obs_0")
+k_df = X_sims.pivot_table(index="time", columns="sim", values="state_5")
+
+# plot the simulation
+plt.figure(figsize=(10, 6))
+for col in sim_df.columns:
+    plt.plot(sim_df.index, sim_df[col], color="red", alpha=0.25)
+
+plt.plot(ys["time"], ys["reports"], color="black", linewidth=2)
+plt.xlabel("Time (weeks)")
+plt.ylabel("Reported dengue cases")
+plt.title("SEIR model with latent serotype state K (2014–2016)")
+plt.show()
+```
+
+# Particle Filter
+
+## Local and Global Search of Parameters
+
+Our baseline log-likelihood before filtering is:
+
+```{python}
+# build POMP object
+def make_pomp(theta_input):
+    return pp.Pomp(
+        rinit=rinit,
+        rproc=rproc,
+        dmeas=dmeas,
+        rmeas=rmeas,
+        ys=ys[["time", "reports"]],
+        theta=theta_input,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=covars
+    )
+
+# baseline particle-filter likelihood
+RL = 2   # 0, 1, 2
+
+pf_particles = [500, 1000, 1500][RL]
+pf_reps      = [3, 5, 10][RL]
+
+mod0 = make_pomp(theta.copy())
+key = jax.random.key(1155157925)
+mod0.pfilter(key=key, J=pf_particles, reps=pf_reps)
+
+pf0 = mod0.results_history.last()
+loglik0 = logmeanexp(pf0.logLiks.values[0, :])
+print(f"Baseline log-likelihood: {loglik0:.2f}")
+
+# random-walk perturbation scales for IF2 (only perturb estimable parameters)
+rw_sd = pp.RWSigma(
+    sigmas={
+        "mu_EI": 0.01,
+        "mu_IR": 0.01,
+        "mu_ID": 0.001,
+        "eta": 0.02,
+        "b0": 0.03,
+        "b1": 0.03,
+        "b2": 0.03,
+        "b3": 0.02,
+        "b4": 0.02,
+        "omega": 0.002,
+        "rho": 0.02,
+        "kappa1": 0.0,
+        "kappa2": 0.0,
+        "kappa3": 0.02,
+        "kappa4": 0.02,
+        "iota": 0.0,
+        "k": 0.0,
+        "I0": 0.0,
+        "E0": 0.0,
+        "K0": 0.0
+    },
+    init_names=["eta"]
+)
+```
+
+The local search shows log-likelihood chains converging quite rapidly, within the first 20 iterations and stabilizing relatively near zero, given the scale. As for specific parameters, $\eta$, $\mu_{EI}$, and $\mu_{ID}$ appear the hardest to identify. The rest show some degree of convergence to a tighter range of values. The parameters involved in $\beta(t)$ largely converge and can be well identified based on this search. $\kappa_1$ and $\kappa_2$ are fixed to represent already known rates of prevalence for serotypes one and two, the main serotypes of interest. The log-likelihood obtained from the local search is:
+
+```{python}
+# local IF2 search from same starting point
+J_local = [200, 1000, 3000][RL]
+M_local = [20, 50, 100][RL]
+n_local = [5, 10, 20][RL]
+
+starts_local = [theta.copy() for _ in range(n_local)]
+mod_local = make_pomp(starts_local)
+
+key = jax.random.key(482947940)
+t0 = time.time()
+mod_local.mif(J=J_local, M=M_local, rw_sd=rw_sd, a=0.5, key=key)
+local_result = mod_local.results_history.last()
+elapsed = time.time() - t0
+
+final_logliks = local_result.traces_da.sel(variable="logLik").values[:, -1]
+print(f"Best final IF2 logLik = {final_logliks.max():.2f}")
+print(f"Mean final IF2 logLik = {final_logliks.mean():.2f}")
+
+# local IF2 convergence trace plot
+traces = local_result.traces_da
+n_reps = traces.sizes["theta_idx"]
+param_names = [v for v in traces.coords["variable"].values if v != "logLik"]
+
+params_to_plot = [
+    "logLik", "mu_EI", "mu_IR", "mu_ID", "eta",
+    "b0", "b1", "b2", "b3", "b4",
+    "omega", "rho", "kappa1", "kappa2", "kappa3", "kappa4"
+]
+params_to_plot = [p for p in params_to_plot if p == "logLik" or p in param_names]
+
+n_col = 4
+n_row = 4
+
+fig, axes = plt.subplots(n_row, n_col, figsize=(14, 4*n_row), gridspec_kw={"hspace": 0.45})
+axes = axes.flatten()
+
+for ax, p in zip(axes, params_to_plot):
+    for r in range(n_reps):
+        if p == "logLik":
+            vals = traces.sel(variable="logLik").values[r, :]
+        else:
+            vals = traces.isel(theta_idx=r).sel(variable=p).values
+        ax.plot(vals, alpha=0.6, linewidth=0.9)
+    ax.set_title(p)
+    ax.set_xlabel("IF2 iteration")
+
+for ax in axes[len(params_to_plot):]:
+    ax.set_visible(False)
+
+plt.suptitle("Dengue latent-serotype SEIR — local IF2 convergence traces", y=1.01)
+plt.show()
+```
+
+The global search has noisier log-likelihood with less convincing convergence. Chains span a wide range and are volatile over 100 iterations. $\mu_{EI}$, $\mu_{ID}$, $\eta$, and $\rho$ are difficult to identify.
+
+```{python}
+# global IF2 search from random starts
+rng = np.random.default_rng(20260418)
+
+def random_start(rng):
+    th = theta.copy()
+    th.update({
+        "mu_EI": float(rng.uniform(1/7, 1/2)),
+        "mu_IR": float(rng.uniform(1/7, 1/2)),
+        "mu_ID": float(rng.uniform(0.001, 0.003)),
+        "eta": float(rng.uniform(0.05, 0.8)),
+        "b0": float(rng.uniform(-3.0, 0.0)),
+        "b1": float(rng.uniform(0.2, 2.0)),
+        "b2": float(rng.uniform(0.2, 2.0)),
+        "b3": float(rng.uniform(0.0, 1.5)),
+        "b4": float(rng.uniform(0.0, 1.5)),
+        "omega": float(rng.uniform(0.0005, 0.02)),
+        "rho": float(rng.uniform(0.02, 0.7)),
+        "kappa3": float(rng.uniform(-2.5, 0.0)),
+        "kappa4": float(rng.uniform(-3.5, -0.2)),
+    })
+    return th
+
+J_global = [200, 1000, 3000][RL]
+M_global = [20, 50, 100][RL]
+n_global = [10, 30, 60][RL]
+
+starts_global = [random_start(rng) for _ in range(n_global)]
+mod_global = make_pomp(starts_global)
+
+key = jax.random.key(314159265)
+mod_global.mif(J=J_global, M=M_global, rw_sd=rw_sd, a=0.5, key=key)
+global_result = mod_global.results_history.last()
+
+# global IF2 convergence trace plot
+g_traces = global_result.traces_da
+g_n_reps = g_traces.sizes["theta_idx"]
+g_param_names = [v for v in g_traces.coords["variable"].values if v != "logLik"]
+
+g_params_to_plot = [
+    "logLik", "mu_EI", "mu_IR", "mu_ID", "eta",
+    "b0", "b1", "b2", "b3", "b4",
+    "omega", "rho", "kappa1", "kappa2", "kappa3", "kappa4"
+]
+g_params_to_plot = [p for p in g_params_to_plot if p == "logLik" or p in g_param_names]
+
+g_n_col = 4
+g_n_row = 4
+
+fig, axes = plt.subplots(g_n_row, g_n_col, figsize=(14, 4 * g_n_row), gridspec_kw={"hspace": 0.45})
+axes = axes.flatten()
+
+for ax, p in zip(axes, g_params_to_plot):
+    for r in range(g_n_reps):
+        if p == "logLik":
+            vals = g_traces.sel(variable="logLik").values[r, :]
+        else:
+            vals = g_traces.isel(theta_idx=r).sel(variable=p).values
+        ax.plot(vals, alpha=0.5, linewidth=0.9)
+    ax.set_title(p)
+    ax.set_xlabel("IF2 iteration")
+
+for ax in axes[len(g_params_to_plot):]:
+    ax.set_visible(False)
+
+plt.suptitle("Dengue latent-serotype SEIR — global IF2 convergence traces", y=1.01)
+plt.show()
+```
+
+The best global search parameters and log-likelihood are:
+
+```{python}
+# evaluate global-search endpoints with particle filter
+g_traces = global_result.traces_da
+g_pvars = [v for v in g_traces.coords["variable"].values if v != "logLik"]
+
+rows = []
+for r in range(n_global):
+    th = {
+        p: float(g_traces.isel(theta_idx=r, iteration=-1).sel(variable=p).values)
+        for p in g_pvars
+    }
+    for k, v in theta.items():
+        th.setdefault(k, v)
+
+    mod_r = make_pomp(th)
+    key_r = jax.random.key(r + 77777)
+    mod_r.pfilter(key=key_r, J=pf_particles, reps=pf_reps)
+    pf_r = mod_r.results_history.last()
+    ll_r = logmeanexp(pf_r.logLiks.values[0, :])
+
+    rows.append(dict(th, loglik=ll_r))
+
+results_df = pd.DataFrame(rows)
+best_row = results_df.loc[results_df["loglik"].idxmax()]
+best_ll = best_row["loglik"]
+print(best_row.to_string())
+```
+
+From the scatter plots, $\mu_{EI}$ against other parameters have bimodal scatters, with one group very near zero and the other taking higher values. $\rho$ has a very left skewed histogram, indicating a low reporting rate. $\omega$ is also clustered near zero which could be a sign of some difficulty with identifiability.
+
+```{python}
+# global-search scatterplot matrix
+params_plot = ["mu_EI", "mu_IR", "eta", "b0", "rho", "omega"]
+n = len(params_plot)
+
+fig, axes = plt.subplots(n, n, figsize=(11, 11))
+
+for i, py in enumerate(params_plot):
+    for j, px in enumerate(params_plot):
+        ax = axes[i, j]
+        if i == j:
+            ax.hist(results_df[px], bins=15, color="steelblue", edgecolor="white")
+        else:
+            ax.scatter(
+                results_df[px], results_df[py],
+                c=results_df["loglik"], cmap="viridis",
+                s=25, alpha=0.75
+            )
+        if j == 0:
+            ax.set_ylabel(py)
+        if i == n - 1:
+            ax.set_xlabel(px)
+
+plt.suptitle("Dengue SEIR global search — final parameter estimates", y=1.01)
+plt.tight_layout()
+plt.show()
+```
+
+The high variance in the results of the global search still indicates some uncertainty. Our local search obtained better convergence results likely thanks to refined starting values. The higher run level improved some chain stability, although the variance in the log likelihood traces in the global search remains a challenge due to occasional small $H(t)$.
+
+## Profile Likelihood for $\omega$
+
+We take a profile over $\omega$ as it is a parameter of interest in the serotype analysis. The profile likelihood plot for $\omega$ shows relatively higher log-likelihood between 0.02 and 0.04. It does not have a strong shape, suggesting that $\omega$ is difficult to identify. The non-identifiability of $\omega$ is consistent with the results of our local and global parameter search, where it converged to small values with some variability between chains.
+
+```{python}
+# profile likelihood for omega + likelihood slide + MLE and CI
+omega_grid = np.linspace(0.001, 0.05, [5, 10, 15][RL])
+n_starts_prof = [2, 5, 8][RL]
+
+rw_sd_prof = pp.RWSigma(
+    sigmas={
+        "mu_EI": 0.01,
+        "mu_IR": 0.01,
+        "mu_ID": 0.0,
+        "eta": 0.02,
+        "b0": 0.03,
+        "b1": 0.03,
+        "b2": 0.03,
+        "b3": 0.02,
+        "b4": 0.02,
+        "omega": 0.0,         # fixed in profile
+        "rho": 0.02,
+        "kappa1": 0.0,
+        "kappa2": 0.0,
+        "kappa3": 0.02,
+        "kappa4": 0.02,
+        "iota": 0.0,
+        "k": 0.0,
+        "I0": 0.0,
+        "E0": 0.0,
+        "K0": 0.0
+    },
+    init_names=["eta"]
+)
+
+top_global = results_df.nlargest(n_starts_prof * 2, "loglik")
+profile_rows = []
+
+for omega_val in omega_grid:
+    theta_list = []
+    for _, row in top_global.head(n_starts_prof).iterrows():
+        th = row.drop(labels=[c for c in ["loglik", "logLik"] if c in row.index]).to_dict()
+        th["omega"] = float(omega_val)
+        theta_list.append(th)
+
+    mod_prof = make_pomp(theta_list)
+    key_p = jax.random.key(int(omega_val * 1e6))
+    mod_prof.mif(J=J_global, M=M_global, rw_sd=rw_sd_prof, a=0.5, key=key_p)
+    prof_res = mod_prof.results_history.last()
+
+    p_pvars = [v for v in prof_res.traces_da.coords["variable"].values if v != "logLik"]
+
+    for s in range(n_starts_prof):
+        th_s = {
+            p: float(prof_res.traces_da.isel(theta_idx=s, iteration=-1).sel(variable=p).values)
+            for p in p_pvars
+        }
+        for k, v in theta.items():
+            th_s.setdefault(k, v)
+        th_s["omega"] = float(omega_val)
+
+        mod_s = make_pomp(th_s)
+        key_s = jax.random.key(int(omega_val * 1e6) + s)
+        mod_s.pfilter(key=key_s, J=pf_particles, reps=pf_reps)
+        pf_s = mod_s.results_history.last()
+        ll_s = logmeanexp(pf_s.logLiks.values[0, :])
+
+        profile_rows.append({
+            "omega": float(omega_val),
+            "loglik": ll_s
+        })
+
+profile_omega_df = pd.DataFrame(profile_rows)
+
+mcap_omega = pp.mcap(
+    parameter=profile_omega_df["omega"].values,
+    loglik=profile_omega_df["loglik"].values,
+    level=0.95,
+    span=0.4
+)
+
+max_ll_omega = profile_omega_df["loglik"].max()
+ci_cutoff = max_ll_omega - 0.5 * chi2.ppf(0.95, df=1)
+
+top_omega = (
+    profile_omega_df
+    .groupby(profile_omega_df["omega"].round(6))
+    .apply(lambda g: g.nlargest(2, "loglik"), include_groups=False)
+    .reset_index(drop=True)
+)
+
+fig, ax = plt.subplots(figsize=(7, 4.8))
+
+ax.scatter(
+    profile_omega_df["omega"],
+    profile_omega_df["loglik"],
+    alpha=0.5,
+    s=25,
+    label="raw profile evaluations"
+)
+
+omega_fine = np.linspace(
+    profile_omega_df["omega"].min(),
+    profile_omega_df["omega"].max(),
+    200
+)
+
+try:
+    from scipy.interpolate import UnivariateSpline
+    env = top_omega.sort_values("omega")
+    spl = UnivariateSpline(env["omega"], env["loglik"], s=len(env) * 2)
+    ax.plot(
+        omega_fine,
+        spl(omega_fine),
+        linewidth=2,
+        label="smoothed profile"
+    )
+except Exception:
+    pass
+
+ax.axhline(
+    ci_cutoff,
+    linestyle="--",
+    linewidth=1.5,
+    label=f"95% cutoff = {ci_cutoff:.2f}"
+)
+
+ax.axvline(
+    mcap_omega.mle,
+    linestyle=":",
+    linewidth=1.5,
+    label=f"MLE = {mcap_omega.mle:.4f}"
+)
+
+if mcap_omega.ci is not None and None not in mcap_omega.ci:
+    ax.axvspan(
+        mcap_omega.ci[0],
+        mcap_omega.ci[1],
+        alpha=0.12,
+        label=f"95% CI = ({mcap_omega.ci[0]:.4f}, {mcap_omega.ci[1]:.4f})"
+    )
+
+ax.set_title("Profile likelihood for omega")
+ax.set_xlabel("omega")
+ax.set_ylabel("Profile log-likelihood")
+ax.set_xlim(0.005, 0.05)
+ymax = profile_omega_df["loglik"].max()
+ax.set_ylim(ymax - 100, ymax + 20)
+ax.legend(fontsize=8)
+
+plt.tight_layout()
+plt.show()
+print("MCAP omega MLE:", mcap_omega.mle)
+print("MCAP omega CI :", mcap_omega.ci)
+```
+
+The profile suggests around 4% chance per week of switching serotype, or an average dominant period of 25 weeks. The lower bound of the interval corresponds to a switch every 80 weeks, and the upper bound to a switch every 23 weeks.
+
+# Model Diagnostics
+
+## Probes Distribution
+
+The growth rate probe suggests that our parameter region is somewhat far from the parameter region that would actually generate the data. With the histogram centered on negative values and the target statistic being positive. The residual standard deviation probe shows that the model appears to underestimate the noise in the data. It is also right skewed compared to the true value, although not terribly far. Epidemic peaks created by our simulations are also too large compared simulated data.
+
+```{python}
+# choose fitted parameter vector
+best_theta = best_row.drop(labels=[c for c in ["loglik", "logLik"] if c in best_row.index], errors="ignore").to_dict()
+for k, v in theta.items():
+    best_theta.setdefault(k, v)
+
+mod_best = make_pomp(best_theta)
+
+# selected probe diagnostics only
+def growth_rate(df):
+    y = df.iloc[:, 0].values
+    y_safe = np.maximum(y, 0.5)
+    log_y = np.log(y_safe)
+    t = np.arange(len(y))
+    mask = np.isfinite(log_y)
+    if mask.sum() < 2:
+        return np.nan
+    t_m, y_m = t[mask], log_y[mask]
+    return float(np.cov(t_m, y_m)[0, 1] / np.var(t_m))
+
+def residual_sd(df):
+    y = df.iloc[:, 0].values
+    y_safe = np.maximum(y, 0.5)
+    log_y = np.log(y_safe)
+    t = np.arange(len(y))
+    mask = np.isfinite(log_y)
+    if mask.sum() < 2:
+        return np.nan
+    t_m, y_m = t[mask], log_y[mask]
+    slope = np.cov(t_m, y_m)[0, 1] / np.var(t_m)
+    intercept = y_m.mean() - slope * t_m.mean()
+    resid = y_m - (slope * t_m + intercept)
+    return float(np.std(resid))
+
+def acf_1(df):
+    y = np.maximum(df.iloc[:, 0].values, 0.5)
+    x = np.log(y)
+    x = x - x.mean()
+    if len(x) < 2 or np.var(x) == 0:
+        return 0.0
+    return float(np.corrcoef(x[:-1], x[1:])[0, 1])
+
+def peak_size(df):
+    y = df.iloc[:, 0].values
+    return float(np.max(y))
+
+probes = {
+    "growth_rate": growth_rate,
+    "residual_sd": residual_sd,
+    "ACF1": acf_1,
+    "peak_size": peak_size,
+}
+
+key_probe = jax.random.key(887851050)
+X_probe, Y_probe = mod_best.simulate(key=key_probe, nsim=500)
+
+obs_df = ys[["reports"]].copy()
+sim_wide = Y_probe.pivot_table(index="time", columns="sim", values="obs_0")
+
+rows = []
+
+for name, fn in probes.items():
+    rows.append({
+        "probe": name,
+        "value": fn(obs_df),
+        "is_real_data": True,
+        "sim": -1
+    })
+
+for sim_id in sim_wide.columns:
+    sim_df = pd.DataFrame({"reports": sim_wide[sim_id].values})
+    for name, fn in probes.items():
+        rows.append({
+            "probe": name,
+            "value": fn(sim_df),
+            "is_real_data": False,
+            "sim": int(sim_id)
+        })
+
+probe_df = pd.DataFrame(rows)
+
+data_vals = probe_df[probe_df["is_real_data"] == True]
+sim_vals = probe_df[probe_df["is_real_data"] == False]
+
+print("Probe results:")
+for name in ["growth_rate", "residual_sd", "ACF1", "peak_size"]:
+    dv = float(data_vals.loc[data_vals["probe"] == name, "value"].iloc[0])
+    sv = sim_vals.loc[sim_vals["probe"] == name, "value"]
+    p_lo = float(np.mean(sv <= dv))
+    p_two = float(2 * min(p_lo, 1 - p_lo))
+    print(f"{name:12s} data={dv:10.4f}  sim_mean={sv.mean():10.4f}  p~={p_two:7.3f}")
+
+# histogram panels for selected probe diagnostics
+probe_names = ["growth_rate", "residual_sd", "ACF1", "peak_size"]
+ncol = 2
+nrow = (len(probe_names) + ncol - 1) // ncol
+
+fig, axes = plt.subplots(nrow, ncol, figsize=(10, 4.5 * nrow))
+axes = axes.flatten()
+
+for ax, name in zip(axes, probe_names):
+    sv = sim_vals.loc[sim_vals["probe"] == name, "value"].values
+    dv = float(data_vals.loc[data_vals["probe"] == name, "value"].iloc[0])
+    ax.hist(sv, bins=25, alpha=0.8)
+    ax.axvline(dv, linestyle="--", linewidth=2)
+    ax.set_title(name)
+
+for ax in axes[len(probe_names):]:
+    ax.set_visible(False)
+
+plt.suptitle("Probe diagnostics for dengue SEIR model", y=1.01)
+plt.tight_layout()
+plt.show()
+```
+
+## Comparison
+
+We fit a number of simpler ARMA and GARCH models to compare against our SEIR particle filter. Log-likelihood results from a selection of these models (ARMA at (1,0), (1,1), (2,0), (2,1), and (2,2) and constant-GARCH(1,1), zero-GARCH(1,1), and AR(1)-GARCH(1,1)) show that our particle filter only performs slightly better than the benchmark results, although provides some improvement on the log-likelihood results from the selections. The addition of the serotype latent state in our SEIR particle filter does not appear to be as helpful in capturing the dynamics of the twin 2014 and 2015 outbreaks as we had hoped. While the GARCH models perform reasonably well without the inclusion of additional epidemiological components like serotype or population demographics in the SEIR particle filter.
+
+```{python}
+# observed weekly reports
+y_bench = ys["reports"].astype(float).to_numpy()
+
+benchmark_rows = []
+
+# SEIR fitted model log-likelihood
+benchmark_rows.append({
+    "model": "SEIR (particle filter)",
+    "loglik": float(best_ll),
+    "n_params": len([c for c in best_row.index if c not in ["loglik", "logLik"]]),
+    "aic": np.nan,
+    "bic": np.nan
+})
+
+# ARMA benchmarks on raw counts
+arma_orders = [(1, 0), (2, 0), (1, 1), (2, 1), (2, 2)]
+arma_fits = []
+
+for p, q in arma_orders:
+    try:
+        fit = ARIMA(y_bench, order=(p, 0, q), trend="c").fit()
+        arma_fits.append({
+            "model": f"ARMA({p},{q}) on raw counts",
+            "loglik": float(fit.llf),
+            "n_params": int(len(fit.params)),
+            "aic": float(fit.aic),
+            "bic": float(fit.bic)
+        })
+    except Exception as e:
+        print(f"ARMA({p},{q}) failed: {e}")
+
+benchmark_rows.extend(arma_fits)
+
+# GARCH benchmarks with no log transform
+if has_arch:
+    y_garch_raw = y_bench.copy()      # version 1: raw counts
+    y_garch_diff = np.diff(y_bench)   # version 2: differenced raw counts, usually more stable for GARCH
+
+    garch_specs = [
+        ("raw counts", y_garch_raw, {"mean": "Constant", "vol": "GARCH", "p": 1, "q": 1}),
+        ("raw counts", y_garch_raw, {"mean": "AR", "lags": 1, "vol": "GARCH", "p": 1, "q": 1}),
+        ("diff raw counts", y_garch_diff, {"mean": "Zero", "vol": "GARCH", "p": 1, "q": 1}),
+        ("diff raw counts", y_garch_diff, {"mean": "AR", "lags": 1, "vol": "GARCH", "p": 1, "q": 1}),
+    ]
+
+    for data_label, series, spec in garch_specs:
+        try:
+            am = arch_model(
+                series,
+                mean=spec["mean"],
+                lags=spec.get("lags", 0),
+                vol=spec["vol"],
+                p=spec["p"],
+                q=spec["q"],
+                dist="normal",
+                rescale=False
+            )
+            res = am.fit(disp="off")
+
+            benchmark_rows.append({
+                "model": (
+                    f"{spec['mean']}"
+                    + (f"({spec['lags']})" if "lags" in spec else "")
+                    + f"-GARCH({spec['p']},{spec['q']}) on {data_label}"
+                ),
+                "loglik": float(res.loglikelihood),
+                "n_params": int(len(res.params)),
+                "aic": float(res.aic),
+                "bic": float(res.bic)
+            })
+        except Exception as e:
+            print(f"GARCH benchmark failed for {spec} on {data_label}: {e}")
+
+# combine results
+benchmark_df = pd.DataFrame(benchmark_rows)
+print("\nLikelihood comparison:")
+print(
+    benchmark_df.sort_values("loglik", ascending=False)
+    .to_string(index=False)
+)
+
+# bar plot of log-likelihoods
+plot_df = benchmark_df.sort_values("loglik", ascending=True).copy()
+
+plt.figure(figsize=(10, 6))
+plt.barh(plot_df["model"], plot_df["loglik"])
+plt.xlabel("Log-likelihood")
+plt.ylabel("Model")
+plt.title("Likelihood comparison: fitted SEIR vs benchmark models")
+plt.tight_layout()
+plt.show()
+```
+
+# Conclusion
+
+Our model has some significant challenges. The difficulty in the log-likelihood convergence for certain parameters during the global search suggests that further use could have been made of more profile likelihoods to confirm weak identification, or trying some kind of reformulation of the model. Another problem is the degenerate results occasionally produced by the model when $H(t) = 0$. Due to this numerical problem, we introduced a clamp on $\mu$ in our $\texttt{dmeas}$ and $\texttt{rmeas}$ of $\mu = \max (\rho (H(t) + 0.01 I(t)), 0.01)$ where 0.01 is a floor for numerical stability. This guarantees that an observation stays well defined even in weeks where $H(t) = 0$, but at the cost of approximation to the negative binomial likelihood in lower transmission periods. This construction could be creating unreliable log-likelihood values.
+
+This SEIR model was unable to model the data particularly well. The parameters given to us by the local and global parameters searches did not reflect the magnitude of the epidemic peaks well.
+
+
+# References Statement {.unnumbered}
+
+ChatGPT and Claude were used in the coding process. No other sources beyond those mentioned were used.
+
+# Bibliography {.unnumbered}
+
+::: {#refs}
+:::

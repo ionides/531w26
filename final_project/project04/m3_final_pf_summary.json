@@ -1,0 +1,31 @@
+{
+  "model": "M3",
+  "J_eval": 20000,
+  "reps": 20,
+  "seed": 999,
+  "theta_source": "Run1_chain9_m3_J5000_job48303845",
+  "theta": {
+    "a": 0.2699179020540382,
+    "b_mean": 0.921483295761111,
+    "c_env": -0.003504511075473559,
+    "phi_E": 0.6750538715229903,
+    "log_sigma_p": -1.3188478211797796,
+    "log_sigma_o": -2.8837646992505492,
+    "log_sigma_E": -1.3374313352844467,
+    "log_sigma_S": -2.146454101716698,
+    "log_sigma_b": -4.599910792054781
+  },
+  "mean_ll": -145.81299910907524,
+  "sd_ll": 4.7944424888811,
+  "se_mean_ll": 1.0720699319351419,
+  "ci95_lower": -147.9142561756681,
+  "ci95_upper": -143.71174204248237,
+  "min_ll": -153.7498704085701,
+  "max_ll": -137.64226233549792,
+  "ess_min_global": 1.0025141767973451,
+  "ess_median_global": 1765.9777429239198,
+  "n_reps_ess_eq1": 14,
+  "runtime_s": 32.2,
+  "out_dir": "/home/dislam/m3_runs/m3_finalpf_J20k_job48325107",
+  "note": "Final PF for TMB comparison. Theta = IF2 MLE from Run1/chain9. log_sigma_b fixed at -4.6 (sigma_b=0.01 logit scale) \u2014 must match TMB. Use mean_ll +/- 1.96*se_mean_ll as the reported PF LL with uncertainty."
+}

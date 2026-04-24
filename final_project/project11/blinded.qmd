@@ -1,0 +1,1157 @@
+---
+title: "STATS 531 - Final Project"
+output: pdf_document
+bibliography: references.bib
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{amsmath}
+number-sections: true
+jupyter: python3
+---
+
+
+# Introduction
+
+Influenza, particularly with respect to the state of Florida, is a contagious respiratory illness caused by viruses that infect tissues in the nose, throat, and lungs [@cdc_flu_about]. While preventable by vaccine, it causes mild to severe illness, and even death. Influenza has many unique characteristics for which concepts have been modeled in time series. Adults infect others up to one day before symptoms begin; simulation based inference for epidemiological dynamics have components, such as the Exposed compartment in the SEIR model, that handle this. In this report, we provide a comprehensive overview of time series models, from autoregressive models to state models such as partially observable markov processes, that simulates the spread of influenza in the state of Florida over the weeks of a year from 2015 to 2026; we compare likelihoods of these models and run a likelihood ratio test to determine if complexities significantly improve fit, and determine which time series model is the best for influenza in Florida. Florida sits at a population of approximately 23 million people. We obtain the total number of influenza cases per week from the Florida Influenza Surveillance reports as per FloridaHealth.gov, and conduct analysis from there [@florida_influenza_surveillance]. 
+
+# Exploratory Data Analysis
+
+The impact of time series on scientific analysis spans a large list of diverse fields in which time series problems arise. Social scientists follow population series, while an epidemiologist studies the number of influenza cases observed over some time period [@shumway2000]. Characteristics of the time and frequency domain approaches provide insight to how the number of influenza cases relate to the previous lags in the series and how the cycles of influenza cases can be represted; these are critical insights. The table below shows time series data of influenza cases in Florida during the 2015 to 2026 time period. Understanding the characteristics of influenza on a time series plot gives us information as how much points depend on each other, the stationarity of the data, and other features.
+
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+data = pd.read_csv("/Users/darklizard979/531_final_project/FluViewPhase2Data/ICL_NREVSS_Clinical_Labs.csv")
+time_series = data['TOTAL SPECIMENS']
+
+fig, ax = plt.subplots(figsize=(10, 1))
+line, = ax.plot(time_series, label="Influenza Cases")
+img = mpimg.imread("florida.png")
+imagebox = OffsetImage(img, zoom=0.05)
+ab = AnnotationBbox(imagebox, (0.75, 0.7), xycoords='axes fraction', frameon=False)
+ax.add_artist(ab)
+ax.set_title("US Influenza By Week - 2015-2026")
+ax.set_ylabel("Number of cases")
+ax.legend()
+
+plt.show()
+```
+
+Autocorrelation is defined as $\rho(s, t) = \frac{\gamma(s, t)}{\sqrt{\gamma(s, s)  \gamma(t, t)}}$ and measures the linear predictability of the time series [@shumway2000]. We see in the Autocorrelation plot below that the predictability of a point in the time series decreases as time goes on; it is easy to obtain a good prediction of the next 5 lags when dealing with influenza cases in Florida, but the subsequent predictions become harder. We show a probability density function of influenza cases in Florida below that reveals most magnitudes per week lie between 0 and 1000.
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 3)) 
+
+data = pd.read_csv("/Users/darklizard979/531_final_project/FluViewPhase2Data/ICL_NREVSS_Clinical_Labs.csv")
+time_series = data['TOTAL SPECIMENS']
+
+plot_acf(time_series, ax=axes[0])
+axes[0].set_xlabel('Lag t')
+axes[0].set_ylabel('Autocorrelation $\gamma_{x}(0,t)$')
+axes[0].set_title('Influenza Autocorrelation Function By the Week 2015-2025')
+
+axes[1].hist(time_series, bins=50, edgecolor='black', color = '#000066')
+axes[1].set_title('Histogram of Influenza cases per Week')
+axes[1].set_xlabel(r'Influenza Cases Return: $\sigma$ = {:.4f}'.format(time_series.std()))
+axes[1].set_ylabel('Frequency')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+
+## Spectral Analysis
+Spectral Analysis looks at the influenza cases problem with respect to the frequency domain [@shumway2000]. How do we represent influenza outbreaks as cycles? What is the dominant frequency of influenza cases per week? We graph a periodogram below that shows the spectral density, measured as $\lambda(\omega) = \int_{\infty}^{-\infty} \gamma(x) e^{-2\pi i \omega x}$ [@ionides2026a]. The most common oscillation of high to low influenza cases is 0.0055, which is a period of 181.67. The Periodogram shows us that this is the most common period, as spectral density falls to only half as much shortly after. The benefit of solving the problem in the frequency domain is that we can see influenza waves oscillate over a period of 181 days. 
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.arima_process import ArmaProcess
+from statsmodels.tsa.arima.model import ARIMA
+from scipy.signal import welch
+from scipy.stats import chi2
+
+data = pd.read_csv("/Users/darklizard979/531_final_project/FluViewPhase2Data/ICL_NREVSS_Clinical_Labs.csv")
+time_series = data['TOTAL SPECIMENS']
+
+nperseg = len(time_series)
+frequencies, psd = welch(time_series.to_numpy(), fs=1, nperseg=nperseg)
+
+idx_max = np.argmax(psd)
+dom_freq = frequencies[idx_max]
+dom_psd = psd[idx_max]
+
+plt.figure(figsize=(10, 3))
+plt.semilogy(frequencies, psd)
+plt.axvline(dom_freq, color='red', linestyle='--', 
+            label=f'Dominant freq = {dom_freq:.3f}')
+plt.scatter(dom_freq, dom_psd, color='red')
+plt.xlabel("Frequency")
+plt.ylabel("Spectral Density")
+plt.title("(Welch) Spectral Density of Influenza cases")
+plt.show()
+
+
+```
+
+# Regression Model with ARMA Errors
+
+An autoregressive model ARMA(p, q) represents the current value in terms of the previous p values and a moving average of order q [@shumway2000]. When autocorrelation of the previous few lags is high, an ARMA model makes it easy to predict the next value in the series, as is the cases with influenza in Florida. It is also easier to We fit an ARIMA(3,0,2) model to the data and overlay the real data with predictions of 11 years of data from 2015. After fitting it, the best model with parameters $\phi$ and $\theta$ filled in can be written as
+
+$$ Y = 1071.880555 + 0.037676 x_1 + 0.311855 x_2 + 0.534833 x_3 + 0.817041 \epsilon_1 + 0.623375 \epsilon_2 $$
+
+
+```{python}
+#| echo: false
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+model = ARIMA(time_series, order=(3,0,2))
+result = model.fit()
+
+pred = result.predict(start=0, end=572, typ='levels')
+
+plt.figure(figsize=(10, 3))
+plt.plot(time_series, label = "Original Data")
+plt.plot(pred, label = "ARIMA (3,0,2) Predictions")
+plt.title("US Influenza By Week - 2015-2026")
+plt.xlabel("Week")
+plt.ylabel("Reported Cases")
+plt.legend()
+plt.show()
+```
+
+
+The ARMA (3,2) model pictured above returns an AIC of 7713.54 and a log likelihood of -3849.77. Aikake's Information Criterion (AIC) compares models by their complexity and likelihood; it is defined as $-2 \ell(\hat{\theta}) + 2D$ [@ionides2026b]. ARMA (3,2) has among the lowest AIC's of all configurations of ARMA models; we choose it as it has one of the lowest AIC's, and is low on number of parameters, which limits complexity; this takes Occam's Razor into consideration. 
+
+
+```{python}
+#| echo: false
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.tsa.arima.model import ARIMA
+
+import warnings
+warnings.filterwarnings("ignore")
+
+data = pd.read_csv("/Users/darklizard979/531_final_project/FluViewPhase2Data/ICL_NREVSS_Clinical_Labs.csv")
+y = data['TOTAL SPECIMENS']
+
+results = []
+
+for p in range(0, 5):      
+    for q in range(0, 6):
+    	model = ARIMA(y, order=(p, 0, q))
+    	fit = model.fit()
+    	results.append({
+    		"AR(p)": p,
+    		"MA(q)": q,
+    		"AIC": fit.aic
+    		})
+
+aic_table = pd.DataFrame(results).pivot(
+    index="AR(p)",
+    columns="MA(q)",
+    values="AIC"
+)
+
+aic_table.style \
+    .background_gradient(cmap="viridis") \
+    .set_caption("AIC Table for ARMA(p,q) Models") \
+    .format("{:.2f}")
+
+from IPython.display import display
+
+display(
+    aic_table.round(2)
+)
+
+
+```
+
+
+Now we look at the unit roots. The graphs below reveal that our ARMA model is both causal and invertible, as they lie outside the unit circle.
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+y = time_series
+
+model = ARIMA(y, order=(3,0,2))
+result = model.fit()
+
+ar_roots = result.arroots
+
+# MA roots
+ma_roots = result.maroots
+
+ar_roots_plot = ar_roots
+
+def plot_roots_ax(ax, roots, title):
+    theta = np.linspace(0, 2*np.pi, 100)
+    x = np.cos(theta)
+    y = np.sin(theta)
+    
+    ax.plot(x, y, 'k--', label='Unit Circle')  # unit circle
+    ax.scatter(roots.real, roots.imag, color='red', s=100, label='Roots')
+    ax.axhline(0, color='grey', lw=1)
+    ax.axvline(0, color='grey', lw=1)
+    ax.set_xlabel('Real')
+    ax.set_ylabel('Imag')
+    ax.set_title(title)
+    ax.grid(True)
+    ax.set_aspect('equal', adjustable='datalim')
+    # ax.set_xlim(-1.5, 1.5)  # zoom to unit circle
+    # ax.set_ylim(-1.5, 1.5)
+    ax.legend()
+
+# Create side-by-side plots
+fig, axs = plt.subplots(1, 2, figsize=(10,3))
+
+plot_roots_ax(axs[0], ar_roots_plot, 'AR Roots (Zoomed)')
+plot_roots_ax(axs[1], ma_roots, 'MA Roots')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+The residuals are normally distributed. We therefore conclude that ARMA (3,2) is a sufficient model for the influenza problem. 
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+y = time_series
+
+model = ARIMA(y, order=(3,0,2))
+result = model.fit()
+
+# Get residuals
+# residuals = result.resid
+residuals = result.resid / np.std(result.resid)
+
+fig, axs = plt.subplots(1, 2, figsize=(10,3))
+
+# Histogram
+axs[0].hist(residuals, bins=30, edgecolor='k')
+axs[0].set_title('Histogram of Residuals')
+axs[0].set_xlabel('Residual')
+axs[0].set_ylabel('Frequency')
+
+# QQ plot
+sm.qqplot(residuals, line='45', ax=axs[1])
+axs[1].set_title('QQ Plot of Residuals')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+
+
+
+
+# Regression Model with SARMA Errors
+An seasonal autoregressive model SARMA(p, q)(P, Q) represents the current value in terms of the previous p values, a moving average of order q, and a seasonal component. For example, we can represent the current value in terms of lags 1, 12, and 13, instead of all 13 lags. We fit a SARMA(3,0,2)(1, 12) model to the data and overlay the real data with predictions of 11 years of data from 2015; the log likelihood is -3848.14. 
+
+$$ y_t = 49.377 + 0.792y_{t-1} + 0.148y_{t-2} + 0.109y_{t-12} + 0.063 \epsilon_{t-1} + 0.150 \epsilon_{t-2} + \epsilon_t $$
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+model = SARIMAX(time_series,order=(2, 0, 2), trend='c', seasonal_order=(1, 0, 0, 12), enforce_stationarity=True)
+results = model.fit()
+pred = results.predict(start=0, end=572, typ='levels')
+
+plt.figure(figsize=(10, 2))
+plt.plot(time_series, label = "Original Data")
+plt.plot(pred, label = "SARIMA (3,0,2) Predictions")
+plt.title("US Influenza By Week - 2015-2026")
+plt.xlabel("Week")
+plt.ylabel("Reported Cases")
+plt.legend()
+plt.show()
+```
+
+We take the lag every 12th week, to represent a seasonal component. We take the AIC errors for all combinations of p and q that meet this combination, as listed in the table below. 
+
+```{python}
+#| echo: false
+import numpy as np
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.tsa.arima.model import ARIMA
+
+import warnings
+warnings.filterwarnings("ignore")
+
+data = pd.read_csv("/Users/darklizard979/531_final_project/FluViewPhase2Data/ICL_NREVSS_Clinical_Labs.csv")
+y = data['TOTAL SPECIMENS']
+
+results = []
+
+for p in range(0, 5):      
+    for q in range(0, 6):
+    	model = SARIMAX(time_series,order=(p, 0, q), trend='c', seasonal_order=(1, 0, 0, 12), enforce_stationarity=True)
+    	fit = model.fit()
+    	results.append({
+    		"AR(p)": p,
+    		"MA(q)": q,
+    		"AIC": fit.aic
+    		})
+
+aic_table = pd.DataFrame(results).pivot(
+    index="AR(p)",
+    columns="MA(q)",
+    values="AIC"
+)
+
+aic_table.style \
+    .background_gradient(cmap="viridis") \
+    .set_caption("AIC Table for ARMA(p,q) Models") \
+    .format("{:.2f}")
+
+from IPython.display import display
+
+display(
+    aic_table.round(2)
+)
+
+```
+
+The unit roots for the autoregressive and moving average polynomial roots lie outside of the unit circles. This indicates that the model is causal and invertible. 
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+y = time_series
+
+model = SARIMAX(time_series,order=(2, 0, 2), trend='c', seasonal_order=(1, 0, 0, 12), enforce_stationarity=True)
+result = model.fit()
+
+ar_roots = result.arroots
+ma_roots = result.maroots
+
+ar_roots_plot = ar_roots
+
+def plot_roots_ax(ax, roots, title):
+    theta = np.linspace(0, 2*np.pi, 100)
+    x = np.cos(theta)
+    y = np.sin(theta)
+    
+    ax.plot(x, y, 'k--', label='Unit Circle')  # unit circle
+    ax.scatter(roots.real, roots.imag, color='red', s=100, label='Roots')
+    ax.axhline(0, color='grey', lw=1)
+    ax.axvline(0, color='grey', lw=1)
+    ax.set_xlabel('Real')
+    ax.set_ylabel('Imag')
+    ax.set_title(title)
+    ax.grid(True)
+    ax.set_aspect('equal', adjustable='datalim')
+    # ax.set_xlim(-1.5, 1.5)  # zoom to unit circle
+    # ax.set_ylim(-1.5, 1.5)
+    ax.legend()
+
+# Create side-by-side plots
+fig, axs = plt.subplots(1, 2, figsize=(10,3))
+
+plot_roots_ax(axs[0], ar_roots_plot, 'AR Roots (Zoomed)')
+plot_roots_ax(axs[1], ma_roots, 'MA Roots')
+
+plt.tight_layout()
+plt.show()
+
+```
+
+The residuals are also normally distributed and low. We therefore conclude that the SARMA model handles influenza data effectively.
+
+
+```{python}
+#| echo: false
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+
+y = time_series
+
+model = SARIMAX(time_series,order=(2, 0, 2), trend='c', seasonal_order=(1, 0, 0, 12), enforce_stationarity=True)
+result = model.fit()
+
+residuals = result.resid / np.std(result.resid)
+
+fig, axs = plt.subplots(1, 2, figsize=(10,3))
+
+# Histogram
+axs[0].hist(residuals, bins=30, edgecolor='k')
+axs[0].set_title('Histogram of Residuals')
+axs[0].set_xlabel('Residual')
+axs[0].set_ylabel('Frequency')
+
+# QQ plot
+sm.qqplot(residuals, line='45', ax=axs[1])
+axs[1].set_title('QQ Plot of Residuals')
+
+plt.tight_layout()
+plt.show()
+```
+
+
+# Partially Observable Markov Processes (POMP)
+
+
+A partially observable markov process is a state model that models real world conditions via unseen states and produces seen results. These models can be replicated through PyPomp. Real world dynamics are simulated through hidden, latent states inside the model, as represented by a hidden markov model. The numer of infected individuals is then observed as $y_n$, an observable state dependent on the latent state $x_n$. An SIR model demonstrates how susceptible individuals become infected over time given transmission and recovery rates. The functions below outline an SEIR model, and define the compartments and rates at which individuals leave them [@ionides2026c].
+
+
+$$ S(t) = S(0) - NSE(t); E(t) = E(0) + NSE(t) - NEI(t); I(t) = I(0) + NEI(t) - NIR(t); R(t) = R(0) + NIR(t) $$
+
+$$ NSE(t) \sim Binom(S, 1 - exp(-\beta * I / N * dt); NEI(t) \sim Binom(E, 1 - exp(-\sigma * dt))  $$
+$$ NIR(t) \sim Binom(I, 1 - exp(-\mu_{IR} * dt)) $$
+
+Local Search and Global Search determine our parameters such that our NSE(t), NEI(t), and NIR(t) functions, the functions that decide how many individuals move between compartments each turn, are optimized. These functions rely on parameters that give the probability that any individual moves to another component; $1 - exp(-\beta * I / N * dt)$, $1 - exp(-\sigma * dt)$, and $1 - exp(-\mu_{IR} * dt)$ use three parameters, as previously defined, in addition to the number of individuals in the components, to define the probability that any individual moves to another component. The number of individuals that leave each compartment is decided each state update with a binomial distribution.
+
+## Susceptible Exposed Infected Recovered - Unmodified Model Implementation
+
+```{python}
+#| echo: false
+import numpy as np
+from pypomp.random import (fast_approx_rbinom, fast_approx_rgamma, fast_approx_rpoisson)
+import pypomp as pp
+import jax.numpy as jnp
+import jax
+import jax.random as random
+
+# Note: much of the POMP model code is derivative of the lecture slides: 
+# https://pypomp.github.io/tutorials/sbied/chapter2/slides.pdf
+def rinit(theta_, key, covars, t0):
+  N = theta_["N"]
+  eta = theta_["eta"]
+
+  S0 = jnp.round(N * eta)
+  E0 = 0.0
+  I0 = 1.0
+  R0 = jnp.round(N * (1 - eta)) - 1.0
+  H0 = 0.0
+
+  return {"S": S0, "E": E0, "I": I0, "R": R0, "H": H0}
+
+def rproc(X_, theta_, key, covars, t, dt):
+  S, E, I, R, H = X_["S"], X_["E"], X_["I"], X_["R"], X_["H"]
+
+  Beta = theta_["Beta"]
+  mu_IR = theta_["mu_IR"]
+  sigma = theta_["sigma"]
+  N = theta_["N"]
+
+  p_SE = 1.0 - jnp.exp(-Beta * I / N * dt)
+  p_EI = 1.0 - jnp.exp(-sigma * dt)
+  p_IR = 1.0 - jnp.exp(-mu_IR * dt)
+  key_SE, key_EI, key_IR = jax.random.split(key, 3)
+
+
+  dN_SE = fast_approx_rbinom(key_SE, n=jnp.int32(S), p=p_SE)
+  dN_EI = fast_approx_rbinom(key_EI, n=jnp.int32(E), p=p_EI)
+  dN_IR = fast_approx_rbinom(key_IR, n=jnp.int32(I), p=p_IR)
+
+  S_new = S - dN_SE
+  E_new = E + dN_SE - dN_EI
+  I_new = I + dN_EI - dN_IR
+  R_new = R + dN_IR
+  H_new = H + dN_SE
+
+  return {"S": S_new, "E": E_new, "I": I_new, "R": R_new, "H": H_new}
+
+def dmeas(Y_, X_, theta_, covars, t):
+  rho = theta_["rho"]
+  k = theta_["k"]
+  H = X_["H"]
+  mu = rho * H
+  return nbinom_logpmf(Y_["reports"], k, mu)
+
+def rmeas(X_, theta_, key, covars, t):
+  rho = theta_["rho"]
+  k = theta_["k"]
+  H = X_["H"]
+  mu = rho * H
+  reports = rnbinom(key, k, mu)
+  return jnp.array([reports])
+
+def nbinom_logpmf(x, k, mu):
+  x = jnp.asarray(x)
+  k = jnp.asarray(k)
+  mu = jnp.asarray(mu)
+  logp_zero = jnp.where(x == 0, 0.0,-jnp.inf)
+  safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+  core = (jax.scipy.special.gammaln(k + x)
+    - jax.scipy.special.gammaln(k)
+    - jax.scipy.special.gammaln(x + 1)
+    + k * jnp.log(k / (k + safe_mu))
+    + x * jnp.log(safe_mu / (k + safe_mu)))
+  return jnp.where(mu == 0.0, logp_zero, core)
+
+def rnbinom(key, k, mu):
+  key_g, key_p = jax.random.split(key)
+  lam = fast_approx_rgamma(key_g, k) * (mu / k)
+  return fast_approx_rpoisson(key_p, lam)
+
+
+statenames = ["S", "E", "I", "R", "H"]
+
+raw_data = [i for i in range(0,572)]
+
+ys = pd.DataFrame({'reports': time_series})
+
+
+theta = {
+    'Beta': 2.0485444999351103,
+    'mu_IR': 0.23454893345084807,
+    'N': 2300000.0,
+    'eta': 0.2210580302223018,
+    'rho': -0.006790014855077556,
+    'k': 1.0,
+    'sigma': 0.5
+    }
+
+seir_obj = pp.Pomp( rinit=rinit, rproc=rproc, dmeas=dmeas, rmeas=rmeas, ys=ys, theta=theta,
+    statenames=statenames, t0=0.0, nstep=1, ydim=1, covars=None, accumvars=())
+
+key = random.PRNGKey(0)
+results_df = seir_obj.simulate(nsim=1, key=key)[0]
+susceptible = results_df[0:572]['state_0']
+exposed = results_df[0:572]['state_1']
+infected = results_df[0:572]['state_2']
+recovered = results_df[0:572]['state_3']
+
+plt.figure(figsize=(10, 2))
+plt.plot(susceptible, label ="Simulated Susceptible")
+plt.plot(exposed, label ="Simulated Exposed")
+plt.plot(infected, label ="Simulated Infected")
+plt.plot(time_series, label = "Actual")
+plt.title("SEIR Global Search Parameters - US Influenza By Week - 2015-2026")
+plt.xlabel("Week")
+plt.ylabel("Reported Cases")
+plt.legend()
+plt.show()
+```
+
+Above, we see the most basic implementation of an SEIR model against actual values. The image above uses the best parameters available as determined by a local search with original parameters, and get the thetas used for the image above. The log likelihood becomes -3.403e+38. Results from global search follow, with a likelihood of -22,588.4. The best parameters, $\theta$, from the global search are as listed below; they ultimately come from natural numbers, using the population of Florida (23 million), a reasonable transmission rate of 2.05 as determined by our local search, a $\sigma$ of 0.5, and a rate of infection $\mu_{IR}$ of 0.234 as determined by global search.
+
+## Susceptible Exposed Infected Recovered - Trigonometric Transmission Rate Implementation
+
+The unmodified SIR model, as presented in lecture slides, reaches a low likelihood with global search, as featured above. However, while the first outbreak matches with the second one, subsequent waves suffer. We introduce a trigonometric component to an SEIR model such that the transmission rate rises and falls over time. Many state models for which parameters are not consistent across the whole time series have been the most optimal and successful [@Calafiore2020SIRD]. We similarly define $\beta$ as a function of time, specifically, through the use of a sine function. After modifying $\beta$, the other parameters stay the same ($\sigma$ defines the rate individuals move from exposed to infected, $\omega$ defines the rate individuals move from to recovered to susceptible again, etc.). This model determines the number of individuals leaving a compartment with a poisson distribution.
+
+$$ \beta = \beta * (1 + 0.2 * sin(\frac{a * \pi * t}{365})$$
+
+### Local Search Parameter Traces
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("poisson_local_search_3/param_traces_all_runs.csv")
+df = pd.read_csv("poisson_local_search_3/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+params = dfp["parameter"].unique()
+n_params = len(params) + 1
+
+
+
+
+fig, axes = plt.subplots(nrows= int(np.ceil(n_params / 3)), ncols=3, figsize=(15, 8), sharex=True)
+axes = axes.flatten()
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, g in subset.groupby("run"):
+        ax.plot(g["iteration"], g["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+
+for run_id, h in df.groupby("run"):
+    ax.plot(h["iteration"], h["loglik"], alpha=0.8, linewidth=3)
+
+ax.set_title("log likelihood")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+
+```
+A local search finds that the best likelihood for this model is -3.403e+38 with $\beta$ as 2.2505, $\gamma$ as 1.85, eta as 0.015, $\omega$ as 0.112, $\sigma$ as 0.56, a  as 17.3, $\rho$, the reporting rate, as 0.056, and k, the overdispersion parameter, as 1.08. The traces for parameter values during local search per iteration are above; they are mostly all stable or converge. Global search does not have a better likelihood, and, consequentially, is featured in the Appendix.
+
+## Susceptible Exposed Infected Recovered - Measured Parameters Implementation
+
+A POMP model can take facts from nature and model many dynamic states inside before producing the observed variables; this makes it an attractive model for influenza. Previous final projects in the University of Michigan's Influenza STATS 531 course have conducted analysis on influenza in other regions. The 2025 Influenza in the Great Lakes project implemented an SEIR model using realistic rates as determined by influenza statistics; models produced with this methodology often have the highest likelihood [@2025GreatLakesInfluenza]. While influenza incubates for up to 4 days, an individual may be immune for 3 to 6 months after [@mordant2023antibody]. Adults report influenza at a rate of $0.5\%$ [@mandl2010rapid]. We use the same methodology to define an SEIR model with realistic rates of progression from exposed to infectious, rates of recovery, rate of immunity, reporting rates, and a transmission rate dependent on several variables. We define all four components, S, E, I, and R, and their rates of progression, as listed below. 
+
+\begin{enumerate}
+
+\item $\mu_{EI}$ is the rate of progression of individuals from the exposed compartment to the infectious compartment, and is represented as the reciprocal of the incubation period. The incubation period for influenza is 1 to 4 days (Centers for Disease Control and Prevention, 2025). We therefore start our search for $\mu_{EI}$  in the range of $[\frac{1}{1/4}, \frac{1}{1/7}]$, simplified as  $[1.75, 7]$ for $\mu_{EI}$.  
+\item $\mu_{IR}$  is the rate of recovery, or rather, how long it takes for an individual to move from infected to recovered. The CDC approximates the time to recover from influenza as 5 to 7 days, with an extra 3 or 4 for recovery (Centers for Disease Control and Prevention, 2025). We start our search for $\mu_{IR}$  in the range of $[8, 11]$.
+\item $\mu_{SR}$ is the rate of immunity before an individual may become infected again. This generally lasts from 3 to 6 months (Mordant et al. 2023). The model was more successful after removing the immunity component $\mu_{SR}$; it is therefore not included in our optimization searches.
+\item The reporting rate, $\rho$. The reporting rate is the fraction of actual cases that are actually reported. Before perturbing parameters, we start with a reporting rate of $0.5\%$; this number has been used in previous literature (Mandl et al. 2010).
+\item Finally, $\mu_{SE}$ is the rate at which individuals become infected. It is dependent on the parameter $\beta$. The probability of any individual becoming infected during the transition from state $x_n$ to $x_{n+1}$ is $1 - e^{-\beta * I / N * dt}$, or rather, the reciprocal of $e$ raised to the power of the transmission rate times the proportion of infected individuals times the rate of changed.
+
+\end{enumerate}
+
+The values above define the probabilities of individuals to move to another component, and we draw from a binomial distribution each iteration. The results are, overall, very successful, yielding a model with a likelihood of -26,203.87 from local search and a model with a likelihood of -4,687,896.5 from global search. The local search parameter traces is featured below; global search is in the appendix.
+
+
+### Local Search
+
+```{python}
+#| echo: false
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("cdc_local_search_8/param_traces_all_runs.csv")
+df = pd.read_csv("cdc_local_search_8/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+
+params = dfp["parameter"].unique()
+n_params = len(params) + 1
+
+fig, axes = plt.subplots(nrows=int(np.ceil(n_params / 3)), ncols= 3, figsize=(15, 7), sharex=True)
+axes = axes.flatten()
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, g in subset.groupby("run"):
+        ax.plot(g["iteration"], g["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+
+for run_id, h in df.groupby("run"):
+    if (h["iteration"].all() > 50):
+        continue
+    ax.plot(h["iteration"], h["loglik"], alpha=0.7, linewidth=3)
+
+ax.set_title("log likelihood")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+
+```
+
+The log likelihood clearly converges to a high by the 50th iteration. After a local search, we find that the optimal log likelihood is -26,203.87, with N as 2300000, $\beta$ as 23.92, $\mu_{EI}$ as 0.38, $\mu_{IR}$ as 0.274, and $\rho$ as 0.57.
+
+
+## Susceptible Exposed Infected Hospitalized Dead Recovered Model
+The Hong Kong Special Administrative Region of China (HKSAR) experienced a surge of COVID-19 cases in April 2022. The peak of influenza transmission rates favor the form of the COVID-19 transmission rates in a study using state models to graph the outbreaks [@Wen2024CoCirculation]. Influenza is seasonal and influenced by weather, school terms, population movement, and air pollutants - transmission shares similarities to that of COVID-19 transmission. We replicate a model used for simulating weekly disease number cases in Hong Kong, using the mechanisms as suggested in the paper. [@Wen2024CoCirculation]. The state model features 6 compartments, susceptible, exposed, infected, hospitalized, dead, and recovered; factors such as the percentage of population susceptible to a strain of the virus (ex, Omnicron), also play a role in the model. We define the 6 compartments, and the number of individuals that move between them, below.  The parameter $\beta$ denotes transmission rate, $\sigma$ denotes the infectiousness onset rate, $\gamma$ denotes the infectiousness decay rate, $\phi$ denotes infection-hospitalization-ratio, $\theta$ denotes hospitalization-fatality-ratio, k denotes the rate at which individuals leave the hospitalized compartment [@Wen2024CoCirculation].
+
+$$ S_{new} = \frac{-\beta}{N} SI; E_{new} = \frac{-\beta}{N} SI - \sigma E; I_{new} = \sigma E - \gamma I; H_{new} = \phi \gamma I - k H; D_{new} = \theta k H; R_{new} = (1 - \phi) \gamma I + (1 - \theta) k H  $$
+
+
+Local Search produces a model with a likelihood of -8,256,150.0, and global search with a likelihood of -9,467,970.0. We show the parameter trace for local search in the appendix, and global search below.
+
+
+### Global Search
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("hong_kong_global_search/param_traces_all_runs.csv")
+df = pd.read_csv("hong_kong_global_search/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+
+params = dfp["parameter"].unique()
+n_params = len(params) + 1  
+
+fig, axes = plt.subplots(nrows= int(np.ceil(n_params / 3)), ncols=3, figsize=(15, 7), sharex=True)
+axes = axes.flatten()
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, h in subset.groupby("run"):
+        ax.plot(h["iteration"], h["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+
+for run_id, h in df.groupby("run"):
+    h = h.sort_values("iteration")
+
+    phase1 = h[(h["iteration"] <= 50) & h["loglik"].notna()]
+    phase2 = h[(h["iteration"] >= 52) & h["loglik"].notna()]
+
+    ax.plot(phase1["iteration"], phase1["loglik"], label=f"run {run_id} (0–50)", alpha=0.8)
+
+    ax.plot(phase2["iteration"], phase2["loglik"], linestyle="--", alpha=0.8)
+
+ax.axvline(51, color="black", linestyle=":", alpha=0.6)
+ax.set_title("log likelihood (with restart)")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+After a global search, we find that the best log likelihood converges to -9,467,970 in all runs. Our best parameters in this configuration include $\beta$ as 0.712, $\sigma$ as 0.968, $\gamma$ as 0.345, $\kappa$ as 0.55, $\phi$ as 0.252, $\theta$ as 0.104, and $\rho$ as 0.0899.
+
+# Likelihood Ratio Tests
+Table 3 shows log likelihoods of all of each model from each optimization method.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{lccc}
+\hline
+Model & Log Likelihood & Local Search & Global Search \\
+\hline
+ARMA  & -3,849.77 & NA & NA \\
+SARMA & -3,848.14 & NA & NA \\
+\hline
+SEIR (Unmodified)              & NA & $-3.403 \times 10^{38}$ & -22,588.4 \\
+SEIR (Trigonometric $\beta$ & NA & $-3.403 \times 10^{38}$ & $-3.4023 \times 10^{38}$ \\
+SEIR (Measured)                & NA & -26,203.87               & -4,687,896.5 \\
+\hline
+SEIHDR & NA & -8,256,150.0 & -9,467,970.0 \\
+\hline
+\end{tabular}
+\caption{Log-likelihood values for all models.}
+\end{table}
+
+Table 4 shows 3 likelihood ratio tests; we use the likelihood ratio statistic as defined $LRT = -2(L(\hat{\theta_0}) - L(\hat{\theta_A}))$ [@gfg_lrt_r_2025]. We reject the Global Search results in favor of the Local Search Results for SEIR (Measured), we reject SEIR (Unmodified) in favor of the ARMA model, and we fail to reject SARMA against ARMA. We therefore conclude that, while we may look at the results of the best optimization method and discard the rest, some models, such as ARMA and SARMA need to be compared. Nevertheless, our best state model is rejected in favor of ARMA; we conclude that the autoregressive models are superior for this problem.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{llll}
+\hline
+Hypotheses & LRT Equation & LRT Statistic & p-value / Decision \\
+\hline
+SARMA vs ARMA 
+& $-2(L(\hat{\theta_0}) - L(\hat{\theta_A}))$
+& $3.26$ 
+& $0.196 > 0.05 $ (Fail to reject $H_0$) \\
+
+SEIR (Local) vs SEIR (Global) 
+& $-2(L(\hat{\theta_0}) - L(\hat{\theta_A}))$
+& $9{,}323{,}385.26$ 
+& $0 < 0.05$ (Reject $H_0$) \\
+
+ARMA vs SEIR (Unmodified) 
+& $-2(L(\hat{\theta_0}) - L(\hat{\theta_A}))$
+& $37{,}477.26$ 
+& $0.0001 < 0.05$ (Reject $H_0$) \\
+\hline
+\end{tabular}
+\caption{Likelihood Ratio Tests}
+\end{table}
+
+
+# Profile Plots
+
+As per the likelihood ratio tests, the SEIR Measured Parameter Implementation features one of the best likelihoods. We therefore take the best parameters, as defined by local search, and determine the highest likelihoods for any value of the transmission rate and the reporting rate. We can stay $95\%$ confident that [18, 18], [0.1, 0.1], [1.0, 1.0], and [0.1, 0.1] are the best parameter value ranges, naively assuming independence, for the transmission rate $\beta$, the reporting rate $\rho$, the recovery rate $\mu_{IR}$, and the incubation infection period $\mu_{EI}$ respectively; the code to produce these plots is featured in cdc_seir_implementation.py. We include a two dimensional likelihood surface in the Appendix, and matches our local search results more.
+
+![Alt text 1](/profile_cdc_reporting_rate.png){width=26%} ![Alt text 2](/profile_cdc_transmission_rate.png){width=26%} ![Alt text 3](/profile_cdc_mu_ir.png){width=26%} ![Alt text 4](/profile_cdc_mu_er.png){width=26%}
+
+# Context of Other Projects
+Other projects in STATS 531 have analyzed influenza on autoregressive and state models. In this project, we focus on the region of Florida. Influenza cases follow a stationary distribution, and are modeled well on most time series models. Most projects in previous years use real world measurements to model state compartments, such as maintaining an accurate incubation period for influenza. We use the latest information to create our own SEIR Measured Parameter Implementaion, as well as introduce variants of SEIR with components to track states from modern literature, which are on par with our best models. 
+
+# Conclusion
+We therefore conclude that SARMA is our best model to measure number of influenza cases a week with; ARMA is not far behind. The SEIR Measured Parameter Implementation is the best state model, with realistic transmission rates and flows; both global and local search optimization methods output models with high likelihoods. Overall, both classes of models are effective at modeling influenza cases, but, as per the likelihood ratio tests, we have statistically significant evidence that a SARMA model has higher likelihood than any of the state models.
+
+
+# References
+
+::: {#refs}
+:::
+
+\newpage
+
+# Appendix
+
+## 2D Likelihood Surface
+
+![Likelihood Surface Test for the Measured Parameter SEIR Model. The optimal parameter combination involves a $\beta$ of 22.7 and a $\mu_{IR}$ of 0.396, as indicated by the results of the local search. ](/likelihood_surface.png){width=98%}
+
+## Augmented Dickey-Fuller Test
+
+$$
+\begin{aligned}
+H_0 &: \text{The process } \{x_t\} \text{ is nonstationary} \\
+&\exists\, t, h, k \text{ such that } 
+(x_t, x_{t+1}, \dots, x_{t+k}) 
+\overset{d}{\neq} 
+(x_{t+h}, x_{t+1+h}, \dots, x_{t+k+h}) \\[6pt]
+H_A &: \text{The process } \{x_t\} \text{ is stationary} \\
+&\forall\, t, h, k,\;
+(x_t, x_{t+1}, \dots, x_{t+k})
+\overset{d}{=}
+(x_{t+h}, x_{t+1+h}, \dots, x_{t+k+h})
+\end{aligned}
+$$
+
+```{python}
+#| echo: false
+import pandas as pd
+from statsmodels.tsa.stattools import adfuller
+from scipy.stats import norm
+
+def adf_summary(series, name):
+    result = adfuller(series.dropna())
+    
+    output = {
+        "Series": name,
+        "ADF Statistic": result[0],
+        "p-value": result[1],
+        "Lags Used": result[2],
+        "Observations": result[3],
+        "Critical Value (5%)": result[4]['5%'],
+        "Reject the H0?": "Yes" if result[1] <= 0.05 else "No"
+    }
+    
+    return pd.Series(output)
+
+summary_table = pd.concat([
+    adf_summary(time_series, "Influenza Cases")
+], axis=1)
+
+summary_table
+```
+
+We reject the null and conclude that the time series is stationary.
+
+## Parameter Traces
+
+The most successful parameter traces are listed in the main content of the report. Yet, parameter traces for global and local searches with less beneficial results are useful to the reader for purposes of completion; we show them in the Appendix.
+
+### SEIR Poisson Global Search
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("poisson_global_search_2/param_traces_all_runs.csv")
+df = pd.read_csv("poisson_global_search_2/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+
+params = dfp["parameter"].unique()
+n_params = len(params) + 1
+
+
+fig, axes = plt.subplots(nrows=int(np.ceil(n_params / 3)), ncols=3, figsize=(15, 8), sharex=True)
+axes = axes.flatten()
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, g in subset.groupby("run"):
+        ax.plot(g["iteration"], g["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+ax = axes[len(params)]
+
+for run_id, g in df.groupby("run"):
+    g = g.sort_values("iteration")
+
+    phase1 = g[(g["iteration"] <= 50) & g["loglik"].notna()]
+    phase2 = g[(g["iteration"] >= 52) & g["loglik"].notna()]
+
+    ax.plot(phase1["iteration"], phase1["loglik"],
+            label=f"run {run_id} (0–50)", alpha=0.8, linewidth=3)
+
+    ax.plot(phase2["iteration"], phase2["loglik"],
+            linestyle="--", alpha=0.8, linewidth=3)
+
+ax.axvline(51, color="black", linestyle=":", alpha=0.6)
+ax.set_title("log likelihood (with restart)")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+
+```
+
+A global search finds that the best likelihood for this model is -3.4023e+38 with $\beta$ as 1.595, $\gamma$ as 2.471, eta as 0.00987, $\omega$ as 0.185, $\sigma$ as 0.4724, amplitude  as 18.85, $\rho$ as 0.0505, and k as 1.0912.
+
+### SEIR CDC Fact Based Implementation Global Search
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("cdc_global_search_2/param_traces_all_runs.csv")
+df = pd.read_csv("cdc_global_search_2/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+
+params = dfp["parameter"].unique()
+n_params = len(params) + 1
+
+
+
+fig, axes = plt.subplots(nrows=int(np.ceil(n_params / 3)), ncols=3, figsize=(15, 8), sharex=True)
+axes = axes.flatten()
+
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, g in subset.groupby("run"):
+        ax.plot(g["iteration"], g["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+
+for run_id, h in df.groupby("run"):
+    h = h.sort_values("iteration")
+
+    phase1 = h[(h["iteration"] <= 50) & h["loglik"].notna()]
+    phase2 = h[(h["iteration"] >= 52) & h["loglik"].notna()]
+
+    ax.plot(phase1["iteration"], phase1["loglik"], label=f"run {run_id} (0–50)", alpha=0.8)
+
+    ax.plot(phase2["iteration"], phase2["loglik"], linestyle="--", alpha=0.8)
+
+ax.axvline(51, color="black", linestyle=":", alpha=0.6)
+ax.set_title("log likelihood (with restart)")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+
+```
+
+After a global search, we find that the optimal log likelihood is -4687896.5, with N as 2300000.0, $\beta$ as 22.70865335380483, $\mu_{EI}$ as 0.39714361142110044, $\mu_{IR}$ as 0.3961116621569491, and $\rho$ as 0.5058308187492441.
+
+### Local Search Susceptible Exposed Infected Hospitalized Dead Recovered Model
+
+```{python}
+#| echo: false
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+dfp = pd.read_csv("hong_kong/param_traces_all_runs.csv")
+df = pd.read_csv("hong_kong/loglik_all_runs.csv")
+df["loglik"] = pd.to_numeric(df["loglik"], errors="coerce")
+
+params = dfp["parameter"].unique()
+n_params = len(params) + 1
+
+fig, axes = plt.subplots(nrows=int(np.ceil(n_params / 3)), ncols=3, figsize=(15, 8), sharex=True)
+axes = axes.flatten()
+
+for i, p in enumerate(params):
+    ax = axes[i]
+    subset = dfp[dfp["parameter"] == p]
+    
+    for run_id, g in subset.groupby("run"):
+        ax.plot(g["iteration"], g["value"], alpha=0.7, linewidth=3)
+    
+    ax.set_title(p)
+    ax.set_xlabel("iteration")
+    ax.set_ylabel(p)
+
+ax = axes[len(params)]
+
+for run_id, g in df.groupby("run"):
+    ax.plot(g["iteration"], g["loglik"], alpha=0.8)
+
+ax.set_title("log likelihood")
+ax.set_xlabel("iteration")
+ax.set_ylabel("loglik")
+
+for j in range(len(params) + 1, len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+After a local search, we find that the best log likelihood is -8256150.0. Our best parameters in this configuration include $\beta$ as 0.6874075000382809, $\gamma$ as 0.4102779291683628, $\sigma$ as 0.5988763233118153, $\kappa$ as 0.4795870382337614, $\phi$ as 0.2517532607848387, $\theta$ as 0.1448753065414705, and $\rho$ as 0.15465102818467713.
+
+### Verhulst Model Application
+
+We model the beginning of an influenza wave in Florida against an SIR model based on the population growth model, the Verhulst Model. The Verhulst is a birth and death process introduced by Pierre Francois Verhulst in 1838 to describe population growth. A verhulst model defines population growth as 
+
+$$ \frac{dp}{dt} = rP(1 - P/K)$$
+
+, where r is the growth rate, K is the carrying capacity, and P is the current population. We create a POMP model and add $rP(1 - P/K) * \delta t$ each time we update the latent state (rproc). We draw our observations $y_n$ from a poisson distribution with the current population as lambda. While the whole time series is difficult to model with just a Verhulst model, as it is meant to respect carrying capacity, it models an initial outbreak well, with a log likelihood of -178,242.58.
+
+
+```{python}
+#| echo: false
+import jax.scipy.stats as stats
+import jax.random as jr
+
+ys = pd.DataFrame({
+    "y": time_series[0:30]
+})
+
+theta_ = {
+    "r": 0.06,
+    "K": 10000.0,
+    "rho": 0.01,
+    "k": 1068.0
+}
+
+N0 = 1068.0
+dt = 1.0
+statenames = ["N"]
+
+def rinit(theta_, key, covars, t0):
+    return {"N": N0}
+
+
+def rproc(X_, theta_, key, covars, t, dt):
+    r = theta_["r"]
+    K = theta_["K"]
+
+    N = X_["N"]
+    N_new = N + r * N * (1 - N / K) * dt
+
+    return {"N": N_new}
+
+def rmeas(X_, theta_, key, covars, t):
+    N = X_["N"]
+    rho = theta_["rho"]
+    lam = jnp.maximum(rho * N, 1e-6)
+    return jr.poisson(key, lam)
+
+def dmeas(X_, Y_, theta_, covars, t):
+    N = X_["N"]
+    rho = theta_["rho"]
+    lam = jnp.maximum(rho * N, 1e-6)
+    y = Y_["y"]
+    return stats.poisson.logpmf(y, lam)
+
+# Draw
+sir = pp.Pomp(rinit=rinit, rproc=rproc, rmeas=rmeas, dmeas=dmeas, ys=ys, theta=theta_, statenames=statenames, t0=0.0, nstep=1, accumvars=(), ydim=1, covars=None)
+key = jax.random.key(42)
+y = sir.simulate(nsim=1, key=key)[0]
+
+# Pfilter
+key = jax.random.key(42)
+sir.pfilter(key=key, J=500, reps=1)
+log_likelihood = sir.results_history.last().logLiks.values[:, 0]
+
+# print("Log-likelihood estimate:", log_likelihood)
+# print(y)
+
+plt.figure(figsize=(10, 3))
+plt.plot(ys, label = "Influenza Cases", color = "blue", linewidth=4)
+plt.plot(y["state_0"], label = "Verhulst Model Simulation", color = "limegreen", linewidth=4)
+plt.xlabel("Year")
+plt.ylabel("Number of Influenza Cases")
+plt.title("Florida Influenza Cases - Verhulst Model Simulation")
+plt.legend()
+plt.show()
+
+```
+
+

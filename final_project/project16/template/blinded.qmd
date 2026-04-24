@@ -1,0 +1,537 @@
+---
+title: "Mechanistic Modeling of Fine Particulate Matter Dynamics at the Sihwa Industrial Complex Using Partially Observed Markov Process (POMP)"
+bibliography: references.bib
+csl: apa.csl
+fig-width: 5
+fig-height: 3
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{titling}
+        \setlength{\droptitle}{-4em}
+        \posttitle{\par\end{center}\vspace{-2em}}
+number-sections: true
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+
+We develop a nonlinear POMP model for daily $PM_{2.5}$ (fine PM) concentrations at the Sihwa Industrial Complex industrial monitoring station in South Korea, spanning January 2021 to March 2025 (1,551 days). The latent state evolves through temperature-driven planetary boundary layer (PBL) mixing, humidity effects, wind-driven dispersion, and an emission rate that relies on seasonal variation. Parameters are estimated via iterated filtering (mif2), with a global search over 100 random starting points confirming that the local search MLE is reliable. The model achieves a log-likelihood of $-763.53$, comparable to a standalone ARMA(3,1) benchmark at $-761.26$, while providing physically interpretable parameters that the benchmark cannot. A regression + ARMA(3,1) benchmark at $-543.88$ achieves a higher log-likelihood through unconstrained flexibility, but CLL diagnostics show that a small number of anomalous days contribute to this gap, suggesting not all of it is a systematic misspecification. Key findings include that temperature-driven PBL mixing is negligible once seasonal variation is accounted for ($\alpha_T \approx 0.006$), resolving a strong temperature effect discovered in our previous midterm regression model that was due to seasonal confounding. Moreover, wind is the dominant removal mechanism ($\alpha_W \approx 0.33$) and humidity shows weak identifiability ($\alpha_H \approx 0.16$) with competing deposition and hygroscopic growth mechanisms that are not distinguishable from the data.
+
+# Introduction
+
+Particulate matter (PM) is a critical indicator of air pollution that is made up of extremely small particles and liquid droplets containing acids, organic chemicals, metals, and soil or dust particles (@yoon22). Among air pollutants, PM is most strongly linked to human health risks (@fuzzi15). PM is typically categorized into $PM_{10}$ (coarse particles), which consist of particles with diameters between 2.5 and 10 micrometers and $PM_{2.5}$ (fine particles), which consist of particles 2.5 micrometers or less (@yoon22). While $PM_{10}$ is often filtered out by the respiratory tract, $PM_{2.5}$ can pass directly through it and penetrate deeper into the lungs, leading to cardiovascular or respiratory diseases that include stroke and lung cancer (@yoon22; @zhou18) with prolonged exposure even at low concentrations leading to reduced life expectancy (@pope06; @fuzzi15). Given these public health implications, studying and understanding the behavior of $\text{PM}_{2.5}$ and $\text{PM}_{10}$ is a pivotal step toward effective air quality management and public health protection.
+
+In our midterm project (@midterm_project), we analyzed a dataset from the Asian Initiative for Clean Air Networks (AICAN), which maintains multiple air quality stations across South Korea (@korea_data_pm). Summary of the data and the preprocessing steps are detailed in the Supplementary (@sec-supp). In particular, we focused on the Sihwa Industrial Complex station, located near the coast in Gyeonggi Province. In the project, we modeled daily $PM_{2.5}$ at the industrial station using linear regression with ARMA errors. We analyzed the assocations between fine and coarse PM with meteorological variables such as temperature, relative humidity, air pressure, and wind speed. We selected ARMA(3,1) errors as our best fitting model and found significant association between temperature, humidity and wind speed relative to PM. However, our model suffered from near-unit-root errors and while we understood contemporaneous association, the mechanistic processes by which meteorology drove PM accumulation and dispersion were not fully captured. To understand the underlying mechanisms, we consider a partially observed Markov process (POMP) model[@notes531; @king16] with a focus on fine PM at the industrial station. The inferential challenge of integrating over the unobserved latent trajectory is addressed via the particle filter, with parameters estimated by iterated filtering [@ionides15].
+
+We therefore ask: can a mechanistic POMP model identify the relative contributions of meteorological variables to daily fine PM dynamics at the Sihwa Industrial Complex?
+
+
+
+ 
+
+# Model
+
+## POMP Framework
+
+Let $X_t$ denote the true atmospheric $PM_{2.5}$ concentration ($\mu$g/m³) at the industrial station on day $t$. This latent state evolves as a Markov process driven by daily-averaged meteorological covariates, temperature (°C), relative humidity (%), air pressure (hPa), and wind speed (m/s) respectively as per the standard atmospheric box model framework [@seinfeld2006]. The ground sensor yields a noisy daily-averaged observation $Y_t$.
+
+## Model Motivation
+
+
+**Temperature** We examined the relationships between log-transformed daily $PM_{2.5}$ and each meteorological covariate to guide model structure. We modeled temperature with a softplus threshold rather than a linear term. According to (@stull1988), PBL mixing, which is an air mixing mechanism that creates circulation and removes near-surface $PM_{2.5}$, becomes prominent when temperature rises and solar heating is sufficient to destabilize the atmosphere. We see in our data that mean log $PM_{2.5}$ remains elevated and relatively flat for days below 10°C, then declines consistently as temperatures rise above 15°C, where active convective mixing is well established. This suggests a threshold effect around 5–10°C, where the PBL transitions from stable to convective. We can see therefore, that beyond a certain threshold, the atmosphere remains stably stratified and temperature  has little additional removal effect. Above this threshold, we see a stronger effect of temperature in reducing fine PM due to the PBL effect. 
+
+Therefore, we considered that a linear temperature term would not fully be able to capture this behavior and considered the softplus function $\log(1 + e^{T-5})$, which provides a smooth, differentiable approximation of this threshold behavior (@dugas2001), approaching zero for cold days and growing linearly for warm days. We fixed 5°C as our threshold, based on results from our data discussed above and scientific evidence seems to suggest the same where at temperatures below this threshold, there is not enough heat flux to sustain a PBL strong enough to affect fine PM concentrations (@stull1988). 
+
+**Wind speed** We modeled wind speed as a linear term. We initially considered whether wind might increase fine PM at low speeds through dust resuspension, before reducing concentartions at higher speeds through dispersion, which would call for the same softplus threshold as in the temperature case. However, our data showed a monotonically decreasing relationship between wind speed and log-transformed fine pM across the full observed range as shown in @fig-wind-pm when we computed mean log fine PM by wind speed bin. This is consistent with basic aerosol physics: mechanical resuspension requires particles larger than approximately 10 $\mu$m [@seinfeld2006; @loosmore2000]. Fine PM, by definition is below 2.5 $\mu$m, and therefore may be unaffected by resuspension. Thus we consider wind to act purely as a removal mechanism through turbulent mixing and horizontal advection [@zhang2018]. However, it is also the case that wind speed at Sihwa are generally low, with most observations clustered below 1.5 m/s, limiting the range of dispersion conditions captured in the data. We suspect therefore, that the wind may not play a strong role in removing fine PM at this station. 
+
+```{python}
+#| echo: false
+#| label: fig-wind-pm
+#| fig-cap: "Mean log fine PM by wind speed bin, showing a monotonically decreasing relationship"
+#| fig-pos: "H"
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+ind = pd.read_csv('../shiwa_industrial_daily.csv', index_col='time_stamp', parse_dates=True)
+df = pd.DataFrame({'wind': ind['wind_speed'], 'log_pm': np.log(ind['pm2.5'].clip(lower=0.01))}).dropna()
+
+bins   = [0, 0.5, 1.0, 1.5, 10.0]
+labels = ['0–0.5', '0.5–1', '1–1.5', '>1.5']
+df['bin'] = pd.cut(df['wind'], bins=bins, labels=labels)
+stats = df.groupby('bin', observed=True)['log_pm'].agg(['mean', 'std', 'count'])
+stats['se'] = stats['std'] / np.sqrt(stats['count'])
+
+fig, ax = plt.subplots(figsize=(4, 2.5))
+ax.errorbar(range(len(stats)), stats['mean'], yerr=1.96 * stats['se'],
+            fmt='o-', color='steelblue', capsize=4)
+ax.set_xticks(range(len(stats)))
+ax.set_xticklabels(labels, fontsize=9)
+ax.set_xlabel('Wind speed bin (m/s)', fontsize=10)
+ax.set_ylabel('Mean log PM2.5', fontsize=10)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+**Relative humidity** We also consider a linear effect for relative humidity. Humidity affects fine PM in both positive and negative ways. On one hand, it causes wet deposition and on the other, increases particle mass through hygroscopic growth and causes settling (@tai2010). Neither mechanism has a threshold analogous to the PBL effect, nor does it show any indication in the data, so a linear term is appropriate and the sign is left unconstrained to be determined by the data.
+
+**Air pressure** Air pressure was excluded from the fine PM model. While we considered that intuitively, higher pressure would be physically associated with stagnant conditions in the atmosphere which may trap PM, we see that pressure is strongly collinear with seasonal tempearture patterns, making the two effects difficult to separate. We found that incorporating pressure may introduce identifiability concerns without a clear mechanistic gain beyond what the seasonal emission harmonics already capture. @fig-pressure-temp illustrates this collinearity: monthly mean temperature and pressure track each other in near-perfect inverse phase, with pressure peaking in winter when temperature is lowest.
+
+```{python}
+#| echo: false
+#| label: fig-pressure-temp
+#| fig-cap: "Monthly mean temperature and air pressure"
+#| fig-pos: "H"
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+ind = pd.read_csv('../shiwa_industrial_daily.csv', index_col='time_stamp', parse_dates=True)
+ind['month'] = ind.index.month
+monthly = ind.groupby('month')[['temperature', 'air_pressure']].mean()
+months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+fig, ax1 = plt.subplots(figsize=(5, 2.5))
+ax2 = ax1.twinx()
+
+ax1.plot(monthly.index, monthly['temperature'], 'o-', color='steelblue', label='Temperature (°C)')
+ax2.plot(monthly.index, monthly['air_pressure'], 's--', color='tomato', label='Air pressure (hPa)')
+
+ax1.set_xticks(range(1, 13))
+ax1.set_xticklabels(months, fontsize=9)
+ax1.set_ylabel('Temperature (°C)', color='steelblue', fontsize=10)
+ax2.set_ylabel('Air pressure (hPa)', color='tomato', fontsize=10)
+ax1.tick_params(axis='y', labelcolor='steelblue')
+ax2.tick_params(axis='y', labelcolor='tomato')
+
+lines1, labels1 = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=9,
+           loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=2)
+ax1.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+**Seasonal pattern.** Monthly averaging over the data shows a clear peak in fine PM during late winter and early spring at the industrial station (@fig-seasonal-pm). Seasonality was also identified in our midterm project (@midterm_project) but was not explicitly modeled there, a limitation we acknowledged at the time. Similarly, peer review of Project 17 (Winter 2025) noted that seasonality was identified but left unmodeled (@review531fp17). Motivated by the peer review suggestion, we explicitly incorporate seasonal variation through a pair of annual harmonic terms, a cosine and a sine with period 365 days [@shumway17]. This approach was based on what was covered in class expressing it as a linear combination of $\cos(2\pi t/365)$ and $\sin(2\pi t/365)$ (@notes531). Using both terms together avoids fixing the peak timing in advance, using the data to determine where the peak occurs and how large it is. The amplitude of the seasonal cycle is $A = \sqrt{\delta_c^2 + \delta_s^2}$, and the peak day-of-year is $\phi = (365/2\pi)\arctan2(\delta_s, \delta_c)$, which follows from the identity $a\cos\theta + b\sin\theta = \sqrt{a^2+b^2}\cos(\theta - \arctan2(b, a))$ [@wiki_trig_identities].
+
+```{python}
+#| echo: false
+#| label: fig-seasonal-pm
+#| fig-cap: "Monthly mean of fine PM (± 1.96 SE) at the station, showing a clear seasonal peak in late winter/early spring"
+#| fig-pos: "H"
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+ind = pd.read_csv('../shiwa_industrial_daily.csv', index_col='time_stamp', parse_dates=True)
+ind['month'] = ind.index.month
+monthly = ind.groupby('month')['pm2.5'].agg(['mean', 'std', 'count'])
+monthly['se'] = monthly['std'] / np.sqrt(monthly['count'])
+months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+fig, ax = plt.subplots(figsize=(6.0, 1.8))
+ax.errorbar(monthly.index, monthly['mean'], yerr=1.96 * monthly['se'],
+            fmt='o-', color='steelblue', capsize=4)
+ax.set_xticks(range(1, 13))
+ax.set_xticklabels(months, fontsize=8, rotation=45, ha='right')
+ax.set_ylabel('Mean PM2.5 (µg/m³)', fontsize=9)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+## Process Model
+
+Considering each meteorological component as above, we designed our latent state as such
+
+$$
+X_{t+1} = \bigl(X_t \cdot d_t + E_t\bigr)\, e^{\sigma \varepsilon_t}, \quad \varepsilon_t \overset{iid}{\sim} N(0,1)
+$${#eq-proc}
+
+The meteorological decay factor is a function of our meteorological variables to capture their role in atmospheric removal of fine PM:
+
+$$
+d_t = \exp\!\Bigl(-\alpha_T \,\text{softplus}(T_t - 5) - \alpha_H \tfrac{H_t}{100} - \alpha_W W_t\Bigr),
+$${#eq-decay}
+
+where $\text{softplus}(x) = \log(1 + e^x)$. All meteorological covariates excluding air pressure were introduced in the decay term, capturing their role as removal mechanisms. 
+
+$$
+E_t = E \cdot \exp\!\bigl(\delta_c \cos(2\pi t/365) + \delta_s \sin(2\pi t/365)\bigr),
+$${#eq-emission}
+
+represents our seasonal emission rate and $E$ is the baseline daily emission rising from the industrial region. $\delta_c$, $\delta_s$ capture the seasonal pattern noted in @fig-seasonal-pm. The combined seasonal amplitude is $A = \sqrt{\delta_c^2 + \delta_s^2}$, with peak emission occurring at day-of-year $\phi = (365/2\pi)\arctan2(\delta_s, \delta_c)$. We kept the emission term free of meteorological variables to avoid identifiability issues, thus designing our model in a way that industrial emission rates at Sihwa are driven by production schedules and seasonal demand rather than moment-to-moment weather.
+
+The parameters were given the range where parameter $\alpha_T > 0$. Considering that temperature-driven PBL mixing can only remove PM2.5, $\alpha_T$ is constrained to be positive. The sign of $\alpha_H$ is left free. While high humidity can promote wet deposition of PM2.5, it also correlates with stagnant weather conditions that trap pollution (@tai2010). The estimated sign reflects the dominant mechanism at this station. Parameter $\alpha_W > 0$ since wind can only remove fine PM through dispersion and cannot resuspend it, as shown in @fig-wind-pm.
+
+**Multiplicative log-normal noise** ($e^{\sigma \varepsilon_t}$): PM2.5 concentrations are empirically log-normally distributed (@ott1990), motivating multiplicative noise that scales with concentration level, guarantees positivity, and reflects greater absolute variability during high-pollution episodes.
+
+
+## Observation Model
+
+The daily sensor reading is log-normally distributed around the latent concentration, using the same reasoning as the process noise (@ott1990):
+
+$$
+Y_t = X_t \cdot e^{\,\tau\,\eta_t}, \quad \eta_t \overset{iid}{\sim} N(0,1)
+$${#eq-obs}
+
+so that $\log Y_t \sim N(\log X_t,\; \tau^2)$. Working on the log scale is motivated by the same reasoning used in our midterm project: PM2.5 concentrations are right-skewed and the log transform stabilizes variance and produces an approximately normal distribution (@midterm_project). The parameter $\tau$ captures the discrepancy between the ground-level point measurement and the true fine PM concentration since the sensor is fixed at a single location and cannot fully observe the concentration.
+
+## Parameters
+
+The mif2 algorithm perturbs parameters via additive Gaussian random walks on the estimation scale. Some of the parameters by design, we keep as strictly positive ($\alpha_T$, $\alpha_W$, $E$, $\sigma$, $\tau$) so we consider log-transformation to keep them above zero. Parameters that take either sign ($\alpha_H$, $\delta_c$, $\delta_s$), we leave as is on the natural scale. For reference, we summarize the parameters and their transformations in @tbl-params.
+
+| Parameter | Description | Transformation |
+|-----------|-------------|----------------|
+| $\alpha_T$ | Temperature PBL removal rate | log |
+| $\alpha_H$ | Net humidity effect on removal | unconstrained |
+| $\alpha_W$ | Wind dispersion removal rate | log |
+| $E$ | Baseline emission rate ($\mu$g/m³/day) | log |
+| $\delta_c$ | Seasonal cosine amplitude | unconstrained |
+| $\delta_s$ | Seasonal sine amplitude | unconstrained |
+| $\sigma$ | Process noise log-normal sd | log |
+| $\tau$ | Observation noise log-normal sd | log |
+
+: Model parameters {#tbl-params}
+
+## Inference
+
+Parameters are estimated by iterated filtering (mif2) [@ionides15] as implemented in the `pypomp` package [@pypomp]. We ran 40 independent starts initialized near physically motivated default values with 10% multiplicative noise, each with 500 mif2 iterations, 8,000 particles, and a geometric cooling schedule with rate 0.2. Log-likelihood is evaluated at each endpoint using the particle filter with 8,000 particles averaged over 20 replicates [@mt2_531]. We consider our final result from the midterm project as our benchmark model (@midterm_project), a linear regression on meteorological covariates with ARMA(3,1) errors since we seek to improve upon it.
+
+We consider the initial values without too much scientific assumption, slightly basing it off the data. We start $\alpha_T$, $\alpha_H$, $\alpha_W$ all at 0.5. The baseline emission $E$ is initialized at 5 µg/m³, near the approximate mean based on our data. We initialize seasonal amplitudes at zero, making no prior assumptions. Noise parameters $\sigma$ and $\tau$ are initialized at 0.5. Finally, we fix the initial state $X_0$ to the first-week observed mean (~10 µg/m³) rather than estimated, because estimating an initial condition from a single trajectory is unreliable — fixing it to a data-informed value avoids this instability without meaningfully affecting inference on the remaining parameters.
+
+
+
+# Results
+
+## Convergence Diagnostics
+
+```{python}
+#| echo: false
+#| label: fig-mif2-traces
+#| fig-cap: "mif2 convergence traces for log-likelihood and all parameters across 40 local search runs. Each colored line is one independent run."
+#| fig-pos: "H"
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from glob import glob
+
+RESULTS_DIR = '../results'
+trace_files = sorted(glob(f'{RESULTS_DIR}/mif_ind_daily_miftraces_*.csv'))
+dfs = []
+for f in trace_files:
+    df = pd.read_csv(f)
+    if 'method' in df.columns:
+        df = df[df['method'] == 'mif']
+    dfs.append(df)
+all_traces = pd.concat(dfs, ignore_index=True)
+
+param_cols = ['logLik', 'alpha_T', 'alpha_H', 'alpha_W', 'E', 'delta_c', 'delta_s', 'sigma', 'tau']
+param_cols = [c for c in param_cols if c in all_traces.columns]
+
+n_cols = 5
+n_rows = int(np.ceil(len(param_cols) / n_cols))
+fig, axes = plt.subplots(n_rows, n_cols, figsize=(13, n_rows * 2.5))
+axes = axes.flatten()
+colors = plt.cm.tab20.colors
+jobs = all_traces['job_id'].unique()
+
+for i, col in enumerate(param_cols):
+    ax = axes[i]
+    for j, job in enumerate(jobs):
+        sub = all_traces[all_traces['job_id'] == job].sort_values('iteration')
+        ax.plot(sub['iteration'], sub[col].values,
+                color=colors[j % len(colors)], alpha=0.6, linewidth=0.8)
+    ax.set_title(col, fontsize=10)
+    ax.set_xlabel('iteration', fontsize=8)
+    ax.grid(True, alpha=0.3)
+    if col == 'logLik':
+        finite_vals = all_traces[col].replace([np.inf, -np.inf], np.nan).dropna()
+        if len(finite_vals):
+            ax.set_ylim(finite_vals.quantile(0.01) - 10, finite_vals.max() + 10)
+
+for j in range(len(param_cols), len(axes)):
+    axes[j].set_visible(False)
+
+plt.suptitle('mif2 traces — Sihwa industrial daily PM2.5 (one line per run)', fontsize=12)
+plt.tight_layout()
+plt.show()
+```
+
+@fig-mif2-traces shows per-iteration mif2 traces for log-likelihood and all parameters across 40 local search runs. As a local search, each was initialized near the same initial values with slight perturbation of 10% multiplicative noise. As shown in the plot, the log-likelihood climbs in the first 100 iterations or so before stabilizing with most of them converging around $-763$ and $-800$. However, a minority fail to do so, likely due to unfavorable random initialization. Parameters $\alpha_T$, $\delta_c$, $\delta_s$, $\sigma$, $\tau$, and $E$ all seem to converge well into tight bands, where the progressive flattening are due to the cooling rate of 0.2, perturbation decaying to zero. 
+
+We see that $\alpha_H$ switches signs, some runs settle at positive values and others at negative. This may indicate that the net humidity effect is not well identified by the data. $\alpha_W$ shows a wider spread (~0.3–1.0) but with a clear central tendency around 0.3–0.5. $\alpha_T$ on the other hand, converges to near zero, suggesting a negligible effect of temperature-driven PBL mixing on fine PM at this station. The seasonal amplitudes $\delta_c$ and $\delta_s$ converge to stable values, consistent with a clear seasonal cycle peaking in early spring rather than mid-winter.
+
+
+## Global Search
+
+To verify that the local search did not miss a better region of parameter space, we ran a global search over 100 random starting points drawn from a ±0.5 range around the initial parameter values. @fig-global-search shows the endpoint log-likelihoods and parameter values across all runs.
+
+```{python}
+#| echo: false
+#| label: fig-global-search
+#| fig-cap: "Global search endpoints: logLik vs each meteorological parameter (top row) and pairwise parameter scatter (bottom row)."
+#| fig-pos: "H"
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('../results/global_search_ind_daily_summary.csv')
+for c in ['logLik', 'alpha_T', 'alpha_H', 'alpha_W']:
+    df[c] = pd.to_numeric(df[c], errors='coerce')
+df = df.dropna(subset=['logLik', 'alpha_T', 'alpha_H', 'alpha_W'])
+
+p1, p2, p3 = 'alpha_T', 'alpha_H', 'alpha_W'
+fig, axes = plt.subplots(2, 3, figsize=(6, 3.2))
+
+for j, p in enumerate([p1, p2, p3]):
+    axes[0, j].scatter(df[p], df['logLik'], s=18, alpha=0.8, color='steelblue', edgecolors='none')
+    axes[0, j].set_xlabel(p); axes[0, j].set_ylabel('logLik'); axes[0, j].grid(True, alpha=0.25)
+
+for j, (px, py) in enumerate([(p1, p2), (p1, p3), (p2, p3)]):
+    axes[1, j].scatter(df[px], df[py], s=18, alpha=0.8, color='steelblue', edgecolors='none')
+    axes[1, j].set_xlabel(px); axes[1, j].set_ylabel(py); axes[1, j].grid(True, alpha=0.25)
+
+fig.suptitle('Global search endpoints: industrial_daily', fontsize=11)
+plt.tight_layout()
+plt.show()
+```
+
+The global search best log-likelihood is $-762.09$, within $1.4$ units of the local MLE at $-763.53$, a difference well within Monte Carlo noise. This confirms that the local search did not miss a better region of parameter space and that the MLE is reliable.
+
+## Parameter Estimates
+
+```{python}
+#| echo: false
+#| label: tbl-params-est
+#| tbl-cap: "Best-run parameter estimates (logLik = -763.53)."
+import pandas as pd
+import numpy as np
+from IPython.display import display, Markdown
+
+_df = pd.read_csv('../results/mif_ind_daily_summary.csv')
+best = _df.loc[_df['logLik'].idxmax()]
+
+A   = np.sqrt(best['delta_c']**2 + best['delta_s']**2)
+phi = (365 / (2 * np.pi)) * np.arctan2(best['delta_s'], best['delta_c'])
+
+rows = [
+    ('$\\alpha_T$', f"{best['alpha_T']:.4f}", '$\\delta_c$', f"{best['delta_c']:.4f}"),
+    ('$\\alpha_H$', f"{best['alpha_H']:.4f}", '$\\delta_s$', f"{best['delta_s']:.4f}"),
+    ('$\\alpha_W$', f"{best['alpha_W']:.4f}", '$\\sigma$',   f"{best['sigma']:.4f}"),
+    ('$E$',         f"{best['E']:.4f}",       '$\\tau$',     f"{best['tau']:.4f}"),
+]
+
+tbl = pd.DataFrame(rows, columns=['Parameter', 'Estimate', 'Parameter ', 'Estimate '])
+display(Markdown(tbl.to_markdown(index=False)))
+```
+
+The best-run parameter estimates are shown above.
+
+This contrasts with our earlier midterm regression + ARMA model, where temperature appeared as a significant predictor of fine PM (@midterm_project). The POMP framework reveals that this was largely due to seasonal confounding. In the previous project, we had acknowledged the model's limitation that it had failed to take into account the seasonal variation. We now see here that the POMP model separates these effects by explicitly modeling the seasonal emission cycle through $E_t$, leaving $\alpha_T$ to capture only the PBL mixing effect, which is close to negligible. 
+
+We find that $\alpha_H$ switches between positive and negative, showing bimodality across runs, suggesting weak identifiability (@mt2_531). Since there is both evidence that humidity could positively and negatively affect PM [@tai2010], we had wanted our model to explain the dominant effect, but we see that the data alone cannot distinguish the two competing effects. In contrast, $\alpha_W$ has a clear positive estimate: each 1 m/s increase in wind multiplies the removal rate by $e^{0.327} \approx 1.39$, confirming that wind disperses fine PM at this station rather than causing resuspension. The seasonal cycle has a clear amplitude and peak timing, consistent with elevated emissions during late winter and early March.
+
+
+
+## Model Fit and Limitations
+
+We also fit a standalone ARMA(3,1) model to the fine PM series without any meteorological variables as a pure time series benchmark, achieving a log-likelihood of $-761.26$. Both the models evaluate on the log-transformed fine PM, so the log-likelihoods are directly comparable. The best POMP log-likelihood is $-763.53$, within $2.3$ units of the standalone ARMA(3,1) benchmark, which shows comparable performance along with physical interpretability. However, the regression + ARMA(3,1) benchmark from our midterm project (@midterm_project) at $-543.88$ achieves a substantially higher log-likelihood.
+
+Furthermore, probe diagnostics comparing 200 model simulations against observed statistics show that the model systematically underestimates the mean, variability, and autocorrelation of fine PM. Full simulation diagnostics are provided in the Supplementary (@sec-supp).
+
+This seems like a huge price to pay for physical interpretability and it may bring into question the reliability of the parameter estimates as well. A similar issue arose in Project 10 (Winter 2025), where the POMP model also failed to achieve competitive log-likelihood relative to the benchmark; peer review of that project highlighted the importance of CLL diagnostics for understanding where and why the mechanistic model underperforms (@review531fp10). We adopt this approach here to better understand the nature of the gap.
+
+
+## Conditional Log-Likelihood Diagnostics
+
+```{python}
+#| echo: false
+#| label: fig-cll
+#| fig-cap: "Per-day CLL anomaly (POMP minus benchmark, top) and particle filter CLL variance (bottom)"
+#| fig-pos: "t"
+
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+cll_csv = '../results/likelihood_anomaly_ind_daily.csv'
+if os.path.exists(cll_csv):
+    df_cll = pd.read_csv(cll_csv, parse_dates=['date'])
+    dates   = df_cll['date']
+    anomaly = df_cll['anomaly'].values
+    var_cll = df_cll['pomp_cll_var'].values
+    fig, axes = plt.subplots(2, 1, figsize=(7, 3), sharex=True)
+    axes[0].plot(dates, anomaly, lw=0.6, color='steelblue')
+    axes[0].axhline(0.0, color='k', lw=0.8, linestyle='--')
+    axes[0].set_ylabel('Anomaly\n(POMP − benchmark)')
+    axes[0].set_title('Per-day CLL anomaly: positive means POMP outperforms benchmark')
+
+    axes[1].plot(dates, var_cll, lw=0.6, color='darkorange')
+    axes[1].set_ylabel('Var(CLL)\nacross PF replicates')
+    axes[1].set_xlabel('Date')
+    axes[1].set_title('Particle filter Monte Carlo variance of conditional log-likelihood')
+
+    plt.tight_layout()
+    plt.show()
+else:
+    print('CLL CSV not found. Run: python3 "plot_likelihood_anomalies copy.py"')
+```
+
+To better understand where the POMP model underperforms relative to the benchmark model, we compute the per-day conditional log-likelihood (CLL) anomaly (@notes531), the difference between the POMP one-step-ahead log density and the benchmark's at each observation. @fig-cll shows the anomaly and particle filter CLL variance over time.
+
+Most days show anomalies near zero, indicating that POMP and the benchmark perform similarly under typical conditions. A few days of note however, show large negative anomalies, which are likewise reflected in the CLL variance, indicating that the particle filter struggles to compute a stable likelihood estimate on those days. These days correspond to sudden spikes in the fine PM, which cannot be explained by meteorological variables alone and are outliers that may have been caused by measurement error, industrial accidents, or long-range transport events. However, other than the small number of concerning days, most of the days seem to show near zero variance, which could suggest that the model is well-calibrated for the majority of the data and that the log-likelihood gap is caused by a small number of outlier events. The benchmark model may fare better in such cases since it can flexibly match the pattern in recent observations through its ARMA structure. This allows it to handle outliers much better than the mechanistic POMP model, which cannot anticipate sudden spikes in fine PM that is not caused by its underlying mechanical process. 
+
+This explains a portion of the gap in the log-likelihood, which may suggest a need for model extension. We could consider adding a regional background state to capture long-range transport events. We could also consider measurement error, and look back to the raw data to see if there are any unnatural spikes that seem out of place and preprocess the data more thoroughly.  
+
+
+
+
+# Conclusions
+
+We fitted a POMP model to daily PM2.5 at the Sihwa Industrial Complex and estimated its parameters via iterated filtering, achieving a log-likelihood comparable to a standalone ARMA benchmark. 
+
+The key contribution over our midterm regression model is interpretability. The midterm model found a significant association between temperature and fine PM, which was in fact a seasonal variation, the POMP model was able to separate the effect, leaving $\alpha_T$ to capture only PBL mixing, which turned out to be negligible. Wind was the primary removal mechanism now expressed as a quantitative daily decay rate rather than a regression coefficient. These were questions that could not be answered by the midterm model. 
+
+**Limitations.** The model unfortunately underperforms relative to the regression + ARMA benchmark. It underestimates the mean, variability, and autocorrelation of fine PM as shown in the simulation diagnostics. The humidity effect $\alpha_H$ is weakly identified, with the data unable to distinguish wet deposition from hygroscopic growth. We also acknowledge that the cooling rate of $a = 0.2$ caused convergence around iteration 150 out of 500, leaving the remaining compute budget unused, however, we are fairly confident about the convergence of the parameters. 
+
+
+# Supplementary {#sec-supp}
+
+## Data
+
+
+```{python}
+#| echo: false
+#| label: tbl-station-meta
+#| tbl-cap: "Metadata for the Sihwa Industrial Complex monitoring station."
+import pandas as pd
+meta = pd.read_csv('../station_metadata.csv')
+meta = meta[meta['station_english'] == 'Industrial'][['station_english','latitude','longitude','height_m','installed']].rename(columns={
+    'station_english': 'Station', 'latitude': 'Latitude', 'longitude': 'Longitude',
+    'height_m': 'Height (m)', 'installed': 'Installed'
+})
+meta
+```
+
+```{python}
+#| echo: false
+#| label: tbl-data-summary
+#| tbl-cap: "Summary statistics of daily PM2.5 (µg/m³) at the Sihwa industrial station, January 1, 2021 – March 31, 2025."
+import pandas as pd
+import numpy as np
+
+ind = pd.read_csv('../shiwa_industrial_daily.csv', index_col='time_stamp', parse_dates=True)
+
+summary = ind['pm2.5'].describe().to_frame(name='Industrial').loc[['count','mean','std','min','25%','50%','75%','max']].round(2)
+summary.index = ['N', 'Mean', 'Std', 'Min', 'Q1', 'Median', 'Q3', 'Max']
+summary
+```
+
+Daily PM2.5 and meteorological measurements were obtained from the AICAN monitoring network for the Sihwa industrial station for the period January 1, 2021 through March 31, 2025, yielding 1,551 daily observations. Raw 10-minute data were first aggregated to hourly means, with short gaps of at most 3 consecutive hours filled by linear interpolation. Days with fewer than 18 valid hourly observations (75% coverage) were excluded before daily averaging, following US EPA data completeness criteria for ambient PM2.5 monitoring [@epa_appendixn]. The resulting daily series were further interpolated across gaps of up to 7 days. Covariates used in the POMP model are daily-averaged temperature (°C), relative humidity (%), wind speed (m/s), and air pressure (hPa).
+
+## Simulation Diagnostics
+
+@fig-sim-diagnostics shows probe diagnostics comparing the observed PM2.5 data against 200 model simulations at the best-fit parameters. Results consistently fall at the upper tail of the simulation distributions, indicating that the model systematically underestimates the mean concentration level, variability, and autocorrelation of fine PM.
+
+```{python}
+#| echo: false
+#| label: fig-sim-diagnostics
+#| fig-cap: "Probe diagnostics: observed statistics (red line) vs. distribution across 200 model simulations at the best-fit parameters. Observed values fall at the upper tail in all probes, indicating the model underestimates mean, variability, and autocorrelation."
+#| fig-pos: "H"
+
+import sys, os
+sys.path.insert(0, '..')
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import jax
+from glob import glob
+from shiwa_pomp_industrial_daily import build_pomp
+
+RESULTS_DIR = '../results'
+trace_files = sorted(glob(f'{RESULTS_DIR}/mif_ind_daily_traces_*.csv'))
+parts = []
+for path in trace_files:
+    df_t = pd.read_csv(path)
+    df_t = df_t[df_t['method'] == 'pfilter']
+    parts.append(df_t.sort_values('logLik', ascending=False).iloc[[0]])
+df = pd.concat(parts, ignore_index=True).sort_values('logLik', ascending=False).reset_index(drop=True)
+
+excl = {'job_id', 'logLik', 'se', 'method', 'replicate', 'iteration'}
+param_cols = [c for c in df.columns if c not in excl and df[c].dtype != object]
+best_theta = {p: float(df[p].iloc[0]) for p in param_cols}
+
+model = build_pomp(theta=best_theta, data_dir='../')
+key = jax.random.PRNGKey(123)
+_, Y_sims = model.simulate(key=key, nsim=200)
+Y_sims = np.array(Y_sims)
+T = model.ys.shape[0]
+if Y_sims.ndim == 2:
+    Y_sims = Y_sims.reshape(200, T, -1)
+
+ind = pd.read_csv('../shiwa_industrial_daily.csv', index_col='time_stamp', parse_dates=True)
+obs = ind['pm2.5'].clip(lower=0.01).values
+col_means = np.nanmean(Y_sims[0], axis=0)
+obs_col = int(np.argmin(np.abs(col_means - obs.mean())))
+Y_obs_sim = Y_sims[:, :, obs_col]
+
+def probe_mean(y):  return np.log(np.clip(y, 0.01, None)).mean()
+def probe_sd(y):    return np.log(np.clip(y, 0.01, None)).std()
+def probe_q25(y):   return np.quantile(np.log(np.clip(y, 0.01, None)), 0.25)
+def probe_q75(y):   return np.quantile(np.log(np.clip(y, 0.01, None)), 0.75)
+def probe_acf1(y):
+    logy = np.log(np.clip(y, 0.01, None))
+    return float(np.corrcoef(logy[:-1], logy[1:])[0, 1])
+
+probes = [('Mean(log PM2.5)', probe_mean), ('SD(log PM2.5)', probe_sd),
+          ('Q25(log)', probe_q25), ('Q75(log)', probe_q75), ('ACF lag-1', probe_acf1)]
+
+fig, axes = plt.subplots(1, len(probes), figsize=(11, 2.5))
+for ax, (pname, pfunc) in zip(axes, probes):
+    sim_vals = [v for v in [pfunc(Y_obs_sim[i]) for i in range(200)] if np.isfinite(v)]
+    ax.hist(sim_vals, bins=30, color='steelblue', alpha=0.7, density=True)
+    obs_val = pfunc(obs)
+    if np.isfinite(obs_val):
+        ax.axvline(obs_val, color='red', lw=2, label='Data')
+    ax.set_title(pname, fontsize=9)
+    ax.legend(fontsize=7)
+plt.suptitle('Probe diagnostics: data (red) vs 200 simulations', fontsize=10)
+plt.tight_layout()
+plt.show()
+```
+
+## Acknowledgments {.unnumbered}
+
+Data from the AICAN air quality monitoring network. Analysis conducted using `pypomp`, `JAX`, and `pandas`. Computations run on the University of Michigan Great Lakes cluster. AI (Claude) was used for debugging and code development in designing and formatting plots. Claude also suggested modeling the seasonal emission cycle using a pair of harmonic terms — $\cos(2\pi t/365)$ and $\sin(2\pi t/365)$ — which allows the peak timing and amplitude to be estimated from the data rather than fixed in advance. All AI-generated code and suggestions were reviewed and validated by the authors before inclusion, with final responsibility for the analysis resting with the team. 
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+
+
+
+:::

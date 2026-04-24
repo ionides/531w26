@@ -1,0 +1,710 @@
+---
+title: "Modeling Latent Volatility Regimes in Daily WTI Crude Oil Returns: A POMP Analysis with ARIMA and GARCH Benchmarks\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+execute:
+  echo: false
+  warning: false
+  message: false
+number-sections: true
+jupyter: python3
+---
+
+# Introduction
+
+Crude oil is a central commodity in the global economy, and its price dynamics respond quickly to changes in supply conditions, transportation frictions, and broader macroeconomic uncertainty. These features make oil returns a natural object of study when the goal is to understand changing volatility across more stable and more turbulent market conditions.
+
+In this project, we study daily returns on West Texas Intermediate (WTI) crude oil and ask whether their dynamics can be described by a small number of latent volatility states. Our focus is on three features of the series: heavy tails, volatility clustering, and abrupt changes in market conditions. These features motivate going beyond a single linear Gaussian specification.
+
+Our project also relates to earlier course work on crude-oil time-series modeling, but shifts the focus to daily WTI returns and latent volatility regimes [@previous_crude_oil_project]. Our analysis proceeds in three steps. We first describe the data and examine preliminary diagnostics. We then fit ARIMA and AR(1)-GARCH(1,1)-$t$ benchmark models. Finally, we estimate a partially observed Markov process (POMP) model. The POMP model improves substantially on the ARIMA baseline, while GARCH remains the strongest benchmark in terms of AIC. We therefore interpret the main contribution of the POMP model as its latent-state structure and economic interpretability rather than uniformly superior fit across all baselines.
+
+# Data
+
+```{python}
+import numpy as np
+import pandas as pd
+
+url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILWTICO"
+price = pd.read_csv(url)
+
+price["observation_date"] = pd.to_datetime(price["observation_date"], errors="coerce")
+price["DCOILWTICO"] = pd.to_numeric(price["DCOILWTICO"], errors="coerce")
+
+START_DATE = "2014-01-01"
+
+price = (
+    price.rename(columns={
+        "observation_date": "date",
+        "DCOILWTICO": "price"
+    })
+    .dropna()
+    .query("date >= @START_DATE")
+    .query("price > 0")
+    .sort_values("date")
+    .reset_index(drop=True)
+)
+
+price["log_price"] = np.log(price["price"])
+price["return"] = 100 * price["log_price"].diff()
+
+df = price.dropna().copy()
+df["sq_return"] = df["return"] ** 2
+```
+
+Our analysis uses daily spot prices for West Texas Intermediate (WTI) crude oil from the FRED series DCOILWTICO [@fred_wti].
+$$
+r_t = 100 \times \Delta \log(P_t),
+$$
+and use this return series throughout the paper.
+
+This transformation shifts the analysis from long-run level movements to short-run fluctuations, which is more appropriate for our focus on heavy tails, volatility clustering, and latent changes in market conditions. Using the same return series throughout also ensures that ARIMA, GARCH, and POMP are compared on a common empirical basis.
+
+# Preliminary Analysis
+
+We begin with a set of exploratory diagnostics designed to clarify which features of the WTI return series require explicit modeling. In particular, we examine the price series, the return series, the marginal distribution of returns, and autocorrelation patterns in both returns and squared returns. These diagnostics are useful because they indicate whether the main structure of the data lies in the conditional mean, the conditional variance, or both.
+
+```{python}
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 3))
+plt.plot(df["date"], df["return"])
+plt.title("WTI Daily Log Returns (%)")
+plt.xlabel("Date")
+plt.ylabel("Return (%)")
+plt.tight_layout()
+plt.show()
+```
+
+The price plot provides a broad overview of the sample and shows that crude-oil prices move through visibly different market environments over time. However, for the purposes of statistical modeling, the return plot is more informative. In the return series, periods of relatively modest day-to-day variation alternate with bursts of much larger movements, suggesting that volatility is not constant over time. This feature already points toward conditional heteroskedasticity as a central characteristic of the data.
+
+We next examine the empirical distribution of returns using a histogram. Relative to a simple Gaussian benchmark, the return distribution appears to be heavy-tailed, reflecting the presence of rare but unusually large daily shocks. This is an important consideration for model specification, since a normal error distribution may understate the probability of extreme events in the oil market.
+
+```{python}
+#| fig-width: 5
+#| fig-height: 2.5
+#| out-width: "55%"
+#| fig-align: "center"
+plt.figure(figsize=(5, 2.5))
+plt.hist(df["return"], bins=60)
+plt.title("Histogram of WTI Daily Log Returns", fontsize=10)
+plt.xlabel("Return (%)", fontsize=9)
+plt.ylabel("Frequency", fontsize=9)
+plt.xticks(fontsize=8)
+plt.yticks(fontsize=8)
+plt.tight_layout()
+plt.show()
+```
+
+Finally, we consider autocorrelation diagnostics. The autocorrelation in raw returns is comparatively weak, which is typical for daily financial return series and suggests that linear mean dynamics alone are unlikely to explain much of the dependence in the data. By contrast, the autocorrelation in squared returns is more persistent, indicating that dependence is expressed more clearly through the volatility process than through the conditional mean. Taken together, these preliminary findings motivate the baseline models used in the next section: ARIMA as a benchmark for linear dependence in returns, and GARCH as a benchmark for time-varying volatility and heavy-tailed innovations. They also provide the empirical justification for the richer POMP specification developed later in the paper.
+
+```{python}
+#| fig-width: 7
+#| fig-height: 2.6
+#| out-width: "80%"
+#| fig-align: "center"
+
+from statsmodels.graphics.tsaplots import plot_acf
+
+fig, axes = plt.subplots(1, 2, figsize=(7, 2.6))
+
+plot_acf(df["return"], lags=40, ax=axes[0])
+axes[0].set_title("ACF of WTI Returns", fontsize=9)
+axes[0].tick_params(labelsize=7)
+
+plot_acf(df["sq_return"], lags=40, ax=axes[1])
+axes[1].set_title("ACF of Squared WTI Returns", fontsize=9)
+axes[1].tick_params(labelsize=7)
+
+plt.tight_layout()
+plt.show()
+```
+
+# Baseline Time-Series Models
+
+Before introducing the POMP model, we fit two standard benchmark specifications. The first is an ARIMA model, which serves as a conventional linear Gaussian baseline for the dynamics of the return series [@notes_arma_531w26]. The second is an AR(1)-GARCH(1,1)-$t$ model with Student-$t$ innovations, which provides a more appropriate benchmark when the main dependence in the data is expressed through time-varying volatility rather than the conditional mean.
+```{python}
+from arch import arch_model
+
+y_garch = df["return"].astype(float)
+
+garch_report = arch_model(
+    y_garch,
+    mean="AR",
+    lags=1,
+    vol="GARCH",
+    p=1,
+    q=1,
+    dist="t",
+    rescale=False
+).fit(disp="off")
+```
+
+The role of the ARIMA model is primarily diagnostic. Because the preliminary analysis suggests that autocorrelation in raw returns is comparatively weak, ARIMA is not expected to provide a fully satisfactory description of the series. Still, it is a useful benchmark because it represents the simplest conventional time-series approach to modeling return dynamics. In our final comparison, the ARIMA(2,0,2) specification attains a log-likelihood of $-7712.48$ and an AIC of $15436.96$. These values indicate that a linear Gaussian model with constant variance leaves substantial structure in the data unexplained.
+
+The GARCH baseline is more directly aligned with the empirical features documented earlier. By allowing conditional variance to evolve over time and by using Student-$t$ innovations, the model can accommodate both volatility clustering and heavy-tailed shocks. For this reason, it provides a much stronger benchmark than ARIMA for the present application. In our final specification, the AR(1)-GARCH(1,1)-$t$ model attains a log-likelihood of $-6774.15$ and an AIC of $13560.30$, substantially improving on the ARIMA baseline. This confirms that volatility modeling is essential for WTI daily returns.
+
+```{python}
+import pickle
+
+garch_ll = float(garch_report.loglikelihood)
+garch_k = int(len(garch_report.params))
+garch_aic = float(garch_report.aic)
+```
+
+These baseline results clarify the role of the POMP model developed in the next section. The POMP specification is not introduced simply to outperform a linear benchmark, since GARCH already captures an important part of the volatility structure in the data. Rather, its main purpose is to provide a latent-state description of oil-market volatility, allowing periods of calm, stress, and crisis to be represented within a unified probabilistic framework. As shown later, this gives the model an interpretive advantage even though it does not achieve a lower AIC than the formal GARCH baseline.
+
+# POMP Model and Estimation
+
+```{python}
+#| label: setup
+#| include: false
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.special import gammaln
+from scipy.stats import t as student_t, norm
+import pickle
+
+np.set_printoptions(suppress=True, precision=4)
+plt.rcParams["figure.dpi"] = 100
+plt.rcParams["savefig.dpi"] = 120
+
+# Load saved diagnostics results
+with open("diagnostics_results.pkl", "rb") as f:
+    saved = pickle.load(f)
+
+trajectories = saved["trajectories"]
+theta_strict = saved["theta_strict"]
+theta_hat = saved.get("theta_hat", theta_strict)
+loglik_final = saved["strict_stationary_loglik_mean"]
+loglik_se    = saved["strict_stationary_loglik_sd"]
+
+# Model helper functions (copied from the estimation notebook)
+N_PARAMS = 12
+
+def unpack(theta):
+    (a1, b1, a2, b2, ls1, ls2, lS1, lS2, lS3, mu, gamma, lnu) = theta
+    return dict(alpha1=a1, beta1=b1, alpha2=a2, beta2=b2,
+                sigma1=np.exp(ls1), sigma2=np.exp(ls2),
+                s1=np.exp(lS1), s2=np.exp(lS2), s3=np.exp(lS3),
+                mu=mu, gamma=gamma, nu=2.0 + np.exp(lnu))
+
+def softmax_3class(nu1, nu2):
+    m = np.maximum(np.maximum(nu1, nu2), 0.0)
+    e1, e2, e3 = np.exp(nu1 - m), np.exp(nu2 - m), np.exp(-m)
+    s = e1 + e2 + e3
+    return e1/s, e2/s, e3/s
+
+def particle_filter_loglik(theta, y, N=1000, seed=42, return_filtered=False):
+    p = unpack(theta)
+    a1, b1, a2, b2 = p["alpha1"], p["beta1"], p["alpha2"], p["beta2"]
+    sn1, sn2 = p["sigma1"], p["sigma2"]
+    s1_, s2_, s3_ = p["s1"], p["s2"], p["s3"]
+    mu, gamma, nu = p["mu"], p["gamma"], p["nu"]
+
+    rng = np.random.default_rng(seed)
+    u1 = 0.1 * rng.standard_normal(N)
+    u2 = 0.1 * rng.standard_normal(N)
+
+    T = len(y)
+    loglik = 0.0
+    r_prev = 0.0
+    log_norm_const = (gammaln((nu+1)/2) - gammaln(nu/2) - 0.5*np.log(nu*np.pi))
+    nu_half_plus = (nu + 1) / 2
+
+    if return_filtered:
+        filt = np.zeros((T, 3))
+
+    for t in range(T):
+        u1_new = np.clip(a1*u1 + b1*u2 + sn1*rng.standard_normal(N), -50, 50)
+        u2_new = np.clip(a2*u1 + b2*u2 + sn2*rng.standard_normal(N), -50, 50)
+        x1, x2, x3 = softmax_3class(u1_new, u2_new)
+        sigma_t = s1_*x1 + s2_*x2 + s3_*x3
+        mean_obs = mu + gamma*r_prev
+        z = (y[t] - mean_obs) / sigma_t
+        log_w = log_norm_const - np.log(sigma_t) - nu_half_plus * np.log1p(z*z/nu)
+
+        max_lw = np.max(log_w)
+        w = np.exp(log_w - max_lw)
+        sum_w = np.sum(w)
+        loglik += max_lw + np.log(sum_w) - np.log(N)
+
+        w_norm = w / sum_w
+        if return_filtered:
+            filt[t, 0] = np.sum(w_norm * x1)
+            filt[t, 1] = np.sum(w_norm * x2)
+            filt[t, 2] = np.sum(w_norm * x3)
+
+        u0 = rng.uniform() / N
+        positions = u0 + np.arange(N) / N
+        cumw = np.cumsum(w_norm)
+        idx = np.clip(np.searchsorted(cumw, positions), 0, N - 1)
+        u1, u2 = u1_new[idx], u2_new[idx]
+        r_prev = y[t]
+
+    if return_filtered:
+        return loglik, filt
+    return loglik
+
+# Load data (same as the estimation notebook)
+url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILWTICO"
+price = pd.read_csv(url)
+price["observation_date"] = pd.to_datetime(price["observation_date"], errors="coerce")
+price["DCOILWTICO"] = pd.to_numeric(price["DCOILWTICO"], errors="coerce")
+price = (
+    price.rename(columns={"observation_date": "date", "DCOILWTICO": "price"})
+    .dropna().query("date >= '2014-01-01'").query("price > 0")
+    .sort_values("date").reset_index(drop=True)
+)
+price["log_price"] = np.log(price["price"])
+price["return"] = 100 * price["log_price"].diff()
+df = price.dropna().copy().reset_index(drop=True)
+y_np = df["return"].to_numpy()
+dates = df["date"].to_numpy()
+T = len(y_np)
+
+p_hat = unpack(theta_strict)
+```
+
+## Model Specification
+
+We propose a partially observed Markov process (POMP) model with a two-dimensional continuous latent state and a three-regime softmax mapping. The model is designed to capture the well-documented features of oil return dynamics: persistent volatility clustering, heavy tails, and occasional extreme shocks.
+
+### Process Model (Latent VAR(1))
+
+Let $\nu_{1,t}, \nu_{2,t}$ denote two continuous latent variables following a first-order vector autoregression:
+
+$$
+\begin{aligned}
+\nu_{1,t+1} &= \alpha_1 \nu_{1,t} + \beta_1 \nu_{2,t} + \epsilon_{1,t}, \quad \epsilon_{1,t} \sim \mathcal{N}(0, \sigma_1^2) \\
+\nu_{2,t+1} &= \alpha_2 \nu_{1,t} + \beta_2 \nu_{2,t} + \epsilon_{2,t}, \quad \epsilon_{2,t} \sim \mathcal{N}(0, \sigma_2^2)
+\end{aligned}
+$$
+
+### Softmax Mapping to Regime Probabilities
+
+The latent pair $(\nu_1, \nu_2)$ is mapped to a simplex of three regime probabilities via softmax with the third class fixed as baseline:
+
+$$
+x_1 = \frac{e^{\nu_1}}{e^{\nu_1}+e^{\nu_2}+1},\quad
+x_2 = \frac{e^{\nu_2}}{e^{\nu_1}+e^{\nu_2}+1},\quad
+x_3 = \frac{1}{e^{\nu_1}+e^{\nu_2}+1}
+$$
+
+Each $x_j$ is interpretable as the time-$t$ probability that the system occupies regime $j$.
+
+### Measurement Model (State-Driven Volatility + Student-t)
+
+The observed daily return $r_t$ is modeled as:
+
+$$
+r_t \sim t_\nu\!\big(\mu + \gamma r_{t-1},\ \sigma(x_t)\big), \quad \sigma(x_t) = s_1 x_{1,t} + s_2 x_{2,t} + s_3 x_{3,t}
+$$
+
+Two design choices are motivated by stylized facts of oil return data:
+
+1. **States drive volatility, not mean.** The conditional mean of daily oil returns is close to zero, while the conditional volatility varies by an order of magnitude between calm and crisis periods. Assigning states to the scale parameter $\sigma(x)$ captures this directly, rather than forcing the mean to absorb regime information.
+2. **Student-$t$ errors.** Daily oil returns exhibit well-documented heavy tails (e.g., the −17.5% move on 2026-04-08). A Student-$t$ likelihood with a free degrees-of-freedom parameter absorbs these tail events without inflating $\sigma$.
+
+The AR(1) term $\gamma r_{t-1}$ accommodates weak short-horizon autocorrelation.
+
+### Parameters
+
+```{python}
+#| label: tbl-params-list
+#| tbl-cap: "Free parameters of the POMP model (12 total)."
+#| echo: false
+#| output: asis
+
+param_df = pd.DataFrame({
+    "Category": ["VAR dynamics", "VAR dynamics", "VAR dynamics", "VAR dynamics",
+                 "VAR innovations", "VAR innovations",
+                 "State-dep. volatility", "State-dep. volatility", "State-dep. volatility",
+                 "Measurement", "Measurement", "Measurement"],
+    "Parameter": ["$\\alpha_1$", "$\\beta_1$", "$\\alpha_2$", "$\\beta_2$",
+                  "$\\sigma_1$", "$\\sigma_2$",
+                  "$s_1$", "$s_2$", "$s_3$",
+                  "$\\mu$", "$\\gamma$", "$\\nu$"],
+    "Role": ["factor-1 self-persistence", "cross-effect (factor 2 on 1)",
+             "cross-effect (factor 1 on 2)", "factor-2 self-persistence",
+             "factor-1 innovation SD", "factor-2 innovation SD",
+             "calm-regime volatility", "stress-regime volatility", "crisis-regime volatility",
+             "conditional-mean intercept", "return AR(1) coefficient",
+             "Student-$t$ degrees of freedom"],
+})
+print(param_df.to_markdown(
+    index=False,
+    colalign=("center", "center", "center")
+))
+```
+
+## Estimation
+
+Because the latent states $(\nu_1, \nu_2)$ are continuous, the forward algorithm used for discrete-state hidden Markov models does not apply. We use a **bootstrap particle filter** to obtain a Monte Carlo estimate of the log-likelihood, and **Nelder-Mead** optimization over an unconstrained parameterization (log-scale for $\sigma, s, \nu-2$; identity for the rest) to find the maximum-likelihood estimate[@notes_likelihood_531w26].
+
+Two practical safeguards are applied:
+
+1. **Latent state clipping.** $\nu_{1,t}, \nu_{2,t}$ are clipped to $[-50, 50]$ to prevent floating-point overflow when the optimizer probes near-non-stationary VAR coefficients during its search.
+2. **Stationarity constraint.** We apply a quadratic penalty to $\alpha_1, \beta_2$ exceeding $0.998$, so that the optimizer is discouraged from exiting the stationary region. The final reported MLE satisfies $|\alpha_1|, |\beta_2| < 1$ strictly.
+
+For optimization we use $N = 1500$ particles. For the final log-likelihood and AIC we use $N = 3000$ particles averaged over 10 independent Monte Carlo replicates.
+
+# Results
+
+## Parameter Estimates
+
+```{python}
+#| label: tbl-estimates
+#| tbl-cap: "Maximum-likelihood parameter estimates (strict-stationarity-constrained)."
+#| echo: false
+#| output: asis
+
+estimates_df = pd.DataFrame({
+    "Parameter": ["$\\alpha_1$", "$\\beta_1$", "$\\alpha_2$", "$\\beta_2$",
+                  "$\\sigma_1$", "$\\sigma_2$",
+                  "$s_1$", "$s_2$", "$s_3$",
+                  "$\\mu$", "$\\gamma$", "$\\nu$"],
+    "Estimate": [
+        f"{p_hat['alpha1']:.4f}",
+        f"{p_hat['beta1']:.4f}",
+        f"{p_hat['alpha2']:.4f}",
+        f"{p_hat['beta2']:.4f}",
+        f"{p_hat['sigma1']:.4f}",
+        f"{p_hat['sigma2']:.4f}",
+        f"{p_hat['s1']:.3f}",
+        f"{p_hat['s2']:.3f}",
+        f"{p_hat['s3']:.3f}",
+        f"{p_hat['mu']:.4f}",
+        f"{p_hat['gamma']:.4f}",
+        f"{p_hat['nu']:.3f}",
+    ],
+    "Interpretation": [
+        "factor-1 persistence (near unit root)",
+        "negligible cross-effect",
+        "negligible cross-effect",
+        "factor-2 persistence",
+        "factor-1 innovation SD",
+        "factor-2 innovation SD",
+        "calm-regime daily volatility (%)",
+        "stress-regime daily volatility (%)",
+        "crisis-regime daily volatility (%)",
+        "near-zero conditional-mean intercept",
+        "weak negative AR(1)",
+        "heavy-tailed Student-$t$ df",
+    ],
+})
+print(estimates_df.to_markdown(
+    index=False,
+    colalign=("center", "center", "center")
+))
+```
+
+## Log-Likelihood and AIC
+
+```{python}
+#| label: loglik-aic
+
+aic_pomp = 2 * N_PARAMS - 2 * loglik_final
+print(f"Final log-likelihood  (N=3000, 10 MC replicates): {loglik_final:.2f}")
+print(f"Monte Carlo standard error                      : {loglik_se:.2f}")
+print(f"AIC = 2k - 2*ll = 2*{N_PARAMS} - 2*({loglik_final:.2f})  = {aic_pomp:.2f}")
+```
+
+## Model Comparison
+
+```{python}
+#| label: tbl-model-comparison
+#| tbl-cap: "Model comparison by AIC. Lower is better."
+
+arima_aic = 15436.96
+arima_ll  = -7712.48
+arima_k   = 7
+
+garch_ll  = -6774.15
+garch_k   = 6
+garch_aic = 13560.30
+
+rows = [
+    ["ARIMA(2,0,2)", f"{arima_ll:.2f}", arima_k, f"{arima_aic:.2f}",
+     f"+{arima_aic - aic_pomp:.1f}"],
+    ["AR(1)-GARCH(1,1)-t", f"{garch_ll:.2f}", garch_k, f"{garch_aic:.2f}",
+     f"{garch_aic - aic_pomp:+.1f}"],
+    ["POMP (this work)", f"{loglik_final:.2f}",
+     f"{N_PARAMS}", f"{aic_pomp:.2f}", "—"]
+]
+
+comparison_df = pd.DataFrame(
+    rows, columns=["Model", "log-likelihood", "k", "AIC", "ΔAIC vs POMP"]
+)
+
+comparison_df
+```
+
+Relative to ARIMA(2,0,2), the POMP model reduces AIC by `{python} f"{arima_aic - aic_pomp:.0f}"` units, indicating a substantial improvement over a linear Gaussian baseline. However, the AR(1)-GARCH(1,1)-$t$ benchmark attains a lower AIC than POMP. We therefore interpret the main contribution of the POMP model as its latent-state structure and economic interpretability rather than uniformly superior fit across all baselines.
+
+## Diagnostics and Model Validation
+
+### Multi-Start Search Diagnostic
+
+To assess identifiability and robustness of the MLE, we ran 15 independent Nelder-Mead searches, each starting from a random perturbation of $\hat\theta$ (per-parameter scales; AR coefficients clipped to the stationary region), with up to 1000 iterations and $N = 1500$ particles per objective evaluation. Total runtime was approximately 6.7 hours.
+
+```{python}
+#| label: fig-multistart
+#| fig-cap: "Multi-start diagnostic: parameter and log-likelihood trajectories for 15 independent Nelder-Mead optimizations from perturbed initial values. Top dashed line marks the final MLE log-likelihood evaluated with N=3000 particles × 10 MC replicates."
+#| fig-width: 14
+#| fig-height: 11
+
+fig, axes = plt.subplots(4, 4, figsize=(14, 11))
+axes = axes.flatten()
+
+def transform_display(theta_matrix):
+    T_ = theta_matrix.copy()
+    T_[:, 4]  = np.exp(T_[:, 4])
+    T_[:, 5]  = np.exp(T_[:, 5])
+    T_[:, 6]  = np.exp(T_[:, 6])
+    T_[:, 7]  = np.exp(T_[:, 7])
+    T_[:, 8]  = np.exp(T_[:, 8])
+    T_[:, 11] = 2.0 + np.exp(T_[:, 11])
+    return T_
+
+display_names = ["alpha1", "beta1", "alpha2", "beta2",
+                 "sigma1", "sigma2", "s1", "s2", "s3",
+                 "mu", "gamma", "nu"]
+colors = plt.cm.tab20(np.linspace(0, 1, len(trajectories)))
+
+for p_idx in range(N_PARAMS):
+    ax = axes[p_idx]
+    for s_idx, traj in enumerate(trajectories):
+        th_disp = transform_display(traj["theta_traj"])
+        ax.plot(th_disp[:, p_idx], color=colors[s_idx], alpha=0.6, linewidth=0.8)
+    ax.set_title(display_names[p_idx])
+    ax.grid(alpha=0.3)
+
+ax = axes[N_PARAMS]
+final_lls_plot = np.array([t["final_ll"] for t in trajectories])
+for s_idx, traj in enumerate(trajectories):
+    ax.plot(traj["ll_traj"], color=colors[s_idx], alpha=0.6, linewidth=0.8)
+ax.set_title("loglik")
+ax.grid(alpha=0.3)
+ax.axhline(loglik_final, color="black", linestyle="--", alpha=0.5,
+           label=f"MLE ref ({loglik_final:.1f})")
+ax.legend()
+ll_lo = max(final_lls_plot.min() - 30, loglik_final - 150)
+ll_hi = loglik_final + 10
+ax.set_ylim(ll_lo, ll_hi)
+
+for i in range(N_PARAMS + 1, len(axes)):
+    axes[i].axis("off")
+
+fig.suptitle("Multi-start Search Diagnostic (POMP)", fontsize=14)
+fig.supxlabel("iteration")
+fig.supylabel("value")
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| label: multistart-summary
+#| echo: false
+
+final_lls = np.array([t["final_ll"] for t in trajectories])
+within_5  = (final_lls > final_lls.max() - 5).sum()
+within_20 = (final_lls > final_lls.max() - 20).sum()
+
+print(f"Number of starts       : {len(trajectories)}")
+print(f"Best final ll          : {final_lls.max():.2f}")
+print(f"Worst final ll         : {final_lls.min():.2f}")
+print(f"Starts within 5 of best: {within_5}/{len(trajectories)}")
+print(f"Starts within 20 of best: {within_20}/{len(trajectories)}")
+```
+
+The diagnostic reveals three features worth noting:
+
+1. **Likelihood surface is non-convex** but all converged trajectories reach log-likelihood values comfortably below the ARIMA baseline. Even the worst converged trajectory yields AIC substantially lower than the ARIMA AIC of 15437.
+2. **Core parameters are identifiable:** $\alpha_1, \beta_2, \sigma_1, \sigma_2, s_1, \mu, \gamma, \nu$ show tight convergence across starts.
+3. **Near-unit-root ridge:** several unconstrained trajectories drifted toward $\alpha_1 \to 1$. We handle this by reporting the constrained estimate with $\alpha_1 \leq 0.998$, which sacrifices only 2.3 log-likelihood units relative to the unconstrained optimum but preserves VAR stationarity.
+
+### Filtered Regime Probabilities
+
+```{python}
+#| label: compute-filtered
+#| cache: true
+
+_, filtered_probs = particle_filter_loglik(theta_strict, y_np, N=5000, seed=42, return_filtered=True)
+
+vols = np.array([p_hat["s1"], p_hat["s2"], p_hat["s3"]])
+vol_order = np.argsort(vols)
+```
+
+```{python}
+#| label: fig-filtered-states
+#| fig-cap: "Top: observed daily WTI returns. Bottom: filtered posterior probabilities of each regime, colored by volatility magnitude."
+#| fig-width: 14
+#| fig-height: 6
+
+state_labels = ["", "", ""]
+state_labels[vol_order[0]] = f"calm (σ≈{vols[vol_order[0]]:.2f})"
+state_labels[vol_order[1]] = f"stress (σ≈{vols[vol_order[1]]:.2f})"
+state_labels[vol_order[2]] = f"shock (σ≈{vols[vol_order[2]]:.2f})"
+
+fig, axes = plt.subplots(2, 1, figsize=(14, 6), sharex=True,
+                          gridspec_kw={"height_ratios": [1, 2]})
+
+axes[0].plot(dates, y_np, linewidth=0.4, color="steelblue")
+axes[0].axhline(0, color="black", linewidth=0.5)
+axes[0].set_ylabel("daily return (%)")
+axes[0].set_title("WTI oil daily returns")
+axes[0].grid(alpha=0.3)
+
+sorted_filt = filtered_probs[:, vol_order]
+axes[1].stackplot(dates,
+                   sorted_filt[:, 0], sorted_filt[:, 1], sorted_filt[:, 2],
+                   labels=[state_labels[vol_order[0]],
+                           state_labels[vol_order[1]],
+                           state_labels[vol_order[2]]],
+                   colors=["#9EC7EC", "#F4B27A", "#D15E5E"], alpha=0.85)
+axes[1].set_ylabel("P(regime | data)")
+axes[1].set_xlabel("date")
+axes[1].set_title("Filtered regime probabilities")
+axes[1].legend(loc="upper left", fontsize=9)
+axes[1].set_ylim(0, 1)
+
+plt.tight_layout()
+plt.show()
+```
+
+The filtered probabilities align with known market history: the crisis regime (red) concentrates on the 2020-04 negative-price episode, the 2022 Russia-Ukraine invasion, and the 2026-04 crash. The stress regime (orange) captures the 2015-2016 oil price collapse and the 2018 trade-war volatility. The calm regime (blue) dominates 2014-2019 and the post-pandemic recovery.
+
+### Posterior Predictive Check
+
+```{python}
+#| label: fig-sim
+#| fig-cap: "Observed WTI returns compared to four independent forward simulations from the fitted model."
+#| fig-width: 14
+#| fig-height: 10
+
+def simulate_from_model(theta, T_sim, seed=0):
+    p = unpack(theta)
+    rng = np.random.default_rng(seed)
+    nu1, nu2 = 0.0, 0.0
+    r_prev = 0.0
+    y_sim = np.zeros(T_sim)
+    for t in range(T_sim):
+        nu1_new = np.clip(p["alpha1"]*nu1 + p["beta1"]*nu2 + p["sigma1"]*rng.standard_normal(), -50, 50)
+        nu2_new = np.clip(p["alpha2"]*nu1 + p["beta2"]*nu2 + p["sigma2"]*rng.standard_normal(), -50, 50)
+        logits = np.array([nu1_new, nu2_new, 0.0])
+        logits -= logits.max()
+        ex = np.exp(logits)
+        x = ex / ex.sum()
+        sigma_t = p["s1"]*x[0] + p["s2"]*x[1] + p["s3"]*x[2]
+        mean_obs = p["mu"] + p["gamma"]*r_prev
+        y_sim[t] = mean_obs + sigma_t * student_t.rvs(p["nu"], random_state=rng)
+        nu1, nu2, r_prev = nu1_new, nu2_new, y_sim[t]
+    return y_sim
+
+sims = [simulate_from_model(theta_strict, T, seed=s) for s in range(4)]
+```
+
+```{python}
+#| label: tbl-sim-stats
+#| tbl-cap: "Summary statistics of observed vs. simulated returns (4 independent simulations)."
+
+def stats(x):
+    return {"mean": x.mean(), "sd": x.std(),
+            "skew": ((x - x.mean())**3).mean() / x.std()**3,
+            "kurt": ((x - x.mean())**4).mean() / x.std()**4,
+            "max|x|": np.abs(x).max()}
+
+obs_s = stats(y_np)
+sim_stats = [stats(s) for s in sims]
+
+rows = []
+for key in obs_s:
+    sim_vals = [s[key] for s in sim_stats]
+    rows.append([key, f"{obs_s[key]:.3f}",
+                 f"{np.mean(sim_vals):.3f}",
+                 f"{np.std(sim_vals):.3f}"])
+
+pp_df = pd.DataFrame(rows, columns=["Statistic", "Observed", "Sim mean", "Sim SD"])
+pp_df
+```
+
+Simulations reproduce the key stylized facts of the observed series: volatility clustering, occasional extreme days, and a heavy-tailed marginal distribution [@notes_simulation_531w26].
+
+## Economic Interpretation
+
+### Three Distinct Volatility Regimes
+
+The estimated state volatilities $(s_1, s_2, s_3) \approx$ (`{python} f"{p_hat['s1']:.2f}"`, `{python} f"{p_hat['s2']:.2f}"`, `{python} f"{p_hat['s3']:.2f}"`) partition the sample into three economically interpretable regimes:
+
+- **Calm regime** ($\sigma \approx$ `{python} f"{p_hat['s1']:.1f}"`%): typical trading days, periods of low macroeconomic uncertainty.
+- **Stress regime** ($\sigma \approx$ `{python} f"{p_hat['s2']:.1f}"`%): elevated geopolitical or demand-side tensions.
+- **Crisis regime** ($\sigma \approx$ `{python} f"{p_hat['s3']:.1f}"`%): rare extreme events such as the April 2020 negative-price episode, the February 2022 war-shock, and the April 2026 crash.
+
+The ratio $s_3 / s_1 \approx$ `{python} f"{p_hat['s3']/p_hat['s1']:.1f}"` is consistent with the regime-switching literature on energy markets.
+
+### Two Time-Scales of Regime Persistence
+
+```{python}
+#| label: half-lives
+
+a1 = p_hat["alpha1"]
+b2 = p_hat["beta2"]
+half_a1 = np.log(0.5) / np.log(a1)
+half_b2 = np.log(0.5) / np.log(b2)
+
+print(f"Factor 1 (alpha1 = {a1:.4f}):  half-life = {half_a1:.0f} trading days ({half_a1/21:.1f} months)")
+print(f"Factor 2 (beta2  = {b2:.4f}):  half-life = {half_b2:.0f} trading days ({half_b2/21:.1f} months)")
+```
+
+The two latent factors operate on markedly different time-scales, suggesting two distinct drivers of volatility: a slow fundamental channel (inventory cycles, OPEC supply dynamics) and a faster sentiment/event channel (geopolitical news, demand shocks). The near-zero cross-coefficients $\beta_1, \alpha_2$ confirm that the two factors evolve essentially independently under the fitted model.
+
+### Heavy Tails
+
+The estimated $\nu \approx$ `{python} f"{p_hat['nu']:.1f}"` is within the range commonly reported for daily energy returns. Under the fitted model, a 6-$\sigma$ daily move has probability approximately $10^{-4}$ (one per 4 years), compared to $10^{-9}$ under a Gaussian assumption — closely matching the observed frequency of extreme days in the 12-year sample.
+
+### Weak Mean Reversion
+
+The AR(1) coefficient $\gamma \approx$ `{python} f"{p_hat['gamma']:.3f}"` is small in magnitude but negative, a stylized fact for high-frequency asset returns typically attributed to bid-ask bounce and short-horizon overreaction.
+
+## Discussion and Limitations
+
+The POMP model improves substantially on ARIMA(2,0,2), mainly because it allows for state-dependent volatility and Student-$t$ measurement errors. However, the AR(1)-GARCH(1,1)-$t$ baseline achieves a lower AIC, so the main contribution of the POMP specification is interpretability rather than uniformly superior fit. The likelihood is Monte Carlo based, and the multi-start diagnostic indicates some non-convexity and a near-unit-root ridge, which we address through a stationarity constraint. In addition, the model omits exogenous covariates and asymmetric volatility effects, and a more rigorous POMP analysis could use iterated filtering rather than Nelder-Mead optimization.
+
+# Conclusions
+
+This project studies daily WTI crude-oil returns with the goal of understanding whether their dynamics can be summarized by a small number of latent volatility states. The data show weak dependence in raw returns, stronger persistence in squared returns, and heavy-tailed behavior, indicating that the main structure of the series lies in volatility rather than in the conditional mean.
+
+The baseline comparisons reinforce this conclusion. ARIMA provides a useful linear benchmark but fits the data poorly, while AR(1)-GARCH(1,1)-$t$ delivers a stronger volatility-based benchmark. The POMP model does not outperform GARCH in AIC, but it substantially improves on ARIMA and yields a structured latent-state decomposition into calm, stress, and crisis regimes. Its main value therefore lies in providing an interpretable state-dependent description of oil-market volatility.
+
+## Acknowledgments {.unnumbered}
+
+We acknowledge course materials and prior class projects, which provided useful context for positioning our analysis.
+
+This report was completed as a group project. Group members contributed to data analysis, model implementation, diagnostics, and writing at different stages of the project. In writing the final report, we used AI for limited assistance with organization, revision and debugging. All statistical modeling, computation, verification of results, and final interpretation were done by us own.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::

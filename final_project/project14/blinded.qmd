@@ -1,0 +1,371 @@
+---
+title: "Evaluating Fourier Basis Seasonality in London Measles SEIR POMP Models\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+jupyter: python3
+---
+
+## Abstract {.unnumbered}
+
+Pre-vaccination measles in London exhibits a striking biennial epidemic pattern driven by school-term seasonal forcing of transmission. The standard SEIR partially observed Markov process (POMP) of @he10 captures this seasonality through a fixed step function tied to the UK school calendar, controlled by a single amplitude parameter. We ask whether a more flexible Fourier basis seasonal parameterization can improve on this specification for London measles case counts from 1950 to 1963. We implement Model B, which replaces the school-term step function with a six-term trigonometric series following the approach used in the dacca cholera model in pypomp [@pypomp], and compare it to the baseline Model A using likelihood-based inference throughout. Both models are evaluated using the bootstrap particle filter with J = 5000 particles and 10 independent replicates. Model A achieves a log-likelihood of $-3830.7 \pm 0.3$ at the published maximum-likelihood estimate of @he10. The best Fourier basis configuration found after systematic optimization (with epidemic parameters fixed at published values) achieves $-3855.7 \pm 0.7$, a gap of 24.9 log-likelihood units with 5 additional parameters ($\Delta\text{AIC} = 59.8$ in favour of Model A). Optimization of the Fourier model required careful diagnostics: joint iterated filtering of all parameters caused particle filter collapse, while optimizing only the Fourier coefficients with epidemic parameters fixed at published values gave stable evaluations. One-dimensional likelihood slices confirmed that the Fourier surface is identifiable but shallow near the school-term-approximating initialization. Progressive optimization informed by these slices improved Model B by 14 log-likelihood units over naive initialization, yet the school-term model remains strongly preferred on both likelihood and parsimony grounds. We conclude that school-term forcing adequately describes London measles seasonality in this period.
+
+# Introduction
+
+Measles is among the most contagious human infections, with a basic reproduction number near 57 estimated for pre-vaccination London [@he10]. Before the UK measles vaccination programme began in 1968, London experienced recurring epidemics with a striking biennial pattern — large outbreaks roughly every two years — driven by the interplay of seasonal transmission, susceptible depletion during epidemics, and gradual replenishment through births.
+
+The mechanistic model of @he10, implemented as model\_001b in the pypomp Python package [@pypomp], captures this system as a stochastic SEIR POMP. A defining feature is seasonal forcing of the transmission rate through a school-term step function: transmission is elevated during school terms and suppressed during holidays, with a single amplitude parameter controlling the contrast. This assumption is biologically motivated — school-age children are the primary hosts, and school contact patterns drive transmission — but it is restrictive: the seasonal shape is fixed by the UK school calendar and cannot adapt to what the data actually support.
+
+The dacca cholera model in pypomp [@pypomp] uses a different approach: a Fourier basis that can represent an arbitrary smooth annual seasonal pattern without assuming school-term windows. This motivates our central question: **is there evidence in the London measles data for seasonal transmission patterns beyond what fixed school-term forcing can explain?** Following a suggestion by @notes531, we implement a Fourier basis seasonal SEIR POMP (Model B), compare its likelihood to the school-term model (Model A) using proper likelihood-based inference, and document the diagnostic challenges encountered in optimizing the more flexible model.
+
+# Data
+
+We use weekly reported measles case counts for London, England from 1950 to 1963, accessed via `pypomp.UKMeasles.subset(units=['London'], clean=False)` [@pypomp]. The data were originally digitized from UK public health records by Prof. Bryan Grenfell (Cambridge University) and analysed in @he10. The estimation window covers $T = 730$ weekly observations with 535,109 total reported cases and a peak of 4,103 cases in a single week.
+
+```{python}
+#| echo: false
+#| label: fig-data
+#| fig-cap: "Weekly reported measles cases in London. Upper panel: full series 1944--1965 with estimation window highlighted in red. Lower panel: estimation window 1950--1963 (T = 730 weekly observations) showing the biennial epidemic pattern characteristic of pre-vaccination measles."
+
+import warnings
+warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import pypomp
+
+raw     = pypomp.UKMeasles.subset(units=['London'], clean=False)
+measles = raw['measles']
+obs_dates = pd.to_datetime(measles['date'])
+obs_cases = measles['cases'].values
+mask = (obs_dates.dt.year >= 1950) & (obs_dates.dt.year <= 1963)
+
+plt.rcParams.update({'axes.spines.top': False, 'axes.spines.right': False,
+                     'font.size': 10})
+
+fig, axes = plt.subplots(2, 1, figsize=(10, 5.5),
+                         gridspec_kw={'height_ratios': [1, 2]})
+
+ax = axes[0]
+ax.bar(obs_dates, obs_cases, width=5, color='#4393c3', alpha=0.7)
+ax.axvspan(pd.Timestamp('1950-01-01'), pd.Timestamp('1963-12-31'),
+           alpha=0.15, color='#d6604d', label='Estimation window')
+ax.set_ylabel('Weekly cases')
+ax.set_title('London measles weekly case counts (1944--1965, N = 1108 weeks)')
+ax.legend(fontsize=9)
+
+ax = axes[1]
+ax.bar(obs_dates[mask], obs_cases[mask], width=5, color='#4393c3', alpha=0.85)
+ax.set_ylabel('Weekly cases')
+ax.set_xlabel('Date')
+ax.set_title('Estimation window (1950--1963, T = 730 observations)')
+
+plt.tight_layout()
+plt.show()
+```
+
+The biennial epidemic pattern is clearly visible in @fig-data, with major outbreaks approximately every two years. This pattern arises from the interaction of seasonal forcing with susceptible depletion during epidemics and gradual replenishment through births. The large amplitude of outbreaks and the extended inter-epidemic troughs reflect the highly infectious nature of measles combined with the school-term contact structure.
+
+# Statistical Model
+
+## Partially Observed Markov Process Framework
+
+We model weekly measles case notifications for London, 1950--1963, as a partially observed Markov process with $T = 730$ weeks. The observed series is $y_t$ and the latent epidemic state is $X_t$, depending on a parameter vector $\theta$. The latent process is Markov: the law of $X_{t+1}$ depends only on $X_t$ and $\theta$. Conditional on $X_t$, the observation $y_t$ is independent of the history of states and observations before $t$. The transition kernel and observation density take the form
+
+$$X_{t+1} \sim f(\cdot \mid X_t,\, \theta), \qquad Y_t \sim g(\cdot \mid X_t,\, \theta).$$
+
+Reported case counts alone define the likelihood; unobserved compartment sizes and other latent quantities enter through $X_t$. The marginal log-likelihood is $\ell(\theta) = \log p(y_{1:T} \mid \theta)$, which we evaluate by bootstrap particle filtering using plug-and-play inference as implemented in pypomp [@pypomp]. We consider two specifications on the same series and time window. Model A is the baseline implementation pypomp model\_001b, with school-term seasonality in the transmission multiplier $\text{seas}_t$. Model B retains the same epidemic and observation structure but replaces the construction of $\text{seas}_t$ by the Fourier-basis specification in Section 3.3.
+
+## Model A: Baseline SEIR with School-Term Seasonality
+
+The latent epidemic in Model A is a discrete-time stochastic SEIR process implemented in pypomp. Compartments $S$, $E$, $I$, and $R$ denote susceptible, exposed, infectious, and recovered counts; additional latent variables accumulate incidence within each week for use in the observation density. Although the simulator advances the state stochastically at weekly resolution, it is helpful to record the corresponding deterministic mass-action limit for the compartment means:
+
+$$\dot{S} = B(t) - \lambda(t,\theta)\,S, \qquad \dot{E} = \lambda(t,\theta)\,S - \sigma E,$$
+
+$$\dot{I} = \sigma E - \gamma I, \qquad \dot{R} = \gamma I.$$
+
+Here $B(t)$ denotes birth inflow, $\sigma$ is the rate from exposed to infectious, $\gamma$ is the removal rate from the infectious class, and $\lambda(t,\theta)$ is the infection hazard per susceptible. The force of infection includes an importation term $\iota$ in addition to mass-action mixing proportional to $I_t/N_t$. Seasonal transmission follows the school-term calendar built into model\_001b: an amplitude parameter $a \in (0,1)$ modulates the contrast between term-time and holiday periods. The multiplier is
+
+$$\text{seas}_t = \begin{cases} 1 + a \cdot \dfrac{0.2411}{0.7589} & \text{school term} \\[6pt] 1 - a & \text{holiday.} \end{cases}$$
+
+Background mortality $\mu$ is held fixed at its implementation value. Given the weekly step $\Delta t$, population size $N_t$, and seasonal multiplier $\text{seas}_t$, the transmission coefficient and force of infection take the form used in model\_001b:
+
+$$\beta_t = R_0 \cdot \text{seas}_t \cdot \frac{1 - e^{-(\gamma + \mu)\Delta t}}{\Delta t}, \qquad \text{foi}_t = \beta_t \cdot \frac{I_t + \iota}{N_t}.$$
+
+Conditional on the latent trajectory, weekly reported counts follow the model\_001b observation distribution, with reporting probability $\rho$ and dispersion $\psi$. This observation map is common to Models A and B. Model A has thirteen parameters: $R_0$, $\sigma$, $\gamma$, $\iota$, $\rho$, $\sigma_{\mathrm{SE}}$, $\psi$, cohort, amplitude, and initial compartment fractions $S_0, E_0, I_0, R_0^{\mathrm{init}}$. For London we take $\theta_0$ from the maximum-likelihood parameter table shipped with pypomp [@pypomp].
+
+## Model B: Fourier Basis Seasonality
+
+Model B introduces eighteen parameters rather than thirteen: six Fourier coefficients $b_1$--$b_6$ replace the single amplitude parameter, while all other epidemic and initial components play the same role as in Model A. Only the construction of the seasonal multiplier $\text{seas}_t$ changes; the transition and observation mechanisms otherwise agree with Section 3.2. As clarified by @notes531, this is a Fourier basis model — not a penalized smoothing spline. The dacca model in pypomp uses a smoothing spline; our implementation uses explicit trigonometric basis functions. Let $t$ denote fractional time within each epidemiological year (one cycle per year). The log multiplier $\ell_t$ is a trigonometric polynomial through the third harmonic:
+
+$$\ell_t = b_1\sin(2\pi t) + b_2\cos(2\pi t) + b_3\sin(4\pi t) + b_4\cos(4\pi t) + b_5\sin(6\pi t) + b_6\cos(6\pi t),$$
+
+$$\text{seas}_t = \exp(\ell_t) > 0.$$
+
+The mapping from $R_0$, $\text{seas}_t$, and the remaining rate parameters to $\beta_t$ and the force of infection is unchanged from Section 3.2. We initialize $(b_1,\ldots,b_6)$ by least squares on the log scale so that $\exp(\ell_t)$ approximates the school-term multiplier implied by Model A at $\theta_0$; all other entries of $\theta$ are set to $\theta_0$. Iterated filtering for the Fourier coefficients begins from this surface; numerical details appear in Section 5.
+
+## Model Comparison and Inferential Targets
+
+Model A uses a piecewise-constant seasonal multiplier on the school-term versus holiday intervals, controlled by a single amplitude parameter (thirteen parameters in total). Model B replaces that layer with $\text{seas}_t = \exp(\ell_t)$, where $\ell_t$ is a six-coefficient Fourier series through the fundamental and first two harmonics, for eighteen parameters in total. All non-seasonal structure matches Sections 3.2 and 3.3.
+
+The formal object of comparison is the marginal log-likelihood $\ell(\theta)$ for each specification. We compare models using the marginal log-likelihood $\ell(\theta)$ evaluated via particle filtering and report differences in fit along with AIC penalties. Because the models are not nested and Model B was not jointly optimized over all parameters, we do not interpret likelihood-ratio statistics using a chi-square reference distribution. Instead, differences in log-likelihood and AIC are used descriptively to assess relative model performance.
+
+$$\Lambda = 2\bigl(\ell(\hat{\theta}^{(B)}) - \ell(\hat{\theta}^{(A)})\bigr).$$
+
+Interpreting $\Lambda$ with a chi-square reference would require that $\ell(\theta)$ be adequately maximised under each model. When optimisation is unstable or the likelihood surface is poorly behaved, that calibration need not hold. If the evaluated log-likelihood for Model B is lower than that for Model A, then $\Lambda$ is negative and a conventional likelihood-ratio test is not interpretable. Section 5 reports particle-filter evaluations, information criteria, and the iterated-filtering study for the Fourier coefficients, and clarifies why we do not report a calibrated likelihood-ratio test in this setting.
+
+# Computational Methods
+
+## Particle Filter
+
+The bootstrap particle filter evaluates the log-likelihood $\ell(\theta)$ at a fixed parameter vector $\theta$ using sequential importance resampling [@notes531; @ionides15]. We use J = 5000 particles with 10 independent replicates for all final model comparisons. The Monte Carlo standard error (SE) across replicates quantifies filter stability — SE $< 2$ log-likelihood units indicates reliable evaluation. All reported log-likelihood values use this high-precision protocol. Note that IF2 approximate log-likelihood values computed during optimization use fewer particles and a different protocol; they are used only to guide parameter search and are not directly comparable to the final pfilter evaluations reported here.
+
+## Iterated Filtering (IF2)
+
+Iterated filtering [@ionides15] seeks the MLE by perturbing parameters with a decreasing random walk in the estimation scale and running the particle filter at each iteration. The random walk standard deviation (rw\_sd) and the cooling factor $a$ control the rate of convergence. We used the pypomp implementation of IF2 via `pypomp.RWSigma` and the `.mif()` method.
+
+## Optimization Strategy for Model B
+
+Joint optimization of all 18 Model B parameters caused particle filter collapse (SE $> 250$), indicating that epidemic parameters ($R_0$, $\sigma$, $\gamma$) drifted to physically unreasonable regions during IF2. We resolved this by freezing all epidemic parameters at the published $\theta_0$ values of @he10 and optimizing only the six Fourier coefficients. This approach eliminated numerical instability entirely, with all runs achieving SE $< 2$.
+
+Optimization proceeded in progressive stages guided by diagnostic information:
+(1) initialization at school-term-approximating Fourier values;
+(2) global search with 10 random starts (J = 2000, M = 200, rw\_sd = 0.02);
+(3) one-dimensional pfilter slices along $b_1$ and $b_2$ to identify promising regions;
+(4) targeted optimization from slice-informed starts (J = 2000, M = 300, rw\_sd = 0.01);
+(5) refined search from the best region (J = 2000, M = 500, rw\_sd = 0.005);
+(6) final precision evaluation at the best theta (J = 5000, 10 replicates).
+
+## Computational Platform
+
+All computations were performed on the Great Lakes HPC cluster at the University of Michigan using a Tesla V100-PCIE-16GB GPU (CUDA 13.0). Software: Python 3.11, pypomp v0.4.4.6 [@pypomp], JAX v0.9.2 [@tan24]. GPU acceleration via JAX enabled vectorized particle operations, making J = 5000 evaluations tractable within reasonable wall times.
+
+# Results and Discussion
+
+## Model A: Baseline Evaluation
+
+At the published MLE of @he10, Model A achieves $\ell_A = -3830.7 \pm 0.3$ (J = 5000, 10 replicates). The small SE confirms reliable likelihood evaluation. The published parameters are $R_0 = 56.8$, $\rho = 0.488$, amplitude $= 0.554$, $\sigma = 28.9$\,yr$^{-1}$, $\gamma = 30.4$\,yr$^{-1}$, $\sigma_{\mathrm{SE}} = 0.0878$.
+
+## Model B: Optimization Journey and Likelihood Surface
+
+We evaluated marginal log-likelihoods with bootstrap particle filtering using J = 5000 particles and ten replicated standard-error calculations. For Model B, at the best parameter vector found after systematic optimization, we obtain $\ell_B = -3855.7 \pm 0.7$. The difference of 24.9 log-likelihood units favours Model A. Using these particle-filter evaluations as approximate log-likelihood values for comparison yields $\Delta\text{AIC} = 59.8$ in favour of Model A, reflecting five additional parameters in Model B without a compensating gain in fit. The quantity $\Lambda = 2(\ell_B - \ell_A) \approx -49.8$ on nominal df = 5; we do not interpret it as a standard likelihood-ratio test because Model B is worse at the points reported here.
+
+The optimization required careful diagnosis. Joint IF2 caused particle filter collapse (SE $> 250$), resolved by freezing epidemic parameters at $\theta_0$. One-dimensional likelihood slices along $b_1$ and $b_2$ (@fig-slices) revealed a clear peaked surface — confirming identifiability — with a better region near $b_2 = 0.25$. This diagnostic guided targeted optimization that progressively improved Model B from $-3869.9$ at initialization to $-3855.7$, a gain of 14.2 log-likelihood units. Despite this genuine improvement, the gap remains large and the AIC penalty decisive.
+
+```{python}
+#| echo: false
+#| label: fig-slices
+#| fig-cap: "One-dimensional particle filter log-likelihood slices along $b_1$ (left) and $b_2$ (right), holding all other parameters fixed at the best theta found. The dashed vertical line marks the value at the best theta found; the dotted horizontal line marks Model A log-likelihood. The clear peaked structure confirms the Fourier likelihood surface is identifiable. The $b_2$ slice peak near 0.25 identified a better search region that guided targeted optimization."
+
+import warnings
+warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams.update({'axes.spines.top': False, 'axes.spines.right': False,
+                     'font.size': 10})
+
+bs_grid = np.linspace(-1.5, 1.5, 13)
+slice_lls_bs1 = [-7630.19, -5983.21, -4852.46, -4300.84, -4094.13,
+                 -3954.93, -3887.59, -3871.61, -3914.39, -4015.27,
+                 -4232.44, -5028.05, -6793.25]
+slice_lls_bs2 = [-7767.50, -5806.29, -4740.57, -4283.71, -4043.06,
+                 -3918.89, -3866.14, -3862.91, -3905.84, -3996.47,
+                 -4160.95, -4599.85, -5565.72]
+ll_A      = -3830.744
+best_bs1  =  0.202
+best_bs2  = -0.038
+
+fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+
+ax = axes[0]
+ax.plot(bs_grid, slice_lls_bs1, 'o-', color='#d6604d', lw=2, ms=6)
+ax.axvline(best_bs1, color='#d6604d', ls='--', lw=1.2,
+           label=f'Best $b_1 = {best_bs1:.3f}$')
+ax.axhline(ll_A, color='#2166ac', ls=':', lw=1.5,
+           label=f'Model A $\\ell = {ll_A:.1f}$')
+ax.set_xlabel('$b_1$ — coefficient of $\\sin(2\\pi t)$')
+ax.set_ylabel('Log-likelihood (pfilter, J = 2000)')
+ax.set_title('1-D likelihood slice: $b_1$')
+ax.legend(fontsize=8)
+
+ax = axes[1]
+ax.plot(bs_grid, slice_lls_bs2, 's-', color='#4393c3', lw=2, ms=6)
+ax.axvline(best_bs2, color='#4393c3', ls='--', lw=1.2,
+           label=f'Best $b_2 = {best_bs2:.3f}$')
+ax.axhline(ll_A, color='#2166ac', ls=':', lw=1.5,
+           label=f'Model A $\\ell = {ll_A:.1f}$')
+ax.set_xlabel('$b_2$ — coefficient of $\\cos(2\\pi t)$')
+ax.set_ylabel('Log-likelihood (pfilter, J = 2000)')
+ax.set_title('1-D likelihood slice: $b_2$')
+ax.legend(fontsize=8)
+
+plt.tight_layout()
+plt.show()
+```
+A full comparison would require joint optimization of all parameters in Model B, which was not feasible here due to particle filter collapse under IF2.
+
+## Fitted Seasonal Curve
+
+@fig-seasonal shows the fitted Fourier seasonal transmission curve at the best found parameters, compared to the school-term step function. The Fourier curve shows a smooth sinusoidal pattern with peaks in February/March and October/November and a summer trough. This differs qualitatively from the school-term step function, which concentrates elevated transmission in four discrete windows. The fact that this smooth alternative achieves a worse likelihood suggests that the abrupt transitions of school-term forcing — elevated transmission switching on sharply at term start and end — are a feature the data genuinely support, not merely a modelling assumption. Biologically, this is plausible: the assembly and dispersal of school-age children at term boundaries may cause rapid changes in contact rates rather than a gradual seasonal drift.
+
+```{python}
+#| echo: false
+#| label: fig-seasonal
+#| fig-cap: "Fitted seasonal transmission rate for Model A (school-term step function, dashed blue) and Model B at best found parameters (Fourier basis, solid red), both normalised to mean 1. Blue shading indicates school-term periods. The Fourier curve captures a smooth sinusoidal annual cycle that differs qualitatively from the school-term steps yet achieves a lower likelihood, consistent with the school-term transitions being a feature supported by the data."
+
+import warnings
+warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import numpy as np
+
+plt.rcParams.update({'axes.spines.top': False, 'axes.spines.right': False,
+                     'font.size': 10})
+
+t_fine  = np.linspace(0, 1, 365)
+bs_best = np.array([0.22978, 0.15024, -0.00930, -0.00276, 0.23234, 0.00306])
+
+def fourier_seas(t, bs):
+    p     = 2.0 * np.pi * t
+    basis = np.array([np.sin(p),   np.cos(p),
+                      np.sin(2*p), np.cos(2*p),
+                      np.sin(3*p), np.cos(3*p)])
+    return np.exp(np.dot(bs, basis))
+
+fourier_curve = np.array([fourier_seas(t, bs_best) for t in t_fine])
+
+amp    = 0.554
+t_days = t_fine * 365.25
+seas_A = np.where(
+    ((t_days >= 7)   & (t_days <= 100))  |
+    ((t_days >= 115) & (t_days <= 199))  |
+    ((t_days >= 252) & (t_days <= 300))  |
+    ((t_days >= 308) & (t_days <= 356)),
+    1.0 + amp * 0.2411 / 0.7589,
+    1.0 - amp)
+
+month_labels = ['Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec']
+month_ticks  = np.array([0,31,59,90,120,151,181,212,243,273,304,334]) / 365.0
+
+fig, ax = plt.subplots(figsize=(10, 4.5))
+ax.plot(t_fine, fourier_curve / fourier_curve.mean(),
+        color='#d6604d', lw=2.5,
+        label=r'Model B: Fourier basis ($\ell = -3855.7$)')
+ax.plot(t_fine, seas_A / seas_A.mean(),
+        color='#2166ac', lw=1.8, ls='--',
+        label=r'Model A: school-term step ($\ell = -3830.7$)')
+ax.axhline(1.0, color='gray', ls=':', lw=0.8, alpha=0.6)
+for s, e in [(7,100),(115,199),(252,300),(308,356)]:
+    ax.axvspan(s/365, e/365, alpha=0.08, color='#2166ac')
+ax.set_xticks(month_ticks)
+ax.set_xticklabels(month_labels)
+ax.set_xlabel('Month of year')
+ax.set_ylabel('Relative transmission (normalised to mean $= 1$)')
+ax.set_title('Fitted seasonal transmission: Fourier basis vs.\ school-term forcing')
+ax.legend(fontsize=9)
+plt.tight_layout()
+plt.show()
+```
+
+## Summary of Results
+
+```{python}
+#| echo: false
+#| label: tbl-results
+#| tbl-cap: "Final model comparison. Log-likelihoods evaluated with J = 5000 particles and 10 independent replicates. SE = Monte Carlo standard error. The AIC difference uses the nominal extra parameters (df = 5)."
+
+import pandas as pd
+
+data = {
+    'Model':       ['Model A (school-term)', 'Model B (Fourier basis)'],
+    'Parameters':  [13,  18],
+    'log L':       [-3830.744, -3855.658],
+    'SE':          [0.341,     0.653],
+    'Gap vs A':    ['--',      '+24.9'],
+    'Delta AIC':   ['--',      '+59.8'],
+}
+pd.DataFrame(data)
+```
+
+The optimization progression demonstrates genuine improvement: starting from $-3869.9$ at the school-term-approximating initialization, targeted search informed by 1-D likelihood slices progressively improved Model B to $-3855.7$, a gain of 14.2 units. However, this gain is insufficient to overcome the 5-parameter AIC penalty, and the school-term model remains strongly preferred.
+
+An important caveat is that because epidemic parameters ($R_0$, $\sigma$, $\gamma$, and others) were held fixed at the published values of @he10 throughout optimization, the reported $\ell_B = -3855.7$ is not the true Model B MLE, since epidemic parameters were held fixed during optimization. A full joint MLE would require addressing the particle collapse problem by other means — particle MCMC or profile likelihood — and could potentially narrow or widen this gap. The gap to Model A ($+24.9$ log-likelihood units, $\Delta\text{AIC} = 59.8$) should therefore be interpreted cautiously. Even this conservative assessment strongly favours the school-term model over the Fourier specification.
+
+The Fourier likelihood surface is considerably shallower and harder to navigate than the school-term surface, itself an informative finding: the school-term parameterization sits near a local optimum of the more flexible Fourier family. Future work could explore Fourier models with fewer basis functions (2 or 4 terms rather than 6), which may be more identifiable while retaining flexibility, or extend the comparison to other UK cities where contact patterns and population structure differ. Full joint optimization using particle MCMC or profile likelihood approaches could also better characterise the Fourier MLE without the particle collapse problem encountered with IF2.
+
+Taken together, the evidence supports the simpler school-term seasonal structure for this series and time period: the Fourier specification is more flexible yet does not improve the evaluated likelihood, and exploring its surface is substantially harder numerically. For London measles during 1950--1963, we therefore favour the parsimonious school-term forcing in Model A.
+
+# Conclusion
+
+We implemented a Fourier basis seasonal SEIR POMP and compared it to the standard school-term model of @he10 for London measles 1950--1963. After systematic likelihood-informed optimization — including one-dimensional surface diagnostics, targeted iterated filtering from slice-informed starts, and high-precision particle filter evaluation (J = 5000, 10 replicates) — the Fourier model achieves $\ell_B = -3855.7$ compared to Model A's $\ell_A = -3830.7$, a gap of 24.9 log-likelihood units with 5 additional parameters ($\Delta\text{AIC} = 59.8$).
+
+The school-term forcing is an adequate and parsimonious description of London measles seasonality in this period. The data do not support the more flexible Fourier seasonal parameterization: the abrupt transitions of school-term forcing appear to be a feature the data genuinely prefer, consistent with school assembly and dispersal driving rapid changes in contact rates. Because epidemic parameters were fixed at published values during Model B optimization, the reported gap ($+24.9$ log-likelihood units, $\Delta\text{AIC} = 59.8$) should be interpreted cautiously because Model B was not jointly optimized over all parameters, a full joint MLE for Model B could potentially narrow or widen this gap. The optimization challenges — particle filter collapse under joint IF2, resolved by fixing epidemic parameters, and a shallow Fourier surface requiring careful diagnostic search — further illustrate why the parsimonious school-term parameterization is preferred on both inferential and practical grounds.
+
+## Acknowledgments {.unnumbered}
+
+Computations were performed on the Great Lakes HPC cluster at the University of Michigan (account: stats531w26s001\_class) using a Tesla V100-PCIE-16GB GPU (CUDA 13.0). Claude (Anthropic, claude-sonnet-4-6) was used throughout this project in the following ways: (1) implementing model\_spline.py — the Fourier basis SEIR POMP — including the JAX-based transition kernel and parameter transformation functions; (2) writing and debugging SLURM job scripts for Great Lakes; (3) diagnosing computational failures, including identifying the from\_est double-exponentiation bug and the particle collapse mechanism under joint IF2; (4) designing the progressive optimization strategy (1-D likelihood slices, targeted IF2 from slice-informed starts); and (5) drafting and editing report sections. All computations were run personally by team members on Great Lakes HPC and all output logs were verified by the team. Scientific interpretation, biological conclusions, and final editorial decisions on report text were made by team members. Claude outputs were reviewed, corrected where needed, and integrated into the project by the team.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Scholarship {.unnumbered}
+
+This project builds on and differs from several previous STATS 531 final projects in important ways. We surveyed projects from 2022, 2024, and 2025 that involved POMP models for childhood infectious diseases, with particular attention to their treatment of seasonal forcing and model comparison methodology.
+
+**W2022 Project 6: Rubella Transmission POMP Model** [@project22_06] is the closest precedent to our work in both model class and disease biology. It modelled weekly rubella cases in California (1966--1967) using a stochastic SEIR POMP and is the only prior 531 project we found that applies plug-and-play inference to a childhood disease with school-related seasonal transmission. That project was implemented in R using the pomp package and treated seasonal structure as fixed without testing alternative specifications. The peer review noted two concrete problems: the measurement model was incorrectly specified, and no model comparison was performed. Our project directly addresses both shortcomings. On measurement: we use the observation density from model\_001b [@he10], which correctly handles overdispersion and zero-inflation in reported counts. On model comparison: we treat seasonal forcing as a statistical hypothesis to be tested rather than a fixed modelling assumption, and we use proper likelihood-based inference (particle filter with J = 5000, AIC) to adjudicate between specifications. The translation from R-pomp to pypomp also required non-trivial work: the parameter transformation functions `to_est`/`from_est`, the JAX-based transition kernel, and the GPU-vectorized particle operations have no direct R-pomp equivalents, and we document this implementation in `model_spline.py`.
+
+**W2025 Project 6: Investigating Hungarian Chickenpox** [@project25_06] compared ARMA, POMP, and deep learning for Hungarian weekly chickenpox counts, another childhood disease with strong seasonal dynamics. The peer review specifically noted that "the inflexible modeling of seasonality or the lack of overdispersion in the process model may be the issue" explaining particle depletion and poor SEIR fit — precisely the hypothesis we set out to test. That project encountered particle filter collapse during POMP fitting but did not pursue systematic diagnostics. Our project inverts this: we start from a well-characterized baseline (model\_001b at its published MLE), deliberately introduce a more flexible seasonal component, observe the same particle collapse phenomenon during joint IF2, diagnose its cause (epidemic parameter drift to physically unreasonable regions), and resolve it by fixing epidemic parameters. The 1-D likelihood slices then confirm identifiability of the Fourier surface despite the collapse issue. Our experience provides a concrete answer to the W2025 reviewer's conjecture: the London measles data do *not* support a more flexible seasonal specification even when one is provided. The school-term transitions, not flexible seasonality, are the feature the data require.
+
+**W2024 Project 4: Comparative Analysis of ARIMA and SEIR Models Using COVID-19 Data** [@project24_04] asked a structurally similar scientific question — can a mechanistic model outperform a statistical baseline? — but relied on least-squares rather than likelihood-based optimization. The peer reviewer explicitly concluded that the project "does not demonstrate mastery of likelihood-based inference," a critique that applies broadly to SEIR analyses that bypass the marginal likelihood. Our project uses proper likelihood-based inference throughout: particle filter evaluation at J = 5000 with 10 replicates to quantify Monte Carlo error, IF2 for MLE search with progressive diagnostic refinement, and AIC for penalized model comparison. We also compute the particle filter standard error at every stage as a filter health diagnostic, which the W2024 project omitted. The contrast in methodology illustrates that the inferential machinery — not just the scientific question — determines whether conclusions about SEIR model adequacy can be trusted.
+
+Across these three projects, a consistent pattern emerges: SEIR POMP analyses of childhood diseases routinely encounter particle depletion and sensitivity to seasonal specification, but systematic likelihood-based diagnostics are rarely applied. Our project contributes a worked example of how to diagnose, resolve, and interpret these numerical challenges within the pypomp framework.
+
+# Supplementary Material {#sec-supp .unnumbered}
+
+## Code Files
+
+All analysis scripts are included in the project submission:
+
+- `model_spline.py` — Fourier basis SEIR POMP model implementation
+- `final_targeted.py` — final analysis script producing all reported results
+- `precision_eval.py` — high-precision pfilter evaluation and 1-D likelihood slices
+- `targeted_if2.py` — targeted IF2 from slice-informed starting points
+- `last_attempt.py` — global search with frozen epidemic parameters (10 starts)
+
+## Optimization Progression
+
+| Stage | Method | Best $\ell_B$ | SE |
+|-------|--------|:---:|:---:|
+| Initialization | pfilter J=5000 | $-3869.9$ | 1.07 |
+| Global search (10 starts) | IF2 J=2000, M=200 | $-3868.6$ | 0.77 |
+| Targeted (8 slice-informed starts) | IF2 J=2000, M=300 | $-3858.8$ | 0.61 |
+| Refined (8 starts, best region) | IF2 J=2000, M=500 | $\mathbf{-3855.7}$ | **0.65** |
+
+: Optimization progression for Model B Fourier coefficients. All pfilter evaluations use J = 5000, 10 replicates. {#tbl-progress}
+
+## Note on Particle Filter Collapse
+
+When epidemic parameters were free during IF2, particle filter evaluation at the optimized theta gave SE $> 250$, indicating near-complete particle collapse. Investigation showed that $\sigma$ and $\gamma$ drifted to values producing unrealistic SEIR dynamics where particles could not sustain trajectories consistent with the data. Fixing epidemic parameters at the published values of @he10 resolved this completely, with all subsequent runs achieving SE $< 2$.

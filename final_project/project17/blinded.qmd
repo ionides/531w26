@@ -1,0 +1,2080 @@
+---
+title: "Modelling Polio Cases pre and post-Vaccine\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{tabularx}
+        \usepackage{booktabs}
+        \usepackage{amsmath}
+        \usepackage{amsfonts}
+number-sections: true
+jupyter: python3
+---
+
+# Introduction
+
+Polio (Poliomyelitis) is an infectious disease caused by the poliovirus, historically paralyzing thousands of children per day [@PolioEradication]. The invention of the polio vaccine in 1955 has saved tens of millions from paralytic polio [@PolioBackground]. Of importance to understanding diseases is the ability to model long term spread. Polio offers an interesting challenge - it has been eradicated in the United States, and may exhibit an atypical pattern of infections over our studied time period, dropping dramatically towards the end. 
+
+We aim to model polio infections from 1930 to 1964, spanning the introduction of the vaccine and beyond. We wish to ask the question of whether introducing a fundamental change to the behavior of the disease (introducing a vaccine in 1955) improves the performance of mechanistic models when compared to a SARIMAX model. Previous work modeled diseases using mechanistic and non-mechanistic models. In the case of [@GreatLakesFlu] specifically, a SARMA model outperformed their mechanistic POMP model in terms of biological plausability and avoiding overfitting. In contrast, we set out to see if this holds for a different disease where there is an underlying change in the progression of the disease. We sourced our data from Project Tycho [@Data].
+
+# Exploratory Data Analysis
+
+The raw data contains case counts at the levels of state, county, and city, with flags for fatalities, cumulative counts, and more. We filtered the data down to weekly national polio cases. 
+
+We only included records where fatalities were zero, the record was not part of a cumulative count series, and the record was at the state level (i.e. no county or city name). This left us with a dataset of weekly state-level polio cases that didn't include fatalities or double-count from cumulative numbers and overlapping administrative divisions. We aggregated this data by summing the cases across all states for each week, giving us a national weekly case count. 
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from pathlib import Path
+
+# --- 1. PREPARE WEEKLY DATA (Temporary) ---
+file_path_weekly = Path('scripts/data/polio_weekly_21-71.csv')
+raw_weekly = pd.read_csv(file_path_weekly, low_memory=False)
+raw_weekly['PeriodStartDate'] = pd.to_datetime(raw_weekly['PeriodStartDate'], errors='coerce')
+
+# Filter to get state-level weekly cases (temp object)
+df_weekly_temp = raw_weekly.loc[
+    (raw_weekly['Fatalities'] == 0) &
+    (raw_weekly['PartOfCumulativeCountSeries'] == 0) &
+    (raw_weekly['Admin2Name'].isna()) &
+    (raw_weekly['CityName'].isna())
+].copy()
+
+df_weekly_temp = df_weekly_temp.rename(columns={'CountValue': 'cases'})
+df_weekly_temp['year'] = df_weekly_temp['PeriodStartDate'].dt.year
+
+# Filter for 1930-1964
+df_weekly_temp = df_weekly_temp[
+    (df_weekly_temp['year'] >= 1930) & (df_weekly_temp['year'] <= 1964)
+].groupby('PeriodStartDate')['cases'].sum().reset_index()
+
+# --- 2. PREPARE MONTHLY DATA ---
+df_monthly = pd.read_csv('scripts/data/aggregated_monthly_polio_1930_1964.csv')
+df_monthly['date'] = pd.to_datetime(df_monthly['date'])
+
+# --- 3. VISUALIZATION ---
+fig, ax1 = plt.subplots(1, 1, figsize=(10, 2))
+
+# Plot 1: Weekly Comparison
+ax1.plot(df_weekly_temp['PeriodStartDate'], df_weekly_temp['cases'], 
+         color='steelblue', alpha=1.0, label='Weekly Raw Data')
+ax1.set_title('Weekly National Polio Cases (1930–1964)')
+ax1.set_ylabel('# of Cases')
+ax1.legend()
+ax1.grid(True, alpha=0.3)
+
+# Shared Formatting
+ax1.xaxis.set_major_locator(mdates.YearLocator(5))
+ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+plt.tight_layout()
+plt.show()
+
+del df_weekly_temp
+```
+
+We filtered this data from January 1st, 1930 to December 31st, 1964, which is the period we are interested in modeling.  The introduction of the vaccine means that cases essentially drop to zero beyond 1965, which we observed to cause problems for model fitting. We binned weekly data into monthly data, yielding a monthly case count which was computationally easier to model. 
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+# --- 3. VISUALIZATION ---
+fig, ax2 = plt.subplots(1, 1, figsize=(10, 2))
+
+# Plot 2: Monthly Data Only
+ax2.plot(df_monthly['date'], df_monthly['cases'], color='forestgreen', label='Monthly Aggregated')
+ax2.set_title('Monthly National Polio Cases (Aggregated Sum)')
+ax2.set_ylabel('# of Cases')
+ax2.set_xlabel('Year')
+ax2.legend()
+ax2.grid(True, alpha=0.3)
+
+# Shared Formatting
+ax2.xaxis.set_major_locator(mdates.YearLocator(5))
+ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+plt.tight_layout()
+plt.show()
+```
+
+# Methods
+
+We model monthly national paralytic-polio case counts from 1930 through 1964 using a Time-Series SIR (TSIR) POMP model [@tsir]. The model couples a stochastic discrete-time transmission process on the raw case scale to a Gaussian observation model on the $\log(1+y)$ scale, and is estimated by iterated filtering [@ch15]. Three considerations shaped the design: the ~3-order-of-magnitude span of monthly counts motivates a log-scale observation model; the 1955 vaccine introduction motivates an explicit post-1955 shift in the log-transmission rate; and unexplained year-to-year epidemic size variation motivates a latent annual amplitude shock.
+
+## Data
+Let $y_t$ denote the reported monthly count in month $t = 1, \ldots, T$, with $T = 420$ (January 1930 through December 1964). We fit the observation model on the transformed scale $z_t = \log(1 + y_t)$, while the latent epidemic process is defined on the raw count scale. This is equivalent to a lognormal observation model on $(1 + Y_t)$ and is numerically well-behaved at both low and high counts.
+Three covariates are derived from the calendar: $m_t \in \{1, \ldots, 12\}$: calendar month, encoded as an angle $\phi_t = 2\pi(m_t - 1)/12$; $\text{post}_t \in \{0, 1\}$, indicator that $t$ falls on or after January 1955; $\text{yc}_t \in \{0, 1\}$, indicator that $t$ is the first observation of a new calendar year.
+
+## State-space model
+
+The latent state at time $t$ is $X_t = (S_t, I_t, A_t)$: $S_t$, effective susceptible count; $I_t$, latent true monthly case intensity (raw-count scale); $A_t$, annual amplitude shock, constant within a calendar year.
+
+### Process model
+The one-step conditional mean of $I_{t+1}$ is driven by a log-transmission rate that combines a baseline level, a seasonal component, a post-1955 regime shift, the annual shock, a susceptible-depletion term, and an endogenous feedback on lagged incidence:
+$$
+\log \lambda_t
+\;=\;
+\log \beta_0
+\;+\; f_{\text{seas}}(m_t)
+\;+\; \delta_{\text{post}} \cdot \text{post}_t
+\;+\; A_t
+\;+\; \log\!\left(\frac{S_t + 1}{N_{\text{eff}} + 1}\right)
+\;+\; \alpha \, \log(I_t + 1).
+$$
+
+The seasonal forcing uses a 2-harmonic trigonometric basis,
+$$
+f_{\text{seas}}(m_t) \;=\; a_1 \cos\phi_t + b_1 \sin\phi_t + a_2 \cos 2\phi_t + b_2 \sin 2\phi_t,
+$$
+which captures the dominant annual cycle and a secondary semi-annual component. The annual amplitude shock is redrawn at year boundaries and held constant within a year:
+$$
+A_t \;=\;
+\begin{cases}
+\tilde A_t, \; \tilde A_t \sim \mathcal{N}(0, \sigma_A^2), & \text{if } \text{yc}_t = 1, \\
+A_{t-1}, & \text{otherwise},
+\end{cases}
+\qquad |A_t| \le 4.
+$$
+
+Process noise on incidence enters through a negative-binomial draw with mean $\lambda_t$ and dispersion $k_{\text{proc}}$, implemented via the Gamma–Poisson mixture
+$$
+\Lambda_t \mid \lambda_t, k_{\text{proc}} \;\sim\; \text{Gamma}(k_{\text{proc}}, \, \lambda_t / k_{\text{proc}}),
+\qquad
+I_{t+1} \mid \Lambda_t \;\sim\; \text{Poisson}(\Lambda_t).
+$$
+
+The susceptible compartment follows a logistic-replenishment update:
+$$
+S_{t+1} \;=\; S_t \;+\; \nu\left(1 - \frac{S_t}{N_{\text{eff}}}\right) \;-\; I_{t+1},
+\qquad 0 \le S_{t+1} \le N_{\text{eff}}.
+$$
+Unlike a constant births-per-month replenishment, logistic replenishment decays to zero as $S_t \to N_{\text{eff}}$, so the susceptible pool cannot pin to its upper bound and the depletion term $\log\{(S_t+1)/(N_{\text{eff}}+1)\}$ remains identified. We set $N_{\text{eff}} = \max\{2 \times 10^5, \; 35 \cdot q_{0.95}(y)\}$ as an effective susceptible scale rather than a census population, consistent with typical TSIR practice when reporting is incomplete.
+
+### Observation model
+Conditional on $I_t$, the observed transformed count is Gaussian with location $\log(1 + I_t)$:
+$$
+z_t \mid I_t \;\sim\; \mathcal{N}\!\bigl(\log(1 + I_t), \; \sigma_{\text{obs}}^2\bigr).
+$$
+This is a multiplicative noise model on the raw scale that down-weights absolute errors at peaks relative to a raw-count Gaussian or negative-binomial observation model, and empirically produces substantially higher effective sample sizes in the particle filter than the raw-count alternative.
+
+### Initial conditions
+$$
+S_0 = \eta \, N_{\text{eff}},
+\qquad
+I_0 \sim I_0^{\text{par}} \cdot \text{LogNormal}(0, 0.15^2),
+\qquad
+A_0 = 0,
+$$
+At $t = 0$, where $\eta \in (0, 1)$ is the initial susceptible fraction and $I_0^{\text{par}}$ is a parameter to be estimated.
+
+### Parameters and constraints
+\begin{table}[ht]
+\centering
+\small % Helps ensure the expanded text doesn't feel cramped
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Parameter} & \textbf{Natural Scale} & \textbf{Transform} & \textbf{Interpretation} \\
+\midrule
+$\beta_0$ & $(0, 100)$ & $\log$ & Baseline monthly transmission rate \\
+$a_1, b_1$ & $\mathbb{R}$ & identity & Annual seasonal coefficients \\
+$a_2, b_2$ & $\mathbb{R}$ & identity & Semi-annual seasonal coefficients \\
+$\delta_{\text{post}}$ & $\mathbb{R}$ & identity & Log-multiplier for post-1955 regime \\
+$\alpha$ & $(0.6, 1.1)$ & scaled logit & Epidemic feedback exponent on $I_t$ \\
+$\nu$ & $(1, 0.05 N_{\text{eff}})$ & $\log$ & Logistic replenishment rate \\
+$k_{\text{proc}}$ & $(10^{-3}, 10^3)$ & $\log$ & Negative-binomial process dispersion \\
+$\sigma_A$ & $(10^{-3}, 2)$ & $\log$ & Standard deviation of annual amplitude shock \\
+$\eta$ & $(0, 1)$ & logit & Initial susceptible fraction \\
+$I_0^{\text{par}}$ & $(1, I_{\max})$ & $\log$ & Initial latent intensity \\
+$\sigma_{\text{obs}}$ & $(10^{-3}, 5)$ & $\log$ & Log-scale observation standard deviation \\
+\bottomrule
+\end{tabularx}
+\end{table}
+The model has 13 free parameters, summarized below. Estimation is carried out on a reparameterized scale $\theta \in \mathbb{R}^{13}$ that is unconstrained except for hard box bounds used as a numerical safeguard; IF2 perturbations are applied on this scale and inverse-transformed before each filter step. The upper bound on $\nu$ is set at $0.05 \, N_{\text{eff}}$ per month, well below the level at which replenishment alone would exceed the susceptible pool, to prevent the parameter from drifting into regions where it is weakly identified. The feedback exponent $\alpha$ is restricted to $(0.6, 1.1)$.
+
+### Particle filter
+The one-step-ahead predictive likelihood is estimated by a bootstrap particle filter with systematic resampling (Kitagawa, 1996)[@mc_kitagawa]. We have also discussed bootstrap particle filter in Chapter 14 [@stats531].  Monte Carlo uncertainty in the log-likelihood is quantified by replicated evaluation: at any candidate $\theta$ we run $R$ independent particle filters with $N_p = 3000$ particles each and report the sample mean and standard error of $\widehat\ell$. For the final fit we use $R = 10$.
+
+### Global and local search
+Because the likelihood surface is multimodal and IF2 is local, we use a two-stage search strategy. We use the iterated filtering (IF2) procedure as detailed in [@stats531].
+
+**Global search:** We draw $K_g = 15$ random starting points $\theta^{(0),k}$ from a broad prior box calibrated to order-of-magnitude ranges for each parameter: $\beta_0 \sim \text{LogUnif}(0.2, 10)$, $\alpha \sim \text{Unif}(0.75, 1.02)$, $\delta_{\text{post}} \sim \text{Unif}(-2, -0.1)$, $\nu \sim \text{LogUnif}(50, 0.05 N_{\text{eff}})$, $k_{\text{proc}} \sim \text{LogUnif}(2, 100)$, $\sigma_A \sim \text{LogUnif}(0.03, 0.5)$, $\eta \sim \text{Unif}(0.1, 0.8)$, $\sigma_{\text{obs}} \sim \text{LogUnif}(0.10, 1.20)$, and similar ranges for the remaining parameters. From each start we run IF2 with $N_p = 1000$ particles, $M = 50$ iterations, cooling $c = 0.5$, and a moderate perturbation vector $\sigma_0$ with standard deviations of $0.015$–$0.03$ in the transformed parameter space. For each global run we retain the top 3 iterates by IF2-reported log-likelihood and evaluate each at $N_p = 3000$, $R = 10$.
+
+**Local search:** The two candidates with the highest replicated log-likelihood from the global stage seed a refinement step with halved perturbation SD ($\sigma_0 / 2$) and a more aggressive cooling factor ($c = 0.3$), again for $M = 50$ iterations. All iterates from these local runs are pooled with the global candidates, re-evaluated at $N_p = 3000$, $R = 10$, and the candidate with the highest log-likelihood is taken as $\widehat\theta$. The Monte Carlo standard error of $\widehat\ell(\widehat\theta)$ is reported with the point estimate.
+
+### Simulation Diagnostics
+Beyond the replicated log-likelihood, we assess model fit with 3 diagnostics:
+
+**Simulation from the fitted model:** We draw $S = 200$ independent sample paths from the POMP at $\widehat\theta$ and compare the pointwise 95% envelope and median of simulated $y_t$ to the observed series on both the raw and $\log(1+y)$ scales. Coverage of the observed series by the simulation envelope provides a posterior-predictive check that is independent of the filter.
+
+**Filter diagnostics:** Time-varying ESS and per-observation log-likelihood contributions are plotted to identify months where the filter degenerates or the model fits poorly.
+
+**Peak and seasonal profile comparisons:** We compare annual peak height, peak timing, and mean monthly profiles between the filtered mean intensity and the observed series.
+
+# Results
+## SARIMAX Benchmarking
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import statsmodels.api as sm
+import warnings
+
+# suppress convergence warnings for a clean report output
+warnings.filterwarnings("ignore")
+# load and prepare the data
+df = pd.read_csv('scripts/data/aggregated_monthly_polio_1930_1964.csv')
+df['date'] = pd.to_datetime(df['date'])
+df = df.set_index('date')
+df.index.freq = 'MS'
+
+# log-transform cases
+df['log_cases'] = np.log(df['cases'] + 1)
+# Add post-1955 indicator for exogenous variable
+df['post_1955'] = (df.index >= '1955-01-01').astype(int)
+
+# fit the best SARIMAX model
+# configuration: (3, 1, 3) x (1, 1, 2, 12) with exogenous variable
+model = sm.tsa.statespace.SARIMAX(
+    df['log_cases'],
+    exog=df['post_1955'],
+    order=(3, 1, 3),
+    seasonal_order=(1, 1, 2, 12),
+    enforce_stationarity=False,
+    enforce_invertibility=False
+)
+results = model.fit(disp=False)
+```
+We used a SARIMAX model as a benchmark for our POMP model. The data was transformed to the log scale to stabilize variance and prevent negative predictions for case counts. We conducted a grid search over 288 different SARIMAX configurations, summmarized below. An exogenous indicator variable was added at 1955 to capture the regime change from vaccine introduction.
+
+\begin{table}[ht]
+\centering
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Parameter} & \textbf{Type} & \textbf{Range / Value} & \textbf{Description} \\
+\midrule
+$p$ & Non-Seasonal AR & $\{0, 1, 2, 3\}$ & Autoregressive order \\
+$d$ & Non-Seasonal Diff & $\{0, 1\}$ & Degree of differencing \\
+$q$ & Non-Seasonal MA & $\{0, 1, 2, 3\}$ & Moving average order \\
+$P$ & Seasonal AR & $\{0, 1, 2\}$ & Seasonal autoregressive order \\
+$D$ & Seasonal Diff & $1$ & Seasonal differencing \\
+$Q$ & Seasonal MA & $\{0, 1, 2\}$ & Seasonal moving average order \\
+$m$ & Seasonal Period & $12$ & Monthly seasonality \\
+$I$ & Exogenous Variable & post-$1955$ & Vaccine introduction indicator \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+We identified SARIMAX(3, 1, 3) x (1, 1, 2, 12) as the best model based on BIC, which was the lowest among all 288 models at `{python} f"{results.bic:.2f}"`. The diagnostics are shown below.
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+# generate diagnostic plots
+fig = results.plot_diagnostics(figsize=(12, 5))
+plt.tight_layout()
+plt.show()
+
+import statsmodels.api as sm
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+# Re-fit the winning model (assuming 'df' is loaded)
+best_order = (3, 1, 3)
+best_seasonal = (1, 1, 2, 12)
+
+# Calculate model degrees of freedom: p + q + P + Q
+# (3 + 3 + 1 + 2 = 9)
+model_df = best_order[0] + best_order[2] + best_seasonal[0] + best_seasonal[2]
+
+# Run Ljung-Box test for 1 and 2 years (12 and 24 lags)
+# return_df=True formats it nicely as a pandas DataFrame
+lb_test = acorr_ljungbox(results.resid, lags=[12, 24], model_df=model_df, return_df=True)
+
+# Rename the index for clarity
+lb_test.index.name = 'Lag'
+```
+
+The Q-Q plot has outliers, but everything else seems well behaved; the KDE appears close to normal; there doesn't appear to be significant autocorrelation from the correlogram. Running a Ljung-Box test on the residuals confirms, however, that there is significant autocorrelation at both 12 and 24 lags, with p-values of `{python} f"{lb_test['lb_pvalue'].iloc[0]:.2e}"` and `{python} f"{lb_test['lb_pvalue'].iloc[1]:.2e}"` respectively. While this could be a sign of model misspecification, we believe that our search was thorough. Disease outbreaks are complex and non-linear, and this may be a shortcoming of SARIMAX. 
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+# plot actual vs fitted values in original scale
+df['fitted_cases'] = np.exp(results.fittedvalues) - 1
+plt.figure(figsize=(10, 3))
+
+plt.plot(df.index, df['cases'], label='Actual Cases', color='forestgreen')
+plt.plot(df.index, df['fitted_cases'], label='Fitted Cases', color='red', alpha=0.5)
+
+# Add a vertical line for the vaccine introduction
+plt.axvline(pd.to_datetime('1955-01-01'), color='blue', linestyle=':', linewidth=2, label='Vaccine Intro (1955)')
+
+plt.gca().xaxis.set_major_locator(mdates.YearLocator(5))
+# Format the labels to show only the year
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y'))
+
+# Set the date range from 1930 to 1965
+plt.xlim(pd.Timestamp('1930-01-01'), pd.Timestamp('1965-01-01'))
+plt.title('Actual vs Fitted Monthly Polio Cases (SARIMAX Benchmark)')
+plt.xlabel('Date')
+plt.ylabel('Number of Cases')
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+import numpy as np
+import pandas as pd
+
+# mode log likelihood
+log_lik_mean = results.llf
+
+# extract predictions and true values
+y_log = df['log_cases']
+out_hat_log = results.fittedvalues
+
+y_raw = df['cases']
+# transform back to raw scale
+out_hat_raw = np.exp(out_hat_log) - 1
+
+# calculate annual peak errors
+annual_metrics = []
+for year in df.index.year.unique():
+    # year-specific subset of data
+    year_mask = df.index.year == year
+    y_raw_year = y_raw[year_mask]
+    out_hat_raw_year = out_hat_raw[year_mask]
+    
+    if len(y_raw_year) == 0:
+        continue
+      
+    # find true and predicted peaks
+    true_peak_idx = y_raw_year.idxmax()
+    true_peak_val = y_raw_year[true_peak_idx]
+    
+    pred_peak_idx = out_hat_raw_year.idxmax()
+    pred_peak_val = out_hat_raw_year[pred_peak_idx]
+    
+    # peak absolute error
+    peak_abs_error = np.abs(true_peak_val - pred_peak_val)
+    # peak timing error in days
+    peak_timing_error_days = np.abs((true_peak_idx - pred_peak_idx).days)
+    
+    annual_metrics.append({
+        'year': year,
+        'peak_abs_error': peak_abs_error,
+        'peak_timing_error_days': peak_timing_error_days
+    })
+
+annual = pd.DataFrame(annual_metrics)
+
+# metrics
+metrics = {
+    "overall_log_likelihood_logscale": float(log_lik_mean),
+    "mae_raw": float(np.mean(np.abs(y_raw - out_hat_raw))),
+    "rmse_raw": float(np.sqrt(np.mean((y_raw - out_hat_raw) ** 2))),
+    "mae_log": float(np.mean(np.abs(y_log - out_hat_log))),
+    "rmse_log": float(np.sqrt(np.mean((y_log - out_hat_log) ** 2))),
+    "peak_mae_raw": float(annual["peak_abs_error"].mean()),
+    "peak_timing_mae_days": float(annual["peak_timing_error_days"].mean()),
+}
+```
+
+The fitted values (red) appear to capture the overall trend and seasonality. It has a tendency to overpredict, and misses the timing of some of the early peaks. For a comparison with our POMP model, we calculated several metrics. The overall log likelihood of the model on the log scale is `{python} f"{metrics['overall_log_likelihood_logscale']:.2f}"`. The mean absolute error (MAE) and root mean squared error (RMSE) on the raw scale are `{python} f"{metrics['mae_raw']:.2f}"` and `{python} f"{metrics['rmse_raw']:.2f}"` cases, respectively. The MAE and RMSE on the log scale are `{python} f"{metrics['mae_log']:.4f}"` and `{python} f"{metrics['rmse_log']:.4f}"`, respectively. Finally, the mean absolute error of the predicted peak value across years is `{python} f"{metrics['peak_mae_raw']:.2f}"` cases, and the mean absolute error of the predicted peak timing across years is `{python} f"{metrics['peak_timing_mae_days']:.2f}"` days. At a monthly resolution, this is a substantial error.
+
+# TSIR-POMP Results
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+import json
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+
+POMP_DIR = Path("scripts/poliopomp_greatlakes_output")
+
+with open(POMP_DIR / "winner_summary.json", "r") as f:
+    winner = json.load(f)
+with open(POMP_DIR / "metrics.json", "r") as f:
+    pomp_metrics = json.load(f)
+
+theta_hat = winner["theta_hat_natural_scale"]
+rep_ll = winner["winner_rep_loglik"]
+rep_se = winner["winner_rep_se"]
+```
+
+## Global and local search
+We ran a global search of 15 randomly initialized IF2 chains (50 iterations each, $N_p=1000$, cooling $c=0.5$), retained the top-3 iterates by IF2-reported log-likelihood from each chain, and replicated each at $N_p=3000,\, R=10$. The two best candidates by replicated log-likelihood were then refined locally with halved perturbation SD and $c=0.3$ for another 50 iterations. All candidates from both stages were re-evaluated under the same replicated protocol and the winner was selected by clean replicated log-likelihood.
+The winning candidate came from start `{python} f"{winner['winner_start_id']}"` at iteration `{python} f"{winner['winner_iter']}"` of its local refinement, with replicated log-likelihood `{python} f"{rep_ll:.2f}"` (MC standard error `{python} f"{rep_se:.2f}"` on the log-data Gaussian scale). The small standard error confirms that the particle filter is not degenerate at the MLE; at this precision, two candidates separated by more than 1 nat are statistically distinguishable.
+
+## Parameter estimates
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+rows = [
+    ("beta0", "Baseline transmission rate"),
+    ("a1", "Annual seasonal, cos component"),
+    ("b1", "Annual seasonal, sin component"),
+    ("a2", "Semi-annual seasonal, cos component"),
+    ("b2", "Semi-annual seasonal, sin component"),
+    ("delta_post", "Post-1955 log-beta shift"),
+    ("alpha", "Feedback exponent on lagged I"),
+    ("nu", "Logistic replenishment rate"),
+    ("k_proc", "NB process dispersion"),
+    ("sigma_A", "Annual amplitude shock SD"),
+    ("eta", "Initial susceptible fraction"),
+    ("I0", "Initial latent intensity"),
+    ("sigma_obs", "Log-scale observation SD"),
+]
+tbl = pd.DataFrame(
+    [(name, f"{theta_hat[name]:.3f}", desc) for name, desc in rows],
+    columns=["Parameter", "Estimate", "Description"]
+)
+tbl
+```
+
+The annual seasonal harmonic has amplitude $\sqrt{a_1^2 + b_1^2} \approx 0.76$ on the log scale, corresponding to a $\sim 4.5\times$ peak-to-trough multiplicative modulation of transmission. The semi-annual harmonic is an order of magnitude smaller, consistent with a single summer peak per year. The feedback exponent $\hat\alpha = 0.86$ is in the typical TSIR range and bounded away from the unit-root boundary, so the epidemic process is stably mean-reverting [@tsir]. 
+
+Note, $\hat\delta_{\text{post}} = -0.028$ is effectively zero on the log-transmission scale, implying a multiplicative effect of $\exp(-0.028) \approx 0.97$, less than a 3% reduction in baseline transmission after 1955, smaller than one would expect.  The likely reason is that $\hat\sigma_A = 0.44$ implies an annual amplitude shock whose 1 SD range spans $\exp(\pm 0.44) \in [0.64, 1.56]$ and whose 2 SD range spans $[0.41, 2.43]$. A sequence of negative draws of $A_t$ across 1955 can absorb the decline without regime shift. We discuss the implications of this identifiability issue later.  Additionally, $\hat\eta = 0.94$ places the initial susceptible fraction near the upper end of its range. Combined with $\hat\nu \approx 9425$ per month (roughly 4.5% of $N_{\text{eff}}$ at full depletion under the logistic rule), the model operates with an ample susceptible pool throughout the window, consistent with an endemic rather than strongly depletion-limited process.
+
+## Filter diagnostics
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+# Load fitted series data
+df_fit = pd.read_csv('scripts/poliopomp_greatlakes_output/fitted_series.csv')
+df_fit['date'] = pd.to_datetime(df_fit['date'])
+
+fig2, axes2 = plt.subplots(2, 1, figsize=(12, 3), sharex=True)
+
+# Top panel: ESS
+axes2[0].plot(df_fit['date'], df_fit['ess'])
+axes2[0].set_title('ESS over time')
+axes2[0].set_ylabel('ESS')
+
+# Bottom panel: Log-likelihood
+axes2[1].plot(df_fit['date'], df_fit['loglik_t'])
+axes2[1].set_title('Per-observation log-likelihood contribution')
+axes2[1].set_ylabel('loglik contribution')
+
+fig2.tight_layout()
+plt.show()
+```
+
+ESS is stable for most of the series, and per-observation log-likelihood contributions are concentrated in a narrow band with no single month dominating the likelihood budget. Dips in ESS and larger-magnitude negative log-likelihood contributions cluster in the peak summer months of the largest epidemic years, which is expected — these are the months where the observation is most informative and the filter weights most concentrated. There is no sign of filter degeneracy at any point.
+
+## IF2 convergence
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+# Load local candidates data
+df_local = pd.read_csv('scripts/poliopomp_greatlakes_output/local_parameter_traces.csv')
+
+# Use the row index as the iteration number since 'iter' is missing
+df_local['iter'] = df_local.index
+df_trace = df_local
+# Define the 8 parameters
+params = ['beta0', 'delta_post', 'alpha', 'nu', 'k_proc', 'sigma_A', 'eta', 'I0']
+
+fig3, axes3 = plt.subplots(4, 2, figsize=(10, 4), sharex=True)
+axes3 = axes3.flatten()
+
+for i, param in enumerate(params):
+    if param in df_trace.columns:
+        axes3[i].plot(df_trace['iter'], df_trace[param])
+        axes3[i].set_title(param)
+    else:
+        axes3[i].set_title(f"Missing: {param}")
+
+fig3.tight_layout()
+plt.show()
+```
+
+All 13 parameter traces settle into narrow neighborhoods over the local refinement with no indication of drift in late iterations.
+
+## Seasonal Profile and Overall Fit  
+
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+
+import seaborn as sns
+
+sns.set_style("whitegrid")
+
+# Load seasonal profile data
+df_season = pd.read_csv('scripts/poliopomp_greatlakes_output/seasonal_profile.csv')
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 6))
+
+# Overall fit: raw scale
+axes[0, 0].plot(df_fit['date'], df_fit['cases'], label='observed monthly cases', alpha=0.6)
+axes[0, 0].plot(df_fit['date'], df_fit['filtered_mean_raw'], label='filtered mean latent cases')
+axes[0, 0].set_title('Observed vs TSIR-POMP filtered fit (raw scale)')
+axes[0, 0].legend()
+
+# Overall fit: log scale
+axes[0, 1].plot(df_fit['date'], df_fit['log_cases'], label='observed log(1+cases)', alpha=0.6)
+axes[0, 1].plot(df_fit['date'], df_fit['filtered_mean_log'], label='filtered mean log latent')
+axes[0, 1].set_title('Observed vs TSIR-POMP filtered fit (log scale)')
+axes[0, 1].legend()
+
+# Seasonal profile: raw scale
+axes[1, 0].plot(df_season['month_name'], df_season['cases'], marker='o', label='observed mean month')
+axes[1, 0].plot(df_season['month_name'], df_season['filtered_mean_raw'], marker='o', label='fitted mean month')
+axes[1, 0].set_title('Mean monthly profile (raw scale)')
+axes[1, 0].legend()
+
+# Seasonal profile: log scale
+axes[1, 1].plot(df_season['month_name'], df_season['log_cases'], marker='o', label='observed mean log month')
+axes[1, 1].plot(df_season['month_name'], df_season['filtered_mean_log'], marker='o', label='fitted mean log month')
+axes[1, 1].set_title('Mean monthly profile (log scale)')
+axes[1, 1].legend()
+
+fig.tight_layout()
+plt.show()
+```
+
+The fitted monthly trajectory and the average seasonal profile are consistent with each other. Across the full 1930--1964 period, the filtered mean tracks observed monthly cases closely on the raw scale, including the major epidemic years of 1949, 1952, and 1954. On the log scale, the fit remains tight year-round and captures the lower winter troughs that were harder to recover under the earlier raw-count formulation. The seasonal-profile panels show that the model is not only fitting a few large outbreaks, but is also reproducing the characteristic summer-peaked shape of U.S. polio incidence, with a clear August maximum and a shallow winter trough. The agreement is close across all 12 months on the log scale, while on the raw scale the fit is only slightly conservative at the largest peak months, which is consistent with fitting the observation model on the log scale.
+
+## Comparison with SARIMAX benchmark
+```{python}
+#| echo: false
+# Made with help from Gemini/Claude/ChatGPT
+# Metrics are reported on the log-data Gaussian scale for both models
+# to make the log-likelihoods directly comparable. Raw-scale MAE/RMSE
+# are also reported for interpretability.
+comp = pd.DataFrame({
+    "Metric": [
+        "Log-likelihood (log scale)",
+        "MAE (log scale)",
+        "RMSE (log scale)",
+        "MAE (raw scale, cases)",
+        "RMSE (raw scale, cases)",
+        "Peak-height MAE (cases)",
+        "Peak-timing MAE (days)",
+    ],
+    "SARIMAX(3, 1, 3) x (1, 1, 2, 12)": [
+        f"{metrics['overall_log_likelihood_logscale']:.2f}",
+        f"{metrics['mae_log']:.3f}",
+        f"{metrics['rmse_log']:.3f}",
+        f"{metrics['mae_raw']:.1f}",
+        f"{metrics['rmse_raw']:.1f}",
+        f"{metrics['peak_mae_raw']:.1f}",
+        f"{metrics['peak_timing_mae_days']:.1f}",
+    ],
+    "TSIR-POMP": [
+        f"{pomp_metrics['overall_log_likelihood_logscale']:.2f}",
+        f"{pomp_metrics['mae_log']:.3f}",
+        f"{pomp_metrics['rmse_log']:.3f}",
+        f"{pomp_metrics['mae_raw']:.1f}",
+        f"{pomp_metrics['rmse_raw']:.1f}",
+        f"{pomp_metrics['peak_mae_raw']:.1f}",
+        f"{pomp_metrics['peak_timing_mae_days']:.1f}",
+    ],
+})
+comp
+```
+
+Both models are fit on the $\log(1 + y_t)$ scale, so their log-likelihoods are on the same Gaussian scale and are directly comparable. The TSIR-POMP achieves a lower log-likelihood than the best-BIC SARIMAX benchmark, but produces comparable or better point-prediction metrics, while also producing scientifically interpretable parameter estimates (transmission rate, seasonal amplitude, susceptible dynamics) that SARIMAX does not provide. SARIMAX performs worse on every metric except for the overall log-likelihood. The MAE of peak timing is particularly striking, with TSIR-POMP achieving an error on the order of a week vs. a month for SARIMAX.
+
+## Discussion of the 1955 regime-shift
+One important limitation is that the model cannot cleanly separate the post-1955 vaccine effect from ordinary year-to-year variation. In the fitted model, the explicit post-1955 shift $\delta_{\text{post}}$ ends up close to zero, while the annual shock term $\sigma_A$ remains fairly large. This means the drop after 1955 can be explained either as a real structural break or simply as a run of unusually low years, and the current fit does not clearly tell us which explanation is better. A natural next step would be to profile $\delta_{\text{post}}$ directly, or to be more robust with the annual-shock part of the model so that long-run changes cannot be absorbed so easily by yearly noise.
+
+# Conclusions
+The monthly logged TSIR-POMP fit the 1930--1964 national polio series more closely than the best-BIC SARIMAX benchmark and, unlike the purely statistical model, reproduced the summer-centered peak structure in a way that is epidemiologically consistent. The main unresolved issue is that $\delta_{\text{post}}$ is estimated near zero while $\sigma_A$ remains large, so the decline after 1955 is being absorbed primarily by latent year-to-year variation rather than by a vaccine-era regime shift. Despite this, the mechanistic model performed very well relative to the SARIMAX benchmark: although the SARIMAX fit achieved a better log-likelihood, the TSIR-POMP produced noticeably smaller RMSE and MAE values and tracked the observed epidemic trajectory more closely. A natural next step is a profile likelihood for $\delta_{\text{post}}$ or a tighter specification for the annual shock, so that regime-wide change cannot be absorbed almost entirely by $A_t$.  Another next step is to model the vaccine shift not as a binary occurence but rather as a continuous value representative of the proportion of the population that is innoculated.
+
+## Acknowledgments {.unnumbered}
+The text was checked for mistakes using Gemini. All writing was done by humans and checked by humans prior to submission.  Much of the code for this project was created with the assistance of AI tools including Gemini, Claude, and ChatGPT. All code was reviewed by a human prior to execution. As the line for which parts of the code are human and which parts are AI is blurred by repeated fixes and changes, we chose to credit all code as "Made with help from Gemini/Claude/ChatGPT", rather than credit specific lines or functions within a code block.  The final pair of eyes on all text prior to submission was human.
+
+## Differentiation in Context of Prior Work {.unnumbered}
+Many past final projects have dealt with the modeling of infectious diseases. However, none of the publicly available STATS531 final projects modeled polio. This makes our project unique in choice of disease and dataset.  Additionally most the previous projects modeled a disease which has not been fully eradicated through vaccination. Most of these modeled influenza and COVID-19, but there are a few exceptions to this which are more similar to our project.
+
+Of the projects which modeled diseases that have been eradicated, all used local data and shorter timescales than us. Using national data as opposed to local data may allow us to observe fundamentally different trends, as patterns of disease spread in individual population centers may vary tremendously [@SpatialHeterogeneity]. Using a shorter timescale reduces the emphasis of the seasonal component. This applies to [@Mumps] and [@Mumps2], which both model mumps, [@Measles], which modeled measles in California, [@Rubella], which models rubella, [@Smallpox] and [@Smallpox2], which study smallpox, and [@SARS] and [@SARS2], which model SARS. In addition to these differences, neither the SARS nor smallpox studies fit a SARIMAX benchmark. For the measles project, although an effective vaccine exists, the disease is not eradicated. The rubella project uses pre-eradication data, which results in a fundamentally different progression. Finally, the measles project studies a disease which, despite an incredibly effective vaccine, has not been fully eradicated in the United States.
+
+Regarding midterm peer review feedback, we made sure to completely specify our models - something which was brought up in feedback.  We also stripped our analysis down to only relevant components.  Interesting trends from EDA which were not directly related to our analysis were not included, as this was something previously noted in feedback.
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+## Supplementary material {#sec-supp}
+
+For the sake of clarity, readability, and practical limitations for document compile time, some of the results shared above are hard-coded into the document. This is primarily done with the POMP model results, which were run on a GreatLakes cluster. All supplementary code and data to reproduce the results in this document can be found in the `scripts/` directory.
+
+Note that for organization and clarity, the directory structure of the supplementary material is not necessarily the same as the directory structure of the code used to generate the results. We have attempted to fix all file paths such that the code can be run as-is, but users interested in reproducing the results may need to manually modify file paths and SLURM batch scripts to run the code on their own machines or clusters. 
+
+## Data
+
+The raw data sourced from Project Tycho can be found in `data/polio_weekly_21-71.csv`. The cleaned and aggregated monthly data is in `data/aggregated_monthly_polio_1930_1964.csv`. The python script used to clean and aggregate the data can be found in `data/aggregate.py`. 
+
+### Implementation
+
+All computation is implemented in NumPy with SciPy for the Gaussian density, using a vectorized particle filter. Parameter transforms, hard bounds, floors on latent states, and clipping of the log-intensity at $\pm 20$ are applied defensively to keep the filter numerically stable under IF2 perturbation. Random seeds are threaded through `numpy.random.default_rng` for reproducibility.
+
+## SARIMAX Grid Search
+
+The script used to conduct the SARIMAX grid search is `sarima_search.py`. The BIC values for all 288 SARIMAX models can be found in `sarima_outputs/sarima_grid_search_history.csv`. The search is relatively quick to run on a local machine, and shouldn't exceed around 10 minutes. A manual grid search implemented via loops was chosen over an automated grid search, such as `pmdarima`, due to memory constraints. The search script automatically prints the best model and its BIC if one wishes to verify the results. 
+
+### SARIMAX Search
+
+The script to conduct the SARIMAX grid search is below. Simply remove the `echo: false` block to display it. Note that it may not be possible to run within the document. 
+```{python}
+#| eval: false
+#| echo: false
+import pandas as pd
+import numpy as np
+import warnings
+import itertools
+import statsmodels.api as sm
+from pathlib import Path
+from numpy.linalg import LinAlgError
+
+# ignore convergence warnings during grid search
+warnings.filterwarnings("ignore")
+
+
+# added d_range to the function signature
+def grid_search_sarima(
+    series, exog, p_range, d_range, q_range, P_range, Q_range, D=1, m=12
+):
+    """
+    Loops through parameters, finds the best BIC, and logs all results.
+    """
+    best_bic = float("inf")
+    best_order = None
+    best_seasonal = None
+
+    search_history = []
+
+    # added d_range to itertools.product
+    parameters = list(
+        itertools.product(p_range, d_range, q_range, P_range, Q_range)
+    )
+    print(f"Starting Grid Search: {len(parameters)} combinations to test.")
+
+    # unpack 'd' from the parameters loop
+    for p, d, q, P, Q in parameters:
+        order = (p, d, q)
+        seasonal_order = (P, D, Q, m)
+        try:
+            mod = sm.tsa.statespace.SARIMAX(
+                endog=series,
+                exog=exog,
+                order=order,
+                seasonal_order=seasonal_order,
+                enforce_stationarity=False,
+                enforce_invertibility=False,
+            )
+            results = mod.fit(disp=False)
+
+            current_bic = results.bic
+            search_history.append(
+                {
+                    "p": p,
+                    "d": d,
+                    "q": q,
+                    "P": P,
+                    "D": D,
+                    "Q": Q,
+                    "m": m,
+                    "bic": current_bic,
+                }
+            )
+
+            if current_bic < best_bic:
+                best_bic = current_bic
+                best_order = order
+                best_seasonal = seasonal_order
+                print(
+                    f"New Best: {order}x{seasonal_order} | BIC: {best_bic:.2f}"
+                )
+
+        except (LinAlgError, ValueError):
+            continue
+
+    return best_order, best_seasonal, pd.DataFrame(search_history)
+
+
+if __name__ == "__main__":
+    # setup paths and load monthly data
+    parent_dir = Path(__file__).parent
+    input_file = parent_dir / "data" / "aggregated_monthly_polio_1930_1964.csv"
+    out_dir = parent_dir / "sarima_outputs"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    if not input_file.exists():
+        raise FileNotFoundError(
+            f"Run aggregate.py first to create {input_file}"
+        )
+
+    df = pd.read_csv(input_file)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.set_index("date")
+    df.index.freq = "MS"
+
+    # pre-processing
+    target_col = "log_cases"
+    df[target_col] = np.log(df["cases"] + 1)
+
+    # 1955 vaccine introduction as exogenous variable
+    df["post_1955"] = (df.index >= "1955-01-01").astype(int)
+    exog_series = df["post_1955"]
+
+    # define grid ranges
+    p_vals = range(0, 4)
+    q_vals = range(0, 4)
+    d_vals = range(0, 2)
+    P_vals = range(0, 3)
+    Q_vals = range(0, 3)
+
+    # perform search and capture history
+    # UPDATE 4: Passed d_range to the function correctly
+    best_order, best_seasonal, history_df = grid_search_sarima(
+        series=df[target_col],
+        exog=exog_series,
+        p_range=p_vals,
+        d_range=d_vals,
+        q_range=q_vals,
+        P_range=P_vals,
+        Q_range=Q_vals,
+        D=1,
+        m=12,
+    )
+
+    # save the full BIC history
+    history_path = out_dir / "sarima_grid_search_history.csv"
+    history_df.to_csv(history_path, index=False)
+    print(f"Saved full search history to {history_path}")
+
+    # retrain final model with the exogenous variable
+    final_model = sm.tsa.statespace.SARIMAX(
+        endog=df[target_col],
+        exog=exog_series,
+        order=best_order,
+        seasonal_order=best_seasonal,
+        enforce_stationarity=False,
+        enforce_invertibility=False,
+    )
+    final_results = final_model.fit(disp=False)
+
+    print(
+        f"\nAll processes complete. Final Best: {best_order} x {best_seasonal}"
+    )
+
+    print("\nFINAL MODEL SUMMARY:")
+    print(final_results.summary())
+```
+
+### SARIMAX BIC 
+
+The SARIMAX grid search BIC values can be displayed in full below. Just remove the `eval: false` from the block.
+```{python}
+#| echo: false
+#| eval: false
+import pandas as pd
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+vals = pd.read_csv('scripts/sarima_outputs/sarima_grid_search_history.csv')
+vals
+```
+
+
+## POMP Model Fitting
+
+The script for the all POMP fitting, including the local and global searches, can be found in `poliopomp_robust.py`. This script is meant to be run on a cluster. The script saves output to `poliopomp_greatlakes_ouput/`, which is where the hard-coded results in the main document from our run on the GreatLakes cluster are sourced from. A sample batch file `run_poliopomp_robust.sbat` is provided, but may need to be modified to run on other clusters. The full POMP fitting process took us around 20 minutes, though this may vary depending on your machine. 
+
+### POMP Fitting
+
+The source code for POMP fitting can be viewed in the raw `.qmd` file or displayed by removing the `echo: false` from the block. This will not run in the document. Please use the standalone script instead. 
+```{python}
+#| eval: false
+#| echo: false
+#!/usr/bin/env python3
+import argparse
+import json
+import time
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from scipy.stats import norm
+
+sns.set_style("whitegrid")
+plt.rcParams["figure.figsize"] = (12, 4)
+plt.rcParams["axes.titlesize"] = 12
+plt.rcParams["axes.labelsize"] = 11
+
+
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Robust monthly logged TSIR-POMP search for national polio data."
+    )
+    p.add_argument(
+        "--data",
+        type=str,
+        default="aggregated_monthly_polio_1930_1964.csv",
+        help="Path to aggregated monthly CSV.",
+    )
+    p.add_argument(
+        "--outdir",
+        type=str,
+        default="poliopomp_robust_outputs",
+        help="Directory to save outputs.",
+    )
+    p.add_argument("--year-start", type=int, default=1930)
+    p.add_argument("--year-end", type=int, default=1964)
+    p.add_argument("--global-starts", type=int, default=15)
+    p.add_argument("--global-iters", type=int, default=50)
+    p.add_argument("--global-particles", type=int, default=1000)
+    p.add_argument("--global-cooling", type=float, default=0.5)
+    p.add_argument("--top-trace-per-fit", type=int, default=3)
+    p.add_argument("--local-top-n", type=int, default=2)
+    p.add_argument("--local-iters", type=int, default=50)
+    p.add_argument("--local-particles", type=int, default=1000)
+    p.add_argument("--local-cooling", type=float, default=0.3)
+    p.add_argument("--rep-particles", type=int, default=3000)
+    p.add_argument("--rep-reps", type=int, default=10)
+    p.add_argument("--filter-particles", type=int, default=1200)
+    p.add_argument("--simulations", type=int, default=200)
+    p.add_argument("--seed", type=int, default=20260421)
+    p.add_argument("--verbose-if2", action="store_true")
+    p.add_argument("--run-profile", action="store_true")
+    p.add_argument("--profile-points", type=int, default=7)
+    p.add_argument("--profile-restarts", type=int, default=5)
+    p.add_argument("--profile-iters", type=int, default=40)
+    p.add_argument("--profile-particles", type=int, default=1000)
+    return p.parse_args()
+
+
+def load_monthly_data(path, year_start=1930, year_end=1964):
+    data_path = Path(path)
+    if not data_path.exists():
+        raise FileNotFoundError(f"Could not find data file: {data_path}")
+
+    dat = pd.read_csv(data_path)
+    dat["date"] = pd.to_datetime(dat["date"])
+    dat = dat.sort_values("date").reset_index(drop=True)
+
+    dat["year"] = dat["date"].dt.year
+    dat["month"] = dat["date"].dt.month
+
+    dat = (
+        dat[(dat["year"] >= year_start) & (dat["year"] <= year_end)]
+        .copy()
+        .reset_index(drop=True)
+    )
+    dat["month_angle"] = 2.0 * np.pi * (dat["month"] - 1) / 12.0
+    dat["post_1955"] = (dat["date"] >= pd.Timestamp("1955-01-01")).astype(int)
+    dat["year_change"] = (dat["year"] != dat["year"].shift(1)).astype(int)
+    dat.loc[0, "year_change"] = 0
+    dat["log_cases"] = np.log1p(dat["cases"])
+
+    return dat
+
+
+# Globals initialized after loading data
+SEASON_COS1 = SEASON_SIN1 = SEASON_COS2 = SEASON_SIN2 = None
+post = year_change = YEAR = MONTH = None
+N_EFF = MAX_NU = MAX_LATENT_I = MAX_POISSON_LAM = None
+y_raw = y = None
+T = None
+
+IDX_LOG_BETA0 = 0
+IDX_A1 = 1
+IDX_B1 = 2
+IDX_A2 = 3
+IDX_B2 = 4
+IDX_DELTA_POST = 5
+IDX_Z_ALPHA = 6
+IDX_LOG_NU = 7
+IDX_LOG_KPROC = 8
+IDX_LOG_SIGMA_A = 9
+IDX_LOGIT_ETA = 10
+IDX_LOG_I0 = 11
+IDX_LOG_SIGMA_OBS = 12
+
+N_PARAMS = 13
+PARAM_NAMES = [
+    "beta0",
+    "a1",
+    "b1",
+    "a2",
+    "b2",
+    "delta_post",
+    "alpha",
+    "nu",
+    "k_proc",
+    "sigma_A",
+    "eta",
+    "I0",
+    "sigma_obs",
+]
+
+THETA_LOWER = None
+THETA_UPPER = None
+
+
+def initialize_covariates(dat):
+    global SEASON_COS1, SEASON_SIN1, SEASON_COS2, SEASON_SIN2
+    global \
+        post, \
+        year_change, \
+        YEAR, \
+        MONTH, \
+        N_EFF, \
+        MAX_NU, \
+        MAX_LATENT_I, \
+        MAX_POISSON_LAM
+    global y_raw, y, T, THETA_LOWER, THETA_UPPER
+
+    SEASON_COS1 = np.cos(dat["month_angle"].to_numpy())
+    SEASON_SIN1 = np.sin(dat["month_angle"].to_numpy())
+    SEASON_COS2 = np.cos(2.0 * dat["month_angle"].to_numpy())
+    SEASON_SIN2 = np.sin(2.0 * dat["month_angle"].to_numpy())
+
+    post = dat["post_1955"].to_numpy(dtype=float)
+    year_change = dat["year_change"].to_numpy(dtype=int)
+    YEAR = dat["year"].to_numpy(dtype=int)
+    MONTH = dat["month"].to_numpy(dtype=int)
+
+    y_raw = dat["cases"].to_numpy(dtype=float)
+    y = dat["log_cases"].to_numpy(dtype=float)
+    T = len(y)
+
+    N_EFF = float(max(200_000, 35.0 * np.quantile(y_raw, 0.95)))
+    MAX_NU = float(0.05 * N_EFF)
+    MAX_LATENT_I = float(max(50_000.0, 6.0 * np.max(y_raw), 0.35 * N_EFF))
+    MAX_POISSON_LAM = float(MAX_LATENT_I)
+
+    THETA_LOWER = np.array(
+        [
+            np.log(1e-5),
+            -2.5,
+            -2.5,
+            -1.5,
+            -1.5,
+            -6.0,
+            -6.0,
+            np.log(1.0),
+            np.log(1e-3),
+            np.log(1e-3),
+            -8.0,
+            np.log(1e-3),
+            np.log(1e-3),
+        ],
+        dtype=float,
+    )
+
+    THETA_UPPER = np.array(
+        [
+            np.log(100.0),
+            2.5,
+            2.5,
+            1.5,
+            1.5,
+            2.0,
+            6.0,
+            np.log(MAX_NU),
+            np.log(1e3),
+            np.log(2.0),
+            8.0,
+            np.log(MAX_LATENT_I),
+            np.log(5.0),
+        ],
+        dtype=float,
+    )
+
+
+def clamp_theta(theta):
+    theta = np.asarray(theta, dtype=float)
+    return np.clip(theta, THETA_LOWER, THETA_UPPER)
+
+
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-np.clip(x, -40, 40)))
+
+
+def logit(p):
+    p = np.clip(p, 1e-10, 1 - 1e-10)
+    return np.log(p / (1.0 - p))
+
+
+def untransform(theta):
+    theta = clamp_theta(theta)
+    return {
+        "beta0": np.exp(theta[..., IDX_LOG_BETA0]),
+        "a1": theta[..., IDX_A1],
+        "b1": theta[..., IDX_B1],
+        "a2": theta[..., IDX_A2],
+        "b2": theta[..., IDX_B2],
+        "delta_post": theta[..., IDX_DELTA_POST],
+        "alpha": 0.6 + 0.5 * sigmoid(theta[..., IDX_Z_ALPHA]),
+        "nu": np.exp(theta[..., IDX_LOG_NU]),
+        "k_proc": np.exp(theta[..., IDX_LOG_KPROC]),
+        "sigma_A": np.exp(theta[..., IDX_LOG_SIGMA_A]),
+        "eta": sigmoid(theta[..., IDX_LOGIT_ETA]),
+        "I0": np.exp(theta[..., IDX_LOG_I0]),
+        "sigma_obs": np.exp(theta[..., IDX_LOG_SIGMA_OBS]),
+    }
+
+
+def transform(
+    beta0,
+    a1,
+    b1,
+    a2,
+    b2,
+    delta_post,
+    alpha,
+    nu,
+    k_proc,
+    sigma_A,
+    eta,
+    I0,
+    sigma_obs,
+):
+    alpha_scaled = np.clip((alpha - 0.6) / 0.5, 1e-6, 1 - 1e-6)
+    z_alpha = logit(alpha_scaled)
+    theta = np.array(
+        [
+            np.log(beta0),
+            a1,
+            b1,
+            a2,
+            b2,
+            delta_post,
+            z_alpha,
+            np.log(nu),
+            np.log(k_proc),
+            np.log(sigma_A),
+            logit(eta),
+            np.log(I0),
+            np.log(sigma_obs),
+        ],
+        dtype=float,
+    )
+    return clamp_theta(theta)
+
+
+def seasonal_log_effect(theta_particles, t_idx):
+    p = untransform(theta_particles)
+    return (
+        p["a1"] * SEASON_COS1[t_idx]
+        + p["b1"] * SEASON_SIN1[t_idx]
+        + p["a2"] * SEASON_COS2[t_idx]
+        + p["b2"] * SEASON_SIN2[t_idx]
+    )
+
+
+def sample_nb_mean_disp(mean, k, rng):
+    mean = np.clip(np.asarray(mean, dtype=float), 1e-10, MAX_POISSON_LAM)
+    k = np.clip(np.asarray(k, dtype=float), 1e-10, 1e6)
+    lam = rng.gamma(shape=k, scale=mean / k)
+    lam = np.clip(lam, 0.0, MAX_POISSON_LAM)
+    return rng.poisson(lam)
+
+
+def systematic_resample(w, rng):
+    n = len(w)
+    positions = (rng.uniform() + np.arange(n)) / n
+    cumsum = np.cumsum(w)
+    cumsum[-1] = 1.0
+    idx = np.searchsorted(cumsum, positions)
+    return np.clip(idx, 0, n - 1)
+
+
+def init_state(theta_particles, rng):
+    theta_particles = clamp_theta(theta_particles)
+    n_particles = theta_particles.shape[0]
+    p = untransform(theta_particles)
+
+    S0 = p["eta"] * N_EFF
+    I0 = p["I0"] * rng.lognormal(mean=0.0, sigma=0.15, size=n_particles)
+    A0 = np.zeros(n_particles)
+
+    state = np.zeros((n_particles, 3), dtype=float)
+    state[:, 0] = np.clip(S0, 0.0, N_EFF)
+    state[:, 1] = np.clip(I0, 0.0, MAX_LATENT_I)
+    state[:, 2] = A0
+    return state
+
+
+def step_particles(state, theta_particles, t_next, rng):
+    theta_particles = clamp_theta(theta_particles)
+    p = untransform(theta_particles)
+
+    S = np.clip(state[:, 0], 0.0, N_EFF)
+    I = np.clip(state[:, 1], 0.0, MAX_LATENT_I)
+    A = state[:, 2].copy()
+
+    if year_change[t_next] == 1:
+        A = rng.normal(loc=0.0, scale=p["sigma_A"], size=A.shape[0])
+        A = np.clip(A, -4.0, 4.0)
+
+    season = seasonal_log_effect(theta_particles, t_next)
+    post_shift = p["delta_post"] * post[t_next]
+    depletion = np.log1p(np.maximum(S, 0.0)) - np.log1p(N_EFF)
+
+    log_lam = (
+        np.log(p["beta0"])
+        + season
+        + post_shift
+        + A
+        + depletion
+        + p["alpha"] * np.log1p(np.maximum(I, 0.0))
+    )
+    log_lam = np.clip(log_lam, -20.0, np.log(MAX_POISSON_LAM))
+    lam = np.exp(log_lam)
+
+    I_next = sample_nb_mean_disp(lam, p["k_proc"], rng).astype(float)
+    I_next = np.clip(I_next, 0.0, MAX_LATENT_I)
+
+    replenishment = p["nu"] * (1.0 - S / N_EFF)
+    S_next = np.clip(S + replenishment - I_next, 0.0, N_EFF)
+
+    out = np.empty_like(state)
+    out[:, 0] = S_next
+    out[:, 1] = I_next
+    out[:, 2] = A
+    return out
+
+
+def dmeasure_log(state, theta_particles, y_t):
+    theta_particles = clamp_theta(theta_particles)
+    p = untransform(theta_particles)
+    mu_log = np.log1p(np.maximum(state[:, 1], 0.0))
+    sigma = np.maximum(p["sigma_obs"], 1e-8)
+    return norm.logpdf(y_t, loc=mu_log, scale=sigma)
+
+
+def rmeasure_log(state, theta_particles, rng):
+    theta_particles = clamp_theta(theta_particles)
+    p = untransform(theta_particles)
+    mu_log = np.log1p(np.maximum(state[:, 1], 0.0))
+    y_log = rng.normal(mu_log, np.maximum(p["sigma_obs"], 1e-8))
+    y_raw_sim = np.maximum(np.expm1(y_log), 0.0)
+    return y_log, y_raw_sim
+
+
+def pfilter(y_obs, theta, n_particles=600, seed=None, return_filtered=False):
+    rng = np.random.default_rng(seed)
+    theta = np.asarray(theta, dtype=float)
+
+    theta_particles = np.broadcast_to(theta, (n_particles, N_PARAMS)).copy()
+    state = init_state(theta_particles, rng)
+
+    log_lik = 0.0
+    log_lik_t = np.zeros(T)
+    ess = np.zeros(T)
+    filt_q_raw = np.zeros((T, 3)) if return_filtered else None
+    filt_mean_raw = np.zeros(T) if return_filtered else None
+    filt_mean_log = np.zeros(T) if return_filtered else None
+
+    for t in range(T):
+        log_w = dmeasure_log(state, theta_particles, y_obs[t])
+        max_lw = np.max(log_w)
+        if not np.isfinite(max_lw):
+            log_lik_t[t] = -np.inf
+            log_lik = -np.inf
+            break
+
+        w_unnorm = np.exp(log_w - max_lw)
+        sum_w = np.sum(w_unnorm)
+        inc = max_lw + np.log(sum_w) - np.log(n_particles)
+
+        log_lik_t[t] = inc
+        log_lik += inc
+
+        w = w_unnorm / sum_w
+        ess[t] = 1.0 / np.sum(w**2)
+
+        if return_filtered:
+            latent_I = state[:, 1]
+            latent_logI = np.log1p(np.maximum(latent_I, 0.0))
+            order = np.argsort(latent_I)
+            cw = np.cumsum(w[order])
+            for j, q in enumerate((0.025, 0.5, 0.975)):
+                pos = np.searchsorted(cw, q, side="right")
+                pos = min(pos, n_particles - 1)
+                filt_q_raw[t, j] = latent_I[order][pos]
+            filt_mean_raw[t] = np.sum(w * latent_I)
+            filt_mean_log[t] = np.sum(w * latent_logI)
+
+        idx = systematic_resample(w, rng)
+        state = state[idx]
+        theta_particles = theta_particles[idx]
+
+        if t < T - 1:
+            state = step_particles(state, theta_particles, t + 1, rng)
+
+    return {
+        "log_lik": float(log_lik),
+        "log_lik_t": log_lik_t,
+        "ess": ess,
+        "filtered_q_raw": filt_q_raw,
+        "filtered_mean_raw": filt_mean_raw,
+        "filtered_mean_log": filt_mean_log,
+    }
+
+
+def pfilter_replicated(y_obs, theta, n_particles=3000, n_reps=10, seed=None):
+    rng = np.random.default_rng(seed)
+    lls = np.zeros(n_reps)
+    for r in range(n_reps):
+        out = pfilter(
+            y_obs,
+            theta,
+            n_particles=n_particles,
+            seed=int(rng.integers(2**31)),
+        )
+        lls[r] = out["log_lik"]
+    return {
+        "log_lik_reps": lls,
+        "log_lik_mean": float(np.mean(lls)),
+        "log_lik_se": float(np.std(lls, ddof=1) / np.sqrt(n_reps))
+        if n_reps > 1
+        else 0.0,
+    }
+
+
+def simulate_from_model(theta, n_sims=100, seed=None):
+    rng = np.random.default_rng(seed)
+    theta = clamp_theta(theta)
+    sims_raw = np.zeros((n_sims, T), dtype=float)
+    sims_log = np.zeros((n_sims, T), dtype=float)
+
+    for s in range(n_sims):
+        theta_particles = theta[np.newaxis, :].copy()
+        state = init_state(theta_particles, rng)
+        y_log0, y_raw0 = rmeasure_log(state, theta_particles, rng)
+        sims_log[s, 0] = y_log0[0]
+        sims_raw[s, 0] = y_raw0[0]
+
+        for t in range(1, T):
+            state = step_particles(state, theta_particles, t, rng)
+            y_log_t, y_raw_t = rmeasure_log(state, theta_particles, rng)
+            sims_log[s, t] = y_log_t[0]
+            sims_raw[s, t] = y_raw_t[0]
+
+    return {"raw": sims_raw, "log": sims_log}
+
+
+def mif2(
+    y_obs,
+    theta_start,
+    n_iterations=50,
+    n_particles=1000,
+    rw_sd=None,
+    cooling=0.5,
+    seed=None,
+    verbose=True,
+    fixed_indices=None,
+    fixed_values=None,
+):
+    rng = np.random.default_rng(seed)
+    theta = clamp_theta(np.asarray(theta_start, dtype=float).copy())
+
+    if rw_sd is None:
+        rw_sd = default_rw_sd()
+    else:
+        rw_sd = np.asarray(rw_sd, dtype=float)
+
+    if fixed_indices is None:
+        fixed_indices = np.array([], dtype=int)
+        fixed_values = np.array([], dtype=float)
+    else:
+        fixed_indices = np.asarray(fixed_indices, dtype=int)
+        fixed_values = np.asarray(fixed_values, dtype=float)
+
+    def apply_fixed(theta_array):
+        arr = np.array(theta_array, copy=True)
+        if fixed_indices.size > 0:
+            arr[..., fixed_indices] = fixed_values
+        return clamp_theta(arr)
+
+    theta = apply_fixed(theta)
+    log_liks = np.zeros(n_iterations)
+    theta_trace = np.zeros((n_iterations + 1, N_PARAMS))
+    theta_trace[0] = theta
+
+    for m in range(n_iterations):
+        cool = cooling ** (m / max(n_iterations - 1, 1))
+        sd_m = rw_sd * cool
+        if fixed_indices.size > 0:
+            sd_m = sd_m.copy()
+            sd_m[fixed_indices] = 0.0
+
+        theta_particles = theta[np.newaxis, :] + rng.normal(
+            0.0, sd_m, size=(n_particles, N_PARAMS)
+        )
+        theta_particles = apply_fixed(theta_particles)
+        state = init_state(theta_particles, rng)
+
+        ll_m = 0.0
+        for t in range(T):
+            theta_particles = theta_particles + rng.normal(
+                0.0, sd_m, size=theta_particles.shape
+            )
+            theta_particles = apply_fixed(theta_particles)
+
+            log_w = dmeasure_log(state, theta_particles, y_obs[t])
+            max_lw = np.max(log_w)
+            if not np.isfinite(max_lw):
+                ll_m = -np.inf
+                break
+
+            w_unnorm = np.exp(log_w - max_lw)
+            sum_w = np.sum(w_unnorm)
+            inc = max_lw + np.log(sum_w) - np.log(n_particles)
+            ll_m += inc
+
+            w = w_unnorm / sum_w
+            idx = systematic_resample(w, rng)
+            state = state[idx]
+            theta_particles = theta_particles[idx]
+
+            if t < T - 1:
+                state = step_particles(state, theta_particles, t + 1, rng)
+
+        theta = apply_fixed(np.mean(theta_particles, axis=0))
+        log_liks[m] = ll_m
+        theta_trace[m + 1] = theta
+
+        if verbose:
+            nat = untransform(theta)
+            print(
+                f"iter {m + 1:3d}/{n_iterations}  "
+                f"loglik={ll_m:11.2f}  "
+                f"beta0={nat['beta0']:.3f}  "
+                f"alpha={nat['alpha']:.3f}  "
+                f"nu={nat['nu']:.1f}  "
+                f"k_proc={nat['k_proc']:.3f}  "
+                f"sigma_A={nat['sigma_A']:.3f}  "
+                f"sigma_obs={nat['sigma_obs']:.3f}  "
+                f"eta={nat['eta']:.3f}  "
+                f"I0={nat['I0']:.1f}"
+            )
+
+    best_iter = int(np.nanargmax(log_liks))
+    theta_best_if2 = theta_trace[1 + best_iter].copy()
+    return {
+        "theta": theta,
+        "theta_best_if2": theta_best_if2,
+        "best_iter": best_iter + 1,
+        "log_liks": log_liks,
+        "theta_trace": theta_trace,
+    }
+
+
+def default_rw_sd():
+    return np.array(
+        [
+            0.03,
+            0.02,
+            0.02,
+            0.015,
+            0.015,
+            0.03,
+            0.02,
+            0.015,
+            0.03,
+            0.02,
+            0.02,
+            0.03,
+            0.02,
+        ],
+        dtype=float,
+    )
+
+
+def random_theta0(rng):
+    beta0 = np.exp(rng.uniform(np.log(0.2), np.log(10.0)))
+    a1 = rng.uniform(-1.0, 1.0)
+    b1 = rng.uniform(-1.0, 1.0)
+    a2 = rng.uniform(-0.4, 0.4)
+    b2 = rng.uniform(-0.4, 0.4)
+    delta_post = rng.uniform(-2.0, -0.1)
+    alpha = rng.uniform(0.75, 1.02)
+    nu = np.exp(rng.uniform(np.log(50.0), np.log(MAX_NU)))
+    k_proc = np.exp(rng.uniform(np.log(2.0), np.log(100.0)))
+    sigma_A = np.exp(rng.uniform(np.log(0.03), np.log(0.5)))
+    eta = rng.uniform(0.10, 0.80)
+    I0 = np.exp(
+        rng.uniform(
+            np.log(max(1.0, np.median(y_raw[:12]) / 4)),
+            np.log(max(20.0, 4 * np.median(y_raw[:12]))),
+        )
+    )
+    sigma_obs = np.exp(rng.uniform(np.log(0.10), np.log(1.20)))
+    return transform(
+        beta0,
+        a1,
+        b1,
+        a2,
+        b2,
+        delta_post,
+        alpha,
+        nu,
+        k_proc,
+        sigma_A,
+        eta,
+        I0,
+        sigma_obs,
+    )
+
+
+def evaluate_trace_candidates(
+    y_obs, fit, top_k=5, n_particles=3000, n_reps=10, seed=1
+):
+    log_liks = fit["log_liks"]
+    trace = fit["theta_trace"][1:]
+    ord_idx = np.argsort(log_liks)[::-1]
+    keep = ord_idx[: min(top_k, len(ord_idx))]
+
+    rows = []
+    for rank, idx in enumerate(keep, start=1):
+        theta_cand = trace[idx]
+        rep = pfilter_replicated(
+            y_obs,
+            theta_cand,
+            n_particles=n_particles,
+            n_reps=n_reps,
+            seed=seed + rank,
+        )
+        nat = untransform(theta_cand)
+        rows.append(
+            {
+                "trace_rank": rank,
+                "iter": int(idx + 1),
+                "if2_loglik": float(log_liks[idx]),
+                "rep_loglik": float(rep["log_lik_mean"]),
+                "rep_se": float(rep["log_lik_se"]),
+                "beta0": float(nat["beta0"]),
+                "delta_post": float(nat["delta_post"]),
+                "alpha": float(nat["alpha"]),
+                "nu": float(nat["nu"]),
+                "k_proc": float(nat["k_proc"]),
+                "sigma_A": float(nat["sigma_A"]),
+                "eta": float(nat["eta"]),
+                "I0": float(nat["I0"]),
+                "sigma_obs": float(nat["sigma_obs"]),
+                "theta": theta_cand.copy(),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def run_global_search(
+    y_obs,
+    n_starts=15,
+    n_iterations=50,
+    n_particles=1000,
+    cooling=0.5,
+    rw_sd=None,
+    seed=123,
+    verbose=False,
+):
+    rng = np.random.default_rng(seed)
+    fits = []
+    summary_rows = []
+    for s in range(n_starts):
+        theta0 = random_theta0(rng)
+        fit = mif2(
+            y_obs,
+            theta0,
+            n_iterations=n_iterations,
+            n_particles=n_particles,
+            rw_sd=rw_sd,
+            cooling=cooling,
+            seed=int(rng.integers(2**31)),
+            verbose=verbose,
+        )
+        fit["theta0"] = theta0
+        fit["start_id"] = s
+        fits.append(fit)
+        nat = untransform(fit["theta_best_if2"])
+        summary_rows.append(
+            {
+                "start_id": s,
+                "best_if2_loglik": float(np.max(fit["log_liks"])),
+                "best_iter": int(fit["best_iter"]),
+                "beta0": float(nat["beta0"]),
+                "delta_post": float(nat["delta_post"]),
+                "alpha": float(nat["alpha"]),
+                "nu": float(nat["nu"]),
+                "k_proc": float(nat["k_proc"]),
+                "sigma_A": float(nat["sigma_A"]),
+                "eta": float(nat["eta"]),
+                "I0": float(nat["I0"]),
+                "sigma_obs": float(nat["sigma_obs"]),
+            }
+        )
+    return fits, pd.DataFrame(summary_rows).sort_values(
+        "best_if2_loglik", ascending=False
+    ).reset_index(drop=True)
+
+
+def gather_global_candidates(
+    y_obs, fits, top_trace_per_fit=3, rep_particles=3000, rep_reps=10, seed=100
+):
+    cand_frames = []
+    for j, fit in enumerate(fits):
+        df = evaluate_trace_candidates(
+            y_obs,
+            fit,
+            top_k=top_trace_per_fit,
+            n_particles=rep_particles,
+            n_reps=rep_reps,
+            seed=seed + 50 * j,
+        )
+        fit_id = fit.get("start_id", fit.get("local_id", j))
+        df["start_id"] = fit_id
+        cand_frames.append(df)
+    out = pd.concat(cand_frames, ignore_index=True)
+    out = out.sort_values(
+        ["rep_loglik", "if2_loglik"], ascending=False
+    ).reset_index(drop=True)
+    return out
+
+
+def run_local_refinement(
+    y_obs,
+    candidate_thetas,
+    n_iterations=50,
+    n_particles=1000,
+    cooling=0.3,
+    rw_sd=None,
+    seed=456,
+    verbose=False,
+):
+    rng = np.random.default_rng(seed)
+    if rw_sd is None:
+        rw_sd = 0.5 * default_rw_sd()
+    fits = []
+    for j, theta0 in enumerate(candidate_thetas):
+        fit = mif2(
+            y_obs,
+            theta0,
+            n_iterations=n_iterations,
+            n_particles=n_particles,
+            rw_sd=rw_sd,
+            cooling=cooling,
+            seed=int(rng.integers(2**31)),
+            verbose=verbose,
+        )
+        fit["local_id"] = j
+        fit["start_id"] = j
+        fit["theta0"] = theta0
+        fits.append(fit)
+    return fits
+
+
+def profile_delta_post(
+    y_obs,
+    theta_center,
+    grid,
+    n_restarts=5,
+    n_iterations=40,
+    n_particles=1000,
+    rw_sd=None,
+    cooling=0.3,
+    rep_particles=3000,
+    rep_reps=10,
+    seed=999,
+):
+    rng = np.random.default_rng(seed)
+    rows = []
+    if rw_sd is None:
+        rw_sd = 0.5 * default_rw_sd()
+
+    for val in grid:
+        best_rep = -np.inf
+        best_se = np.nan
+        for _ in range(n_restarts):
+            theta_start = theta_center.copy()
+            theta_start[IDX_DELTA_POST] = val
+            theta_start = clamp_theta(
+                theta_start + rng.normal(0.0, 0.1 * rw_sd, size=N_PARAMS)
+            )
+            theta_start[IDX_DELTA_POST] = val
+
+            fit = mif2(
+                y_obs,
+                theta_start,
+                n_iterations=n_iterations,
+                n_particles=n_particles,
+                rw_sd=rw_sd,
+                cooling=cooling,
+                seed=int(rng.integers(2**31)),
+                verbose=False,
+                fixed_indices=[IDX_DELTA_POST],
+                fixed_values=[val],
+            )
+            cand = evaluate_trace_candidates(
+                y_obs,
+                fit,
+                top_k=3,
+                n_particles=rep_particles,
+                n_reps=rep_reps,
+                seed=int(rng.integers(2**31)),
+            )
+            row = cand.iloc[0]
+            if row["rep_loglik"] > best_rep:
+                best_rep = row["rep_loglik"]
+                best_se = row["rep_se"]
+        rows.append(
+            {
+                "delta_post": float(val),
+                "profile_loglik": float(best_rep),
+                "rep_se": float(best_se),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def save_trace_plot(best_fit, outdir):
+    trace_nat = pd.DataFrame(
+        [untransform(th) for th in best_fit["theta_trace"]]
+    )
+    trace_nat.to_csv(outdir / "local_parameter_traces.csv", index=False)
+    fig, axes = plt.subplots(4, 2, figsize=(13, 12), sharex=True)
+    plot_names = [
+        "beta0",
+        "delta_post",
+        "alpha",
+        "nu",
+        "k_proc",
+        "sigma_A",
+        "eta",
+        "I0",
+    ]
+    for ax, nm in zip(axes.ravel(), plot_names):
+        ax.plot(trace_nat[nm].to_numpy(), lw=1.6)
+        ax.set_title(nm)
+    axes[-1, -1].axis("off")
+    fig.suptitle("Local refinement parameter traces", y=0.995)
+    fig.tight_layout()
+    fig.savefig(
+        outdir / "local_parameter_traces.png", dpi=200, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
+def save_global_hist(global_summary, outdir):
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.hist(global_summary["best_if2_loglik"], bins=10, edgecolor="black")
+    ax.set_title(
+        "Distribution of best IF2 log-likelihoods across global starts"
+    )
+    ax.set_xlabel("best IF2-reported log-likelihood")
+    ax.set_ylabel("count")
+    fig.tight_layout()
+    fig.savefig(
+        outdir / "global_search_histogram.png", dpi=200, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
+def save_ess_plots(dat, out_hat, outdir):
+    fig, axes = plt.subplots(2, 1, figsize=(13, 8), sharex=True)
+    axes[0].plot(dat["date"], out_hat["ess"], lw=1.5)
+    axes[0].set_title("ESS over time")
+    axes[0].set_ylabel("ESS")
+    axes[1].plot(dat["date"], out_hat["log_lik_t"], lw=1.5)
+    axes[1].set_title("Per-observation log-likelihood contribution")
+    axes[1].set_ylabel("loglik contribution")
+    fig.tight_layout()
+    fig.savefig(
+        outdir / "ess_and_loglik_contrib.png", dpi=200, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
+def save_fit_plots(dat, out_hat, sims, outdir):
+    q_lo = np.quantile(sims["raw"], 0.025, axis=0)
+    q_med = np.quantile(sims["raw"], 0.50, axis=0)
+    q_hi = np.quantile(sims["raw"], 0.975, axis=0)
+
+    fig, axes = plt.subplots(2, 1, figsize=(13, 8), sharex=True)
+    axes[0].plot(dat["date"], y_raw, lw=1.0, label="observed monthly cases")
+    axes[0].plot(
+        dat["date"],
+        out_hat["filtered_mean_raw"],
+        lw=2.0,
+        label="filtered mean latent cases",
+    )
+    axes[0].fill_between(
+        dat["date"],
+        out_hat["filtered_q_raw"][:, 0],
+        out_hat["filtered_q_raw"][:, 2],
+        alpha=0.25,
+    )
+    axes[0].set_title("Observed vs TSIR-POMP filtered fit (raw scale)")
+    axes[0].legend(loc="upper right")
+
+    axes[1].plot(dat["date"], y, lw=1.0, label="observed log(1+cases)")
+    axes[1].plot(
+        dat["date"],
+        out_hat["filtered_mean_log"],
+        lw=2.0,
+        label="filtered mean log latent",
+    )
+    axes[1].set_title("Observed vs TSIR-POMP filtered fit (log scale)")
+    axes[1].legend(loc="upper right")
+    fig.tight_layout()
+    fig.savefig(outdir / "fit_raw_log.png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(13, 5))
+    ax.plot(dat["date"], y_raw, color="black", lw=1.2, label="observed")
+    ax.plot(dat["date"], q_med, lw=1.5, label="sim median")
+    ax.fill_between(dat["date"], q_lo, q_hi, alpha=0.25, label="sim 95% band")
+    ax.set_title("Simulation-from-fitted-model check (raw scale)")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    fig.savefig(
+        outdir / "simulation_check_raw.png", dpi=200, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
+def save_seasonal_profile(seasonal_profile, outdir):
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
+    axes[0].plot(
+        seasonal_profile["month_name"],
+        seasonal_profile["cases"],
+        marker="o",
+        label="observed mean month",
+    )
+    axes[0].plot(
+        seasonal_profile["month_name"],
+        seasonal_profile["filtered_mean_raw"],
+        marker="o",
+        label="fitted mean month",
+    )
+    axes[0].set_title("Mean monthly profile (raw scale)")
+    axes[0].legend(loc="upper right")
+
+    axes[1].plot(
+        seasonal_profile["month_name"],
+        seasonal_profile["log_cases"],
+        marker="o",
+        label="observed mean log month",
+    )
+    axes[1].plot(
+        seasonal_profile["month_name"],
+        seasonal_profile["filtered_mean_log"],
+        marker="o",
+        label="fitted mean log month",
+    )
+    axes[1].set_title("Mean monthly profile (log scale)")
+    axes[1].legend(loc="upper right")
+    fig.tight_layout()
+    fig.savefig(outdir / "seasonal_profile.png", dpi=200, bbox_inches="tight")
+    plt.close(fig)
+
+
+def save_profile_plot(profile_df, outdir):
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.errorbar(
+        profile_df["delta_post"],
+        profile_df["profile_loglik"],
+        yerr=profile_df["rep_se"],
+        marker="o",
+    )
+    ax.set_title("Profile likelihood for delta_post")
+    ax.set_xlabel("delta_post")
+    ax.set_ylabel("replicated log-likelihood")
+    fig.tight_layout()
+    fig.savefig(
+        outdir / "profile_delta_post.png", dpi=200, bbox_inches="tight"
+    )
+    plt.close(fig)
+
+
+def main():
+    args = parse_args()
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    t_start = time.time()
+    dat = load_monthly_data(args.data, args.year_start, args.year_end)
+    initialize_covariates(dat)
+
+    with open(outdir / "run_config.json", "w") as f:
+        json.dump(vars(args), f, indent=2)
+
+    theta0 = transform(
+        beta0=4.0,
+        a1=0.60,
+        b1=-0.20,
+        a2=0.15,
+        b2=-0.05,
+        delta_post=-1.20,
+        alpha=0.92,
+        nu=min(800.0, MAX_NU),
+        k_proc=20.0,
+        sigma_A=0.20,
+        eta=0.45,
+        I0=max(20.0, float(np.median(y_raw[:6]))),
+        sigma_obs=0.45,
+    )
+
+    out0 = pfilter(y, theta0, n_particles=600, seed=123, return_filtered=True)
+    baseline_metrics = {
+        "initial_log_likelihood_logscale": float(out0["log_lik"]),
+        "initial_mean_ess": float(np.mean(out0["ess"])),
+    }
+
+    global_rw_sd = default_rw_sd()
+    global_fits, global_summary = run_global_search(
+        y,
+        n_starts=args.global_starts,
+        n_iterations=args.global_iters,
+        n_particles=args.global_particles,
+        cooling=args.global_cooling,
+        rw_sd=global_rw_sd,
+        seed=args.seed,
+        verbose=args.verbose_if2,
+    )
+    global_summary.to_csv(outdir / "global_summary.csv", index=False)
+    save_global_hist(global_summary, outdir)
+
+    global_candidates = gather_global_candidates(
+        y,
+        global_fits,
+        top_trace_per_fit=args.top_trace_per_fit,
+        rep_particles=args.rep_particles,
+        rep_reps=args.rep_reps,
+        seed=args.seed + 505,
+    )
+    global_candidates_for_csv = global_candidates.copy()
+    global_candidates_for_csv["theta"] = global_candidates_for_csv[
+        "theta"
+    ].apply(lambda x: json.dumps([float(v) for v in x]))
+    global_candidates_for_csv.to_csv(
+        outdir / "global_candidates.csv", index=False
+    )
+
+    local_seeds = list(global_candidates["theta"].iloc[: args.local_top_n])
+    local_rw_sd = 0.5 * default_rw_sd()
+    local_fits = run_local_refinement(
+        y,
+        local_seeds,
+        n_iterations=args.local_iters,
+        n_particles=args.local_particles,
+        cooling=args.local_cooling,
+        rw_sd=local_rw_sd,
+        seed=args.seed + 909,
+        verbose=args.verbose_if2,
+    )
+
+    local_candidates = gather_global_candidates(
+        y,
+        local_fits,
+        top_trace_per_fit=max(5, args.top_trace_per_fit),
+        rep_particles=args.rep_particles,
+        rep_reps=args.rep_reps,
+        seed=args.seed + 1111,
+    )
+    local_candidates_for_csv = local_candidates.copy()
+    local_candidates_for_csv["theta"] = local_candidates_for_csv[
+        "theta"
+    ].apply(lambda x: json.dumps([float(v) for v in x]))
+    local_candidates_for_csv.to_csv(
+        outdir / "local_candidates.csv", index=False
+    )
+
+    best_row = local_candidates.iloc[0].copy()
+    theta_hat = best_row["theta"].copy()
+    theta_hat_nat = {k: float(v) for k, v in untransform(theta_hat).items()}
+    pd.DataFrame([theta_hat_nat]).to_csv(
+        outdir / "best_parameters_natural_scale.csv", index=False
+    )
+
+    best_local_fit = local_fits[int(best_row["start_id"])]
+    save_trace_plot(best_local_fit, outdir)
+
+    rep = pfilter_replicated(
+        y,
+        theta_hat,
+        n_particles=args.rep_particles,
+        n_reps=args.rep_reps,
+        seed=99,
+    )
+    out_hat = pfilter(
+        y,
+        theta_hat,
+        n_particles=args.filter_particles,
+        seed=321,
+        return_filtered=True,
+    )
+    save_ess_plots(dat, out_hat, outdir)
+
+    sims = simulate_from_model(theta_hat, n_sims=args.simulations, seed=222)
+    save_fit_plots(dat, out_hat, sims, outdir)
+
+    fit_df = dat.copy()
+    fit_df["filtered_mean_raw"] = out_hat["filtered_mean_raw"]
+    fit_df["filtered_mean_log"] = out_hat["filtered_mean_log"]
+    fit_df["ess"] = out_hat["ess"]
+    fit_df["loglik_t"] = out_hat["log_lik_t"]
+    fit_df.to_csv(outdir / "fitted_series.csv", index=False)
+
+    obs_idx = fit_df.groupby("year")["cases"].idxmax()
+    fit_idx = fit_df.groupby("year")["filtered_mean_raw"].idxmax()
+
+    obs_peaks = (
+        fit_df.loc[obs_idx, ["year", "cases", "date"]]
+        .rename(columns={"cases": "obs_peak", "date": "obs_peak_date"})
+        .sort_values("year")
+    )
+    fit_peaks = (
+        fit_df.loc[fit_idx, ["year", "filtered_mean_raw", "date"]]
+        .rename(
+            columns={"filtered_mean_raw": "fit_peak", "date": "fit_peak_date"}
+        )
+        .sort_values("year")
+    )
+    annual = obs_peaks.merge(fit_peaks, on="year", how="inner")
+    annual["peak_abs_error"] = np.abs(annual["obs_peak"] - annual["fit_peak"])
+    annual["peak_timing_error_days"] = (
+        annual["fit_peak_date"] - annual["obs_peak_date"]
+    ).dt.days.abs()
+    annual.to_csv(outdir / "annual_peak_diagnostics.csv", index=False)
+
+    seasonal_df = fit_df.copy()
+    seasonal_df["month_name"] = seasonal_df["date"].dt.strftime("%b")
+    month_order = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    ]
+    seasonal_profile = seasonal_df.groupby("month_name", as_index=False)[
+        ["cases", "filtered_mean_raw", "log_cases", "filtered_mean_log"]
+    ].mean()
+    seasonal_profile["month_name"] = pd.Categorical(
+        seasonal_profile["month_name"], categories=month_order, ordered=True
+    )
+    seasonal_profile = seasonal_profile.sort_values("month_name").reset_index(
+        drop=True
+    )
+    seasonal_profile.to_csv(outdir / "seasonal_profile.csv", index=False)
+    save_seasonal_profile(seasonal_profile, outdir)
+
+    profile_df = None
+    if args.run_profile:
+        delta_grid = np.linspace(
+            theta_hat[IDX_DELTA_POST] - 0.6,
+            theta_hat[IDX_DELTA_POST] + 0.6,
+            args.profile_points,
+        )
+        profile_df = profile_delta_post(
+            y,
+            theta_hat,
+            delta_grid,
+            n_restarts=args.profile_restarts,
+            n_iterations=args.profile_iters,
+            n_particles=args.profile_particles,
+            rw_sd=0.5 * default_rw_sd(),
+            cooling=args.local_cooling,
+            rep_particles=args.rep_particles,
+            rep_reps=args.rep_reps,
+            seed=args.seed + 1500,
+        )
+        profile_df.to_csv(outdir / "profile_delta_post.csv", index=False)
+        save_profile_plot(profile_df, outdir)
+
+    metrics = {
+        "overall_log_likelihood_logscale": float(rep["log_lik_mean"]),
+        "overall_log_likelihood_logscale_se": float(rep["log_lik_se"]),
+        "mae_raw": float(
+            np.mean(np.abs(y_raw - out_hat["filtered_mean_raw"]))
+        ),
+        "rmse_raw": float(
+            np.sqrt(np.mean((y_raw - out_hat["filtered_mean_raw"]) ** 2))
+        ),
+        "mae_log": float(np.mean(np.abs(y - out_hat["filtered_mean_log"]))),
+        "rmse_log": float(
+            np.sqrt(np.mean((y - out_hat["filtered_mean_log"]) ** 2))
+        ),
+        "peak_mae_raw": float(annual["peak_abs_error"].mean()),
+        "peak_timing_mae_days": float(annual["peak_timing_error_days"].mean()),
+        "initial_log_likelihood_logscale": baseline_metrics[
+            "initial_log_likelihood_logscale"
+        ],
+        "initial_mean_ess": baseline_metrics["initial_mean_ess"],
+        "elapsed_seconds": float(time.time() - t_start),
+    }
+    with open(outdir / "metrics.json", "w") as f:
+        json.dump(metrics, f, indent=2)
+
+    run_summary = {
+        "winner_start_id": int(best_row["start_id"]),
+        "winner_trace_rank": int(best_row["trace_rank"]),
+        "winner_iter": int(best_row["iter"]),
+        "winner_if2_loglik": float(best_row["if2_loglik"]),
+        "winner_rep_loglik": float(best_row["rep_loglik"]),
+        "winner_rep_se": float(best_row["rep_se"]),
+        "theta_hat_natural_scale": theta_hat_nat,
+    }
+    with open(outdir / "winner_summary.json", "w") as f:
+        json.dump(run_summary, f, indent=2)
+
+    print("Finished robust monthly logged TSIR-POMP run.")
+    print(json.dumps(metrics, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+```
+

@@ -1,0 +1,966 @@
+---
+title: "STATS 531 project report\\vspace{-2cm}"
+bibliography: references.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+execute:
+  echo: false
+  output: false
+  warning: false
+  error: false
+nocite: '@*'
+jupyter: python3
+---
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import jax.numpy as jnp
+import pypomp as pp
+import jax
+import time
+from pathlib import Path
+import pickle
+from scipy.stats import chi2
+from jax.scipy.special import gammaln
+import yfinance as yf
+from arch import arch_model
+from arch.univariate.distribution import SkewStudent, StudentsT, Normal, GeneralizedError
+from pypomp.types import (
+    StateDict, ParamDict, CovarDict,
+    TimeFloat, StepSizeFloat, RNGKey,
+    ObservationDict, InitialTimeFloat,
+)
+```
+
+```{python}
+# Utils
+
+def aic_table(data, P, Q,  d=0, o = 0, model_type='sarimax', dist='normal', trend='c', mean = 'zero', hold_back = None):
+    table = np.zeros((P+1, Q+1))
+    model_type = model_type.strip().lower()
+    for p in range(P+1):
+        for q in range(Q+1):
+            try:
+                if model_type == 'sarimax':
+                    model = SARIMAX(data,
+                                    trend = trend,
+                                    order=(p, d, q))
+                elif model_type == 'garch':
+                    model = arch_model(data,
+                                       vol='GARCH',
+                                       p=p,
+                                       o=o, # enables GJR GARCH if nonzero
+                                       q=q,
+                                       mean=mean,
+                                       dist=dist,
+                                       hold_back = hold_back
+                                       )
+                else:
+                    raise ValueError
+                results = model.fit(disp = 'off')
+                table[p, q] = results.aic # sarimax, garch have aic attribute
+            except:
+                table[p, q] = np.nan
+    if model_type == 'sarimax':
+        df = pd.DataFrame(table,
+            index=[f'AR{p}' for p in range(P+1)],
+            columns=[f'MA{q}' for q in range(Q+1)])
+    elif model_type == 'garch':
+        df = pd.DataFrame(table,
+            index=[f'ARCH{p}' for p in range(P+1)], # by this, I mean there are is dependence on the p previous epsilon values
+            columns=[f'GARCH{q}' for q in range(Q+1)]) # by this, I mean there are q "GARCH" terms in that there is dependence on the q previous sigma^2 values
+    else:
+        raise ValueError
+    return df
+
+
+def make_trace_plots(traces_da, title = ''):
+  
+  #traces_da = basic_local_search["mif_result"].traces_da
+  
+  n_reps = traces_da.sizes['replicate']
+  iterations = traces_da.coords['iteration'].values
+  
+  fig, axes = plt.subplots(3, 3, figsize=(10, 8))
+  axes = axes.flat
+  
+  vars_to_plot = [
+      'logLik',
+      'sigma_nu', 'mu_h', 'phi',
+      'sigma_eta', 'G_0', 'H_0'
+  ]
+  
+  labels = [
+      'Log-likelihood',
+      r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+      r'$\sigma_\eta$', r'$G_0$', r'$H_0$'
+  ]
+  
+  for ax, var, lab in zip(axes, vars_to_plot, labels):
+      if var in traces_da.coords['variable'].values:
+          vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+  
+          for r in range(n_reps):
+              ax.plot(
+                  iterations,
+                  vals[r, :],
+                  alpha=0.4,
+                  lw=0.7
+              )
+  
+          # robust y-limits: ignore extreme tails
+          ylo, yhi = np.nanpercentile(vals, [2, 98])
+          pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+          ax.set_ylim(ylo - pad, yhi + pad)
+  
+      ax.set(xlabel='Iteration', ylabel=lab)
+      ax.grid(alpha=0.3)
+  fig.suptitle(title, fontsize=14)
+  for j in range(len(vars_to_plot), 9):
+      fig.delaxes(axes[j])
+  
+  plt.tight_layout()
+  plt.show()
+  
+
+
+def make_ess_plot(global_search_results, n=1, title = ''):
+  # plots the mean ESS across all replicates of the MLE estimate
+  # use larger n if smaller n is producing junk parameters for the MLE.
+  global_search_results_df = global_search_results['results']
+  
+  # index giving nth largest loglik
+  best_idx = int(global_search_results_df['loglik'].nlargest(n).index[-1])
+  
+  best_row = global_search_results_df.loc[best_idx] # the nth largest loglik
+  
+  plt.clf()
+  ess_best_mean = global_search_results["pf"].ESS.isel(theta=best_idx).mean(dim="replicate")
+  plt.figure(figsize=(6, 3))
+  ess_best_mean.plot()
+  plt.title(title)
+  plt.show()
+  plt.show()
+  
+def make_ll_scatterplot(global_search_results, title = ''):
+  global_search_results_df = global_search_results['results']
+
+  fig, axes = plt.subplots(2, 3, figsize=(8, 5))
+  
+  pairs = [
+      ('sigma_nu','loglik'), ('mu_h','loglik'),
+      ('phi','loglik'), ('sigma_eta','loglik'),
+      ('G_0','loglik'), ('H_0','loglik')
+  ]
+  
+  for ax, (x, y) in zip(axes.flat, pairs):
+      xvals = global_search_results_df[x]
+      yvals = global_search_results_df[y]
+      
+      ax.scatter(xvals, yvals, s=10, alpha=0.7)
+      
+    
+      lower, upper = xvals.quantile([0.05, 0.95])
+      ax.set_xlim(lower, upper)
+      
+      ax.set(xlabel=x, ylabel=y)
+      ax.grid(alpha=0.3)
+  fig.suptitle(title, fontsize=14)
+  plt.tight_layout()
+  plt.show()
+
+def find_mle(global_search_results_df, n=1):
+  # finds the nth largest log likelihood in the dataframe.
+  # use larger n if smaller n is producing junk parameters for the MLE.
+  
+  best_idx = int(global_search_results_df['loglik'].nlargest(n).index[-1])
+  best_row = global_search_results_df.loc[best_idx]
+  return {'index': best_idx, 'mle': best_row}
+```
+
+
+
+
+## Abstract {.unnumbered}
+
+In this report, we explore several ways in which the Bretó stochastic volatility model may be improved, including through using different error distributions and adding different terms to the log volatility. We compare such models to GARCH type models. In doing so, we not only obtain a better model fit compared to GARCH models but also demonstrate the flexibility of the POMP framework by showing how such models can easily be modified and estimated in Pypomp.
+
+# Introduction
+
+It is of general interest in finance to be able to model stock return behavior through stochastic volatility, that is, by modeling the variance of said returns conditional on previous information. This approach is often helpful for stock returns due to volatility clustering, in which the returns series undergoes distinct periods of high or low variance. Thus, by having a model appropriately incorporating stochastic volatility, a practitioner would be better able to assess when a particular asset is more or less risky. To this end, this report will explore variations of the Bretó model and provide a comparison with the GARCH model, which are two well-known volatility models. We ask if there are ways in which the usual Bretó model [@breto] can be significantly improved upon with slight variation.
+
+
+# Data
+
+The dataset we will analyze for our investigation will be the Google returns series from January 5, 2021 to December 31, 2025, provided by Yahoo Finance [@yahoo_goog_history]. To access this data, we used `yfinance`, the unofficial API [@yfinance]. We use the adjusted close price $x_n$ to obtain our series of interest, the log returns (which we refer to simply as returns in this report), given by $y_n = \log(x_n) - \log(x_{n-1})$. We then demean the data and scale this data by a factor of 100 as preliminary experiments showed worse numerical behavior without scaling. We also note that scaling places data on the same scale as the data in [@lecture17code]. The stock price and returns series are both shown below.
+
+```{python}
+
+data = pd.read_csv('google_stock.csv')
+data = data.iloc[2:].copy()
+
+data = data.rename(columns={"Price": "Date"})
+data = data.reset_index(drop=True)
+
+data["Date"] = pd.to_datetime(data["Date"])
+
+num_cols = ["Close", "High", "Low", "Open", "Volume"]
+data[num_cols] = data[num_cols].apply(pd.to_numeric)
+data.set_index('Date', inplace = True)
+
+plt.clf()
+plt.plot(data.index, data['Close'])
+plt.xlabel('Time')
+plt.ylabel('Close Price (Adjusted)')
+plt.title('Google Stock Price')
+plt.show()
+```
+
+
+```{python}
+# load cleaned data and plot the returns
+y = pd.read_csv('google_returns_cleaned.csv')
+y.set_index('Date', inplace = True)
+y = y['Close']
+```
+
+```{python}
+#| output: true
+
+plt.figure(figsize=(6, 4))
+y.index = pd.to_datetime(y.index)
+plt.clf()
+plt.plot(y.index, y)
+plt.title('Google Stock Returns')
+plt.ylabel('Returns')
+plt.xlabel('Date')
+plt.show()
+```
+
+```{python}
+y = pd.read_csv('google_returns_cleaned.csv')
+y.set_index('Date', inplace = True)
+y = y['Close']
+N = len(y)
+y_vals = y.to_numpy()
+
+ys = pd.DataFrame({"y": y_vals},
+                  index=np.arange(1, N + 1).astype(float))
+
+covars = pd.DataFrame({"covaryt": np.concatenate([[0.0], y_vals])},
+                      index=np.arange(0, N + 1).astype(float))
+```
+
+
+# GARCH and GJR-GARCH Benchmark Models
+
+
+Our benchmark model family is the GARCH family of models. For mean zero data as in our case, the $GARCH(p, q)$ model models the data as
+
+$$
+Y_n  = \varepsilon_n \sqrt{V_n}; \qquad V_n = \alpha_0 + \sum_{j=1}^p \alpha_j Y_{n-j}^2 + \sum_{k=1}^q \beta_k V_{n-k}.
+$$
+
+for a white noise process $\varepsilon_{1:N}$ [@lecture17slides]. Tables of AIC values for various combinations of $p, q$ and different error distributions are shown in the supplementary material. To ensure the AICs are comparable, we adjust the `hold_back` parameter to ensure the same data is being utilized to fit each model (see [@archdocs]). We find that the best model is the GARCH(1, 1) using the skew-t error distribution, achieving an AIC of $5035.43$. 
+
+
+```{python}
+model_g11 = arch_model(ys,
+                        vol='GARCH',
+                        p=1,
+                       mean = 'zero',
+                        q=1,
+                        hold_back = 4,
+                        dist = 'skewt').fit()
+print(model_g11.summary())
+```
+
+
+Another useful model is the GJR-GARCH(p, q) model, which is given by
+
+$$V_n = \alpha_0 + \sum_{j=1}^p \alpha_j Y_{n-j}^2 + \sum_{k=1}^q \beta_k V_{n-k} + \gamma \varepsilon_{n-1}^2 \mathbf{1}_{\varepsilon_{n-1} < 0} .$$
+
+This models the idea that negative shocks tend to increase volatility more than positive ones. The GJR-GARCH(0, 1) with skew-t errors provides the overall best benchmark model of the ones tested, obtaining an AIC of $5029.20$.
+
+
+```{python}
+model_gjr011 = arch_model(ys,
+                        vol='GARCH',
+                        p=0,
+                        o=1,
+                       mean = 'zero',
+                        q=1,
+                        hold_back = 4,
+                        dist = 'skewt'
+                        ).fit(disp = 'off')
+print(model_gjr011.summary())
+```
+
+# Basic Bretó Model
+
+The Bretó model utilizes the concept of leverage, notated as $R_n$ and defined as the correlation between the return on day $n-1$ and the increase in log volatility from day $n-1$ to day $n$. The model is given by:
+
+$$
+Y_n  = \exp(H_n / 2) \varepsilon_n; \qquad
+H_n = \mu_h(1 - \phi) + \phi H_{n-1} + \beta_{n-1} R_n \exp(-H_{n-1} / 2) + \omega_n; \qquad
+G_n = G_{n-1} + \nu_n
+$$
+
+where $\beta_n = Y_n \sigma_\eta \sqrt{1 - \phi^2}$, $\{\epsilon_n\}$ is iid $N(0, 1)$ sequence, $\{\nu_n\}$ is an iid $N(0, \sigma^2_\nu)$ sequence, and $\omega_n \sim N(0, \sigma^2_\eta (1 - \phi ^2) (1 - R_n^2))$.
+
+We can use the iterated filtering algorithm to find an estimate for the MLE. Since this model has been commonly utilized in other STATS 531 projects, we rather quickly discuss some of its results to showcase a baseline upon which we can compare subsequent modifications. Local searches are shown in the Supplementary Material. Based off the local search, we build a box of plausible values for the parameters to start the algorithm.
+
+```{python}
+with open("basic_global_search.pkl", "rb") as f:
+    basic_global_search = pickle.load(f)
+
+traces_basic_global = basic_global_search['mif2_traces']
+print(f'Runtime: {basic_global_search["runtime"]} s')
+```
+
+Trace plots from a global search are shown below.
+
+```{python}
+#| output: true
+make_trace_plots(traces_basic_global)
+```
+
+
+Log likelihoods tend to converge around the -2550 mark though there exist several bad paths, perhaps in part due to a somewhat large search box that gave consideration to parameters resulting in degenerate runs. The algorithm generally favors $\phi$ somewhere between about $0.80$ and $1.00$, though small clusters of paths exist elsewhere. $\sigma_\nu$ and $\sigma_\eta$ are generally favored to be small, though a few runaway paths favor those parameters to be large. $\mu_h$ is generally favored to be around 1, and the initial value parameters are generally not very identifiable.
+
+```{python}
+find_mle(basic_global_search['results'])
+```
+
+We can also obtain the effective sample size (ESS) for the MLE estimate. We plot the mean ESS over the 10 runs of the filtering algorithm using the MLE estimate. We see numerous dramatic drops, many of which nearly reach 0. Such numerous drops suggest that the model is systematically failing to pick up on some aspect of the data.
+
+```{python}
+#| output: true
+make_ess_plot(basic_global_search, title= 'ESS Plot For Standard Bretó Model')
+```
+
+
+# Bretó Model with t Errors
+
+One potential concern of the previous model is that it assumes $\varepsilon_n \sim N(0, 1)$ when a heavy-tailed distribution may be more appropriate. In this way, the model may be repeatedly giving too little probability for large innovations, which can result in poor performance on many data points. Thus, we instead assume for the Bretó model $\varepsilon_n \sim t_\nu$ standardized to have variance $1$, where $\nu$ is the degrees of freedom parameter (unrelated to other parameters in the model). Due to the flexibility of the POMP framework via Pypomp, we can learn $\nu$ from the data. We then perform a local and global search for the resulting model.
+
+```{python}
+with open("t_errors_global_search.pkl", "rb") as f:
+    t_errors_global_search = pickle.load(f)
+
+traces_t_errors_global = t_errors_global_search['mif2_traces']
+print(f'Runtime: {t_errors_global_search["runtime"]} s')
+```
+
+
+
+
+
+```{python}
+find_mle(t_errors_global_search['results'], n = 1)
+```
+
+```{python}
+#| output: true
+make_ess_plot(t_errors_global_search, n = 1, title = 'ESS Plot For Bretó Model with t Errors')
+```
+
+
+The ESS plot is shown, and the trace plots are found in the Supplementary Material. We see that the ESS vastly outperforms that in the original Bretó model. Furthermore, the MLE achieves a loglikelihood that is over 20 points higher than the previous model. It uses a value $\nu \approx 4.94$, which suggests a tail significantly heavier than that of Gaussian. However, the ESS plot seems to get worse for later data, which is concerning.
+
+# Bretó Model with Skew-t Errors
+
+We next investigate whether further improvements can be made in the Bretó model by assuming $\varepsilon_n$ follow a Skew-t distribution as described in [@hansen]. The error distribution in practice need not be symmetric, even if it is known to be mean 0. Some evidence for this is found in [@netflixproj2025], where the authors found that the skew-t distribution worked well in their GARCH model. The skew-t distribution with parameters $(\nu, \lambda)$ allows for additional flexibility by introducing a skew parameter $\lambda$ to skew the $t_\nu$ distribution. We visualize the global search and the ESS below. 
+
+```{python}
+with open("skewt_global_search.pkl", "rb") as f:
+    skewt_global_search = pickle.load(f)
+
+traces_skewt_global = skewt_global_search['mif2_traces']
+print(f'Runtime: {skewt_global_search["runtime"]} s')
+```
+
+```{python}
+#| output: true
+
+# SKEWT PLOTS
+traces_da = traces_skewt_global
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(3, 3, figsize=(10, 8))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'sigma_nu', 'mu_h', 'phi',
+    'sigma_eta', 'nu', 'lam'
+]
+
+labels = [
+    'Log-likelihood',
+    r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+    r'$\sigma_\eta$', r'$\nu$', r'$\lambda$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+
+for j in range(len(vars_to_plot), 9):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+
+
+
+```{python}
+#| output: true
+make_ess_plot(skewt_global_search, title= 'ESS Plot For Bretó Model with Skew-t Errors')
+```
+
+
+
+
+```{python}
+find_mle(skewt_global_search['results'], n = 1)
+```
+
+We see that the ESS plot continues to look much better than the standard Breto model, but we can more formally compare how the skew-t error distribution model compares to that with the t distribution by using a likelihood ratio test, noting that the models are nested as the skew-t distribution with $\lambda = 0$ is the usual t distribution [@hansen]. Thus, we use the fact that $2(\ell_{skew-t} - \ell_t) = 2(-2503.84 +2506.74 ) \approx \chi^2_1$ under the null. By doing so, we obtain a p-value of approximately $0.016$. We therefore have some evidence to suggest that the skew may be nontrivial, noting that these are only estimates of the log-likelihood, and a more thorough computation may diminish the evidence in favor of the skew-t distribution.
+
+```{python}
+LR = 2 * (-2503.842984 - -2506.740027)
+chi2.sf(LR, df = 1)
+```
+
+
+
+
+
+
+# Bretó Model with AR(2) Log Volatility
+
+We next want to determine if the Bretó model can be modified through a way other than its error distribution and still give a substantial improvement in performance. To do so, we attempt to include an AR(2) term, such that $H_n$ can be written as
+
+$$H_n = \mu_h( 1- \phi_1 - \phi_2) + \phi_1 H_{n-1} + \phi_2 H_{n-2} + \beta_{n-1} R_n \exp(-H_{n-1} / 2) + \omega_n $$
+
+where $\beta_n = Y_n \sigma_\eta$, and $\omega_n \sim N(0, \sigma^2_\eta (1 - R_n^2))$.To do so, we expand the state variable as $X_n = (G_n, Y_n, H_n, H_{n-1})$ . To ensure that the AR(2) process in $H_n$ is stationary, we have to transform the coefficients $\phi_1, \phi_2$ to stationary region (shown in [@stackex]). We use $\varepsilon_n \sim t_\nu$ due to its clear success over normal errors.
+
+```{python}
+with open("ar2_t_global_search.pkl", "rb") as f:
+    ar2_t_global_search = pickle.load(f)
+
+traces_ar2_t_global = ar2_t_global_search['mif2_traces']
+print(f'Runtime: {ar2_t_global_search["runtime"]} s')
+```
+
+```{python}
+#| output: true
+traces_da = traces_ar2_t_global
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(1, 3, figsize=(6, 4))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'phi_1', 'phi_2'
+]
+
+labels = [
+    'Log-likelihood', r'$\phi_1$', r'$\phi_2$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+
+
+plt.tight_layout()
+plt.show()
+```
+
+
+```{python}
+find_mle(ar2_t_global_search['results'], n =1)
+```
+
+The log-likelihood obtained for the MLE estimate for this model is approximately $-2506.16$, making it hardly better than the model without the AR(2) term. The ESS plot is roughly the same as that of the previous models and is shown in the supplementary material.
+
+
+# Summary of Results
+
+We summarize our likelihood and AIC results in the table below, where we indeed see that the skew-t error distribution provides the best AIC.
+
+```{python}
+#| output: true
+models = ["Standard Bretó", "t-Errors", "Skew-t Errors", "AR(2)-type"]
+loglik = [-2530.824348, -2506.740027, -2503.842984, -2506.159959]
+k = [6, 7, 8, 8]
+
+
+df = pd.DataFrame({
+    "Model": models,
+    "Log-likelihood": loglik,
+    "Num. Parameters": k
+})
+
+df["AIC"] = 2 * df["Num. Parameters"] - 2 * df["Log-likelihood"]
+
+df = df.round(2)
+
+df = df.set_index("Model")
+
+print(df)
+```
+
+
+# Direct Comparison of Modified Bretó Model with GARCH
+
+To more directly compare log-likelihoods and AIC with the GARCH models, we must ensure that we fit models to the same dataset, so we then refitted our most successful model, the skew-t errors model, this time omitting the first 4 points in the dataset, since the GARCH models were fit with `hold_back = 4`. (We did not refit our other models in this way due to time constraints.) We thus obtain a log-likelihood of about $-2496.19$ and thus an AIC of about $2(2496.19 + 8) = 5008.38$, beating the GARCH(1, 1) and GJR-GARCH(0, 1) models.
+
+```{python}
+with open("skewt_global_search_comparable.pkl", "rb") as f:
+    skewt_global_search_comparable = pickle.load(f)
+
+traces_skewt_global_comparable = skewt_global_search_comparable['mif2_traces']
+print(f'Runtime: {skewt_global_search_comparable["runtime"]} s')
+```
+
+
+```{python}
+find_mle(skewt_global_search_comparable['results'])
+```
+
+```{python}
+2 * 2496.189266 + 2 * 8
+```
+
+
+
+# Discussion and Limitations
+
+We have seen several ways in which the Bretó model can be improved relatively easily using the Pypomp implementation, which allows for experimentation with additional terms or different error distributions. We see that significant gain can come from adjusting the error distribution especially. The t-distribution is a large improvement over normal errors, and the skew-t distribution may even further improve upon that, though results in this regard may be mixed, perhaps depending on the setting. Here, the skew parameter was somewhat small (approximately $-0.08$). 
+
+An additional model was attempted in the Supplementary Material, where we include an asymmetry term that increases $H_n$ only when $Y_{n-1} < 0$, similar to that found in the GJR-GARCH model, though it was unhelpful in this case.
+
+Our analysis has some limitations. The ESS plot for each model shows decrease in performance near the end of the timeframe. The persistence of this despite various modifications to the Bretó model may suggest that a more foundational issue is at play and an entirely different model may resolve this. 
+
+# Connection to Previous Projects
+
+There have been several STATS 531 projects that have previously compared the Bretó model with GARCH-type models. We used the idea of [@bitcoinproj2025] to use the t distribution for errors instead of the normal distribution, which inspired us to try using different error distributions for our model. [@bitcoinproj2025] also experimented with an additional term in the $H_n$ expression, which we took in another direction by adding different terms such as lag terms. [@netflixproj2025] also used the skew-t distribution to improve model fit, but for the GARCH model. We took it a step further by implementing a JAX-friendly skew-t distribution to use with Pypomp and showed it may be helpful for models such as the Bretó model. Other projects using financial data almost exclusively, to our knowledge, compared standard existing financial models without much modification. 
+
+# Supplemental Material
+
+```{python}
+#| output: true
+aic_table(ys, P = 4, Q = 4, model_type = 'garch', dist = 't', hold_back = 4)
+```
+
+```{python}
+#| output: true
+aic_table(ys, P = 4, Q = 4, model_type = 'garch', dist = 'skewt', hold_back = 4)
+```
+
+
+```{python}
+#| output: true
+aic_table(ys, P = 4, Q = 4, o = 1, model_type = 'garch', dist = 'skewt', hold_back = 4)
+```
+
+## Global Search Visualization for the Skew-t Error Model
+
+```{python}
+#| output: true
+global_search_results_df = skewt_global_search['results']
+
+fig, axes = plt.subplots(2, 3, figsize=(6, 4))
+
+pairs = [
+    ('sigma_nu','loglik'), ('mu_h','loglik'),
+    ('phi','loglik'), ('sigma_eta','loglik'),
+    ('nu','loglik'), ('lam','loglik')
+]
+
+for ax, (x, y) in zip(axes.flat, pairs):
+    xvals = global_search_results_df[x]
+    yvals = global_search_results_df[y]
+    
+    ax.scatter(xvals, yvals, s=10, alpha=0.7)
+    
+  
+    lower, upper = xvals.quantile([0.25, 0.75])
+    ax.set_xlim(lower, upper)
+    
+    ax.set(xlabel=x, ylabel=y)
+    ax.grid(alpha=0.3)
+fig.suptitle('Global Search Visualization - Skew-t Error Model', fontsize=14)
+plt.tight_layout()
+plt.show()
+```
+
+## Extra Trace plots
+
+
+```{python}
+#| output: true
+
+# T ERRORS
+traces_da = traces_t_errors_global
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(2, 3, figsize=(10, 8))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'sigma_nu', 'mu_h', 'phi',
+    'sigma_eta', 'nu'
+]
+
+labels = [
+    'Log-likelihood',
+    r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+    r'$\sigma_\eta$', r'$\nu$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+```
+
+
+
+
+
+
+## Bretó model with GJR asymmetry term
+
+```{python}
+with open("gjr_t_local_search.pkl", "rb") as f:
+    gjr_t_local_search = pickle.load(f)
+
+traces_gjr_t_local = gjr_t_local_search['mif_result'].traces_da
+print(f'Runtime: {gjr_t_local_search["runtime"]} s')
+```
+
+
+```{python}
+#| output: true
+traces_da = traces_gjr_t_local
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(3, 3, figsize=(10, 8))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'sigma_nu', 'mu_h', 'phi',
+    'sigma_eta', 'nu', 'gamma'
+]
+
+labels = [
+    'Log-likelihood',
+    r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+    r'$\sigma_\eta$', r'$\nu$', r'$\gamma$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+
+for j in range(len(vars_to_plot), 9):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+with open("gjr_t_global_search.pkl", "rb") as f:
+    gjr_t_global_search = pickle.load(f)
+
+traces_gjr_t_global = gjr_t_global_search['mif2_traces']
+print(f'Runtime: {gjr_t_global_search["runtime"]} s')
+```
+
+
+```{python}
+#| output: true
+traces_da = traces_gjr_t_global
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(3, 3, figsize=(10, 8))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'sigma_nu', 'mu_h', 'phi',
+    'sigma_eta', 'nu', 'gamma'
+]
+
+labels = [
+    'Log-likelihood',
+    r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+    r'$\sigma_\eta$', r'$\nu$', r'$\gamma$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+
+for j in range(len(vars_to_plot), 9):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+#| output: true
+find_mle(gjr_t_global_search['results'])
+```
+
+## MLE results
+
+
+The standard Bretó model:
+
+```{python}
+#| output: true
+find_mle(basic_global_search['results'])
+
+```
+
+Bretó model with t-errors:
+
+```{python}
+#| output: true
+find_mle(t_errors_global_search['results'], n = 1)
+
+```
+
+Bretó model with skew-t errors:
+
+```{python}
+#| output: true
+find_mle(skewt_global_search['results'], n = 1)
+
+```
+
+
+The AR(2) style volatility model:
+
+```{python}
+#| output: true
+find_mle(ar2_t_global_search['results'], n =1)
+```
+
+## Local Searches
+
+```{python}
+with open("basic_local_search.pkl", "rb") as f:
+    basic_local_search = pickle.load(f)
+
+traces_basic_local = basic_local_search['mif_result'].traces_da
+print(f'RL = 2 Runtime: {basic_local_search["runtime"]} s')
+```
+
+
+```{python}
+#| output: true
+make_trace_plots(traces_basic_local, title= 'Standard Breto Model Local Search Results')
+```
+
+```{python}
+with open("t_errors_local_search.pkl", "rb") as f:
+    t_errors_local_search = pickle.load(f)
+
+traces_t_errors_local = t_errors_local_search['mif_result'].traces_da
+print(f'RL = 2 Runtime: {t_errors_local_search["runtime"]} s')
+```
+
+
+```{python}
+#| output: true
+make_trace_plots(traces_t_errors_local, title = 'Breto Model With t-Errors Local Search Results')
+```
+
+
+```{python}
+with open("skewt_local_search.pkl", "rb") as f:
+    skewt_local_search = pickle.load(f)
+
+traces_skewt_local = skewt_local_search['mif_result'].traces_da
+print(f'RL = 2 Runtime: {skewt_local_search["runtime"]} s')
+```
+
+
+```{python}
+#| output: true
+traces_da = traces_skewt_local
+n_reps = traces_da.sizes['replicate']
+iterations = traces_da.coords['iteration'].values
+
+fig, axes = plt.subplots(3, 3, figsize=(10, 8))
+axes = axes.flat
+
+vars_to_plot = [
+    'logLik',
+    'sigma_nu', 'mu_h', 'phi',
+    'sigma_eta', 'nu', 'lam'
+]
+
+labels = [
+    'Log-likelihood',
+    r'$\sigma_\nu$', r'$\mu_h$', r'$\phi$',
+    r'$\sigma_\eta$', r'$\nu$', r'$\lambda$'
+]
+
+for ax, var, lab in zip(axes, vars_to_plot, labels):
+    if var in traces_da.coords['variable'].values:
+        vals = traces_da.sel(variable=var).values   # shape: (replicate, iteration)
+
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                vals[r, :],
+                alpha=0.4,
+                lw=0.7
+            )
+
+        # robust y-limits: ignore extreme tails
+        ylo, yhi = np.nanpercentile(vals, [2, 98])
+        pad = 0.05 * (yhi - ylo) if yhi > ylo else 1.0
+        ax.set_ylim(ylo - pad, yhi + pad)
+  
+    ax.set(xlabel='Iteration', ylabel=lab)
+    ax.grid(alpha=0.3)
+fig.suptitle('Breto Model With Skew-t Errors Local Search Results', fontsize=14)
+for j in range(len(vars_to_plot), 9):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.show()
+```
+
+
+
+# References
+
+ChatGPT was used for coding assistance, specifically with proofreading model implementations and global and local search workflows to check for consistency and correctness, implementing the JAX-compatible skew-t distribution, various plotting and document formatting help, for code edits to improve numerical robustness (e.g. preventing division by zero due to floating point arithmetic), and for the setting up the from_est and to_est functions for the AR(2)-type model.
+
+
+

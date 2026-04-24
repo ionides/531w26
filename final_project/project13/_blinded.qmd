@@ -1,0 +1,2445 @@
+---
+title: "Predicting Missing Wearable Device Data with Panel POMP \\vspace{-2cm}"
+jupyter: python3
+bibliography: references.bib
+nocite: "@*"
+csl: ieee.csl
+params:
+  RL: 2
+  device: null                    # null = use RL preset; "cpu" | "gpu"
+  cache_mode: "prefer_cache"      # default cached render path
+  cache_version: "v1"
+  artifact_tag: "rl2_masked_v4"   # default RL=2 cached artifact bundle
+  participant_set: null           # null = use RL preset; "small_set" | "full_set"
+  model_set: "smoke"              # default report model set
+  model_family: null              # null = use RL preset; e.g. "ar1" | "arma_aic"
+  pooling_mode: null              # null = use RL preset; string, csv string, YAML list, or "all"
+  covariate_mode: null
+  mask_regime: null
+  missing_fraction: null
+  mask_seed: null
+  n_mask_replicates: null
+  fit_scope: null                 # null = use RL preset
+  section_scope: null
+  global_seed: null
+  panel_chunk_size: null
+  stage1_starts: null
+  stage2_starts: null
+  stage1_keep_top: null
+  stage2_keep_top: null
+  stage1_particles: null
+  stage2_particles: null
+  stage1_if2_iterations: null
+  stage2_if2_iterations: null
+  stage1_cooling_fraction: null
+  stage2_cooling_fraction: null
+  stage1_rw_sd_scale: null
+  stage2_rw_sd_scale: null
+  cooling_fraction: null
+  rw_sd_scale: null
+  stage1_eval_particles: null
+  stage2_eval_particles: null
+  stage1_eval_reps: null
+  stage2_eval_reps: null
+  stage1_fresh_random_starts: null
+  stage2_fresh_random_starts: null
+  stage1_jittered_restarts: null
+  stage2_jittered_restarts: null
+  smoother_scope: null            # null = use RL preset; none | from_cache_only | compute_missing_only
+  smoother_method: null           # null = use RL preset; currently only backward_particle
+  backward_smoother_particles: null
+  backward_smoother_trajectories: null
+  backward_smoother_seed: null
+  phi_window_low: null
+  phi_window_high: null
+  phi1_window_low: null
+  phi1_window_high: null
+  phi2_window_low: null
+  phi2_window_high: null
+  phi24_window_low: null
+  phi24_window_high: null
+  sigma_window_low: null
+  sigma_window_high: null
+  k_fitbit_window_low: null
+  k_fitbit_window_high: null
+  log_k_fitbit_window_low: null
+  log_k_fitbit_window_high: null
+  mu_log_k_fitbit_window_low: null
+  mu_log_k_fitbit_window_high: null
+  log_tau_log_k_fitbit_window_low: null
+  log_tau_log_k_fitbit_window_high: null
+  eta_wear_lag1_window_low: null
+  eta_wear_lag1_window_high: null
+  wear_phi_window_low: null
+  wear_phi_window_high: null
+  wear_sigma_window_low: null
+  wear_sigma_window_high: null
+execute:
+  echo: false
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[beforeskip=0.5em, runin=false, afterskip=0em]{section}
+        \usepackage{fullpage}
+        \usepackage{wrapfig}
+number-sections: true
+---
+
+## Abstract {.unnumbered}
+
+Missing data causes problems in reinforcement-learning based models, such as those used for mental health interventions in the Intern Health Study (IHS). When reward data are frequently missing, for example because a wearable device is not turned on or worn, reinforcement-learning based models learn more slowly. This project aims to estimate this missing physical activity data with a latent Partially Observed Markov Process (POMP) model in a panel setting with 78 participants.
+
+Joint learning of measurement dispersion is attempted with two different pooling regimes, partial pooling and global pooling, and compared against a no-pooling POMP and a baseline ARMA model. As a prediction task, we devised a masked data-based metric to compare model performance and found structure in the measurement dispersion, but only a modest advantage for the pooling regimes.
+
+```{python}
+#| tags: [parameters]
+
+RL = 2
+device = None
+cache_mode = "prefer_cache"
+cache_version = "v1"
+artifact_tag = "rl2_masked_v4"
+participant_set = None
+model_set = "smoke"
+model_family = None
+pooling_mode = None
+covariate_mode = None
+mask_regime = None
+missing_fraction = None
+mask_seed = None
+n_mask_replicates = None
+fit_scope = None
+section_scope = None
+global_seed = None
+panel_chunk_size = None
+stage1_starts = None
+stage2_starts = None
+stage1_keep_top = None
+stage2_keep_top = None
+stage1_particles = None
+stage2_particles = None
+stage1_if2_iterations = None
+stage2_if2_iterations = None
+stage1_cooling_fraction = None
+stage2_cooling_fraction = None
+stage1_rw_sd_scale = None
+stage2_rw_sd_scale = None
+cooling_fraction = None
+rw_sd_scale = None
+stage1_eval_particles = None
+stage2_eval_particles = None
+stage1_eval_reps = None
+stage2_eval_reps = None
+stage1_fresh_random_starts = None
+stage2_fresh_random_starts = None
+stage1_jittered_restarts = None
+stage2_jittered_restarts = None
+smoother_scope = None
+smoother_method = None
+backward_smoother_particles = None
+backward_smoother_trajectories = None
+backward_smoother_seed = None
+phi_window_low = None
+phi_window_high = None
+phi1_window_low = None
+phi1_window_high = None
+phi2_window_low = None
+phi2_window_high = None
+phi24_window_low = None
+phi24_window_high = None
+sigma_window_low = None
+sigma_window_high = None
+k_fitbit_window_low = None
+k_fitbit_window_high = None
+log_k_fitbit_window_low = None
+log_k_fitbit_window_high = None
+mu_log_k_fitbit_window_low = None
+mu_log_k_fitbit_window_high = None
+log_tau_log_k_fitbit_window_low = None
+log_tau_log_k_fitbit_window_high = None
+eta_wear_lag1_window_low = None
+eta_wear_lag1_window_high = None
+wear_phi_window_low = None
+wear_phi_window_high = None
+wear_sigma_window_low = None
+wear_sigma_window_high = None
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: compute-interface
+
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+
+PROJECT_ROOT = Path.cwd().resolve()
+APP_CODE_ROOT = PROJECT_ROOT.parent / "eda"
+REPORT_QMD_PATH = PROJECT_ROOT / "finaldraft.qmd"
+
+if APP_CODE_ROOT.exists():
+    app_code_root_str = str(APP_CODE_ROOT)
+    if app_code_root_str not in sys.path:
+        sys.path.insert(0, app_code_root_str)
+
+
+def _raw_params() -> dict:
+    parameter_keys = [
+        "RL",
+        "device",
+        "cache_mode",
+        "cache_version",
+        "artifact_tag",
+        "participant_set",
+        "model_set",
+        "model_family",
+        "pooling_mode",
+        "covariate_mode",
+        "mask_regime",
+        "missing_fraction",
+        "mask_seed",
+        "n_mask_replicates",
+        "fit_scope",
+        "section_scope",
+        "global_seed",
+        "panel_chunk_size",
+        "stage1_starts",
+        "stage2_starts",
+        "stage1_keep_top",
+        "stage2_keep_top",
+        "stage1_particles",
+        "stage2_particles",
+        "stage1_if2_iterations",
+        "stage2_if2_iterations",
+        "stage1_cooling_fraction",
+        "stage2_cooling_fraction",
+        "stage1_rw_sd_scale",
+        "stage2_rw_sd_scale",
+        "cooling_fraction",
+        "rw_sd_scale",
+        "stage1_eval_particles",
+        "stage2_eval_particles",
+        "stage1_eval_reps",
+        "stage2_eval_reps",
+        "stage1_fresh_random_starts",
+        "stage2_fresh_random_starts",
+        "stage1_jittered_restarts",
+        "stage2_jittered_restarts",
+        "smoother_scope",
+        "smoother_method",
+        "backward_smoother_particles",
+        "backward_smoother_trajectories",
+        "backward_smoother_seed",
+        "phi_window_low",
+        "phi_window_high",
+        "phi1_window_low",
+        "phi1_window_high",
+        "phi2_window_low",
+        "phi2_window_high",
+        "phi24_window_low",
+        "phi24_window_high",
+        "sigma_window_low",
+        "sigma_window_high",
+        "k_fitbit_window_low",
+        "k_fitbit_window_high",
+        "log_k_fitbit_window_low",
+        "log_k_fitbit_window_high",
+        "mu_log_k_fitbit_window_low",
+        "mu_log_k_fitbit_window_high",
+        "log_tau_log_k_fitbit_window_low",
+        "log_tau_log_k_fitbit_window_high",
+        "eta_wear_lag1_window_low",
+        "eta_wear_lag1_window_high",
+        "wear_phi_window_low",
+        "wear_phi_window_high",
+        "wear_sigma_window_low",
+        "wear_sigma_window_high",
+    ]
+    injected = {key: globals()[key] for key in parameter_keys if key in globals()}
+    if injected:
+        return injected
+    try:
+        raw = dict(params)
+        if raw:
+            return raw
+    except Exception:
+        pass
+    if not REPORT_QMD_PATH.exists():
+        return {}
+    try:
+        text = REPORT_QMD_PATH.read_text(encoding="utf-8")
+        if not text.startswith("---"):
+            return {}
+        end_idx = text.find("\n---", 4)
+        if end_idx < 0:
+            return {}
+        frontmatter = yaml.safe_load(text[4:end_idx]) or {}
+        params_block = frontmatter.get("params", {})
+        return dict(params_block) if isinstance(params_block, dict) else {}
+    except Exception:
+        return {}
+
+
+def get_rl_defaults(rl: int) -> dict[str, object]:
+    rl_int = int(rl)
+    shared = {
+        "cache_mode": "prefer_cache",
+        "cache_version": "v1",
+        "artifact_tag": "default",
+        "model_family": "ar1",
+        "pooling_mode": "unit_specific",
+        "covariate_mode": "none",
+        "mask_regime": "random_hours",
+        "missing_fraction": 0.20,
+        "mask_seed": 531,
+        "n_mask_replicates": 1,
+        "fit_scope": "masked_only",
+        "section_scope": "all",
+        "global_seed": 531,
+        "smoother_scope": "none",
+        "smoother_method": "backward_particle",
+        "backward_smoother_particles": None,
+        "backward_smoother_trajectories": 80,
+        "backward_smoother_seed": None,
+        "analysis_start_utc_iso": "2024-07-01T00:00:00+00:00",
+        "analysis_end_utc_iso": "2024-09-30T23:00:00+00:00",
+        "assumed_local_timezone": "America/New_York",
+    }
+    presets = {
+        0: {
+            **shared,
+            "RL": 0,
+            "device": "cpu",
+            "artifact_tag": "finaldraft_rl0",
+            "participant_set": "small_set",
+            "model_set": "smoke",
+            "stage1_starts": 1,
+            "stage2_starts": 1,
+            "stage1_keep_top": 1,
+            "stage2_keep_top": 1,
+            "stage1_particles": 20,
+            "stage2_particles": 20,
+            "stage1_if2_iterations": 1,
+            "stage2_if2_iterations": 1,
+            "stage1_cooling_fraction": 0.50,
+            "stage2_cooling_fraction": 0.50,
+            "stage1_rw_sd_scale": 0.02,
+            "stage2_rw_sd_scale": 0.02,
+            "cooling_fraction": 0.50,
+            "rw_sd_scale": 0.02,
+            "stage1_eval_particles": 20,
+            "stage2_eval_particles": 20,
+            "stage1_eval_reps": 1,
+            "stage2_eval_reps": 1,
+            "stage1_fresh_random_starts": 0,
+            "stage2_fresh_random_starts": 0,
+            "stage1_jittered_restarts": 0,
+            "stage2_jittered_restarts": 0,
+            "panel_chunk_size": 1,
+        },
+        1: {
+            **shared,
+            "RL": 1,
+            "device": "gpu",
+            "participant_set": "full_set",
+            "model_set": "smoke",
+            "pooling_mode": "all",
+            "panel_chunk_size": 78,
+            "stage1_starts": 10,
+            "stage2_starts": 5,
+            "stage1_keep_top": 2,
+            "stage2_keep_top": 1,
+            "stage1_particles": 200,
+            "stage2_particles": 200,
+            "stage1_if2_iterations": 5,
+            "stage2_if2_iterations": 5,
+            "stage1_cooling_fraction": 0.90,
+            "stage2_cooling_fraction": 0.90,
+            "stage1_rw_sd_scale": 0.02,
+            "stage2_rw_sd_scale": 0.015,
+            "cooling_fraction": 0.90,
+            "rw_sd_scale": 0.02,
+            "stage1_eval_particles": 300,
+            "stage2_eval_particles": 200,
+            "stage1_eval_reps": 5,
+            "stage2_eval_reps": 5,
+            "stage1_fresh_random_starts": 0,
+            "stage2_fresh_random_starts": 0,
+            "stage1_jittered_restarts": 0,
+            "stage2_jittered_restarts": 1,
+        },
+        2: {
+            **shared,
+            "RL": 2,
+            "device": "gpu",
+            "artifact_tag": "rl2_masked_v4",
+            "participant_set": "full_set",
+            "model_set": "smoke",
+            "pooling_mode": "all",
+            "fit_scope": "masked_only",
+            "panel_chunk_size": 78,
+            "stage1_starts": 32,
+            "stage2_starts": 16,
+            "stage1_keep_top": 16,
+            "stage2_keep_top": 1,
+            "stage1_particles": 1024,
+            "stage2_particles": 512,
+            "stage1_if2_iterations": 16,
+            "stage2_if2_iterations": 16,
+            "stage1_cooling_fraction": 0.60,
+            "stage2_cooling_fraction": 0.60,
+            "stage1_rw_sd_scale": 0.02,
+            "stage2_rw_sd_scale": 0.02,
+            "cooling_fraction": 0.60,
+            "rw_sd_scale": 0.02,
+            "stage1_eval_particles": 256,
+            "stage2_eval_particles": 256,
+            "stage1_eval_reps": 16,
+            "stage2_eval_reps": 8,
+            "stage1_fresh_random_starts": 0,
+            "stage2_fresh_random_starts": 0,
+            "stage1_jittered_restarts": 0,
+            "stage2_jittered_restarts": 0,
+            "phi_window_low": -0.3,
+            "phi_window_high": 1.0,
+            "sigma_window_low": 0.01,
+            "sigma_window_high": 1.8,
+            "k_fitbit_window_low": 0.75,
+            "k_fitbit_window_high": 12.0,
+            "log_k_fitbit_window_low": -0.2876820724517809,
+            "log_k_fitbit_window_high": 2.4849066497880004,
+            "mu_log_k_fitbit_window_low": 0.2,
+            "mu_log_k_fitbit_window_high": 2.0,
+            "log_tau_log_k_fitbit_window_low": -1.7,
+            "log_tau_log_k_fitbit_window_high": 1.0,
+        },
+    }
+    if rl_int not in presets:
+        raise ValueError(f"Unsupported RL preset: {rl}")
+    return presets[rl_int]
+
+
+def resolve_config(raw_params: dict[str, object]) -> dict[str, object]:
+    defaults = get_rl_defaults(int(raw_params.get("RL", 0)))
+    resolved = dict(defaults)
+    for key, value in raw_params.items():
+        if value is None:
+            continue
+        if isinstance(value, str) and value == "":
+            continue
+        resolved[key] = value
+    resolved["RL"] = int(resolved["RL"])
+    resolved["missing_fraction"] = float(resolved["missing_fraction"])
+    resolved["mask_seed"] = int(resolved["mask_seed"])
+    resolved["n_mask_replicates"] = int(resolved["n_mask_replicates"])
+    resolved["global_seed"] = int(resolved["global_seed"])
+    if resolved.get("panel_chunk_size") is not None:
+        resolved["panel_chunk_size"] = int(resolved["panel_chunk_size"])
+    for name in (
+        "stage1_starts",
+        "stage2_starts",
+        "stage1_keep_top",
+        "stage2_keep_top",
+        "stage1_particles",
+        "stage2_particles",
+        "stage1_if2_iterations",
+        "stage2_if2_iterations",
+        "stage1_eval_particles",
+        "stage2_eval_particles",
+        "stage1_eval_reps",
+        "stage2_eval_reps",
+        "stage1_fresh_random_starts",
+        "stage2_fresh_random_starts",
+        "stage1_jittered_restarts",
+        "stage2_jittered_restarts",
+        "backward_smoother_particles",
+        "backward_smoother_trajectories",
+        "backward_smoother_seed",
+    ):
+        if resolved.get(name) is not None:
+            resolved[name] = int(resolved[name])
+    for name in (
+        "cooling_fraction",
+        "rw_sd_scale",
+        "stage1_cooling_fraction",
+        "stage2_cooling_fraction",
+        "stage1_rw_sd_scale",
+        "stage2_rw_sd_scale",
+        "phi_window_low",
+        "phi_window_high",
+        "phi1_window_low",
+        "phi1_window_high",
+        "phi2_window_low",
+        "phi2_window_high",
+        "phi24_window_low",
+        "phi24_window_high",
+        "sigma_window_low",
+        "sigma_window_high",
+        "k_fitbit_window_low",
+        "k_fitbit_window_high",
+        "log_k_fitbit_window_low",
+        "log_k_fitbit_window_high",
+        "mu_log_k_fitbit_window_low",
+        "mu_log_k_fitbit_window_high",
+        "log_tau_log_k_fitbit_window_low",
+        "log_tau_log_k_fitbit_window_high",
+        "eta_wear_lag1_window_low",
+        "eta_wear_lag1_window_high",
+        "wear_phi_window_low",
+        "wear_phi_window_high",
+        "wear_sigma_window_low",
+        "wear_sigma_window_high",
+    ):
+        if resolved.get(name) is not None:
+            resolved[name] = float(resolved[name])
+    if resolved.get("stage1_cooling_fraction") is None:
+        resolved["stage1_cooling_fraction"] = float(resolved["cooling_fraction"])
+    if resolved.get("stage2_cooling_fraction") is None:
+        resolved["stage2_cooling_fraction"] = float(resolved["cooling_fraction"])
+    if resolved.get("stage1_rw_sd_scale") is None:
+        resolved["stage1_rw_sd_scale"] = float(resolved["rw_sd_scale"])
+    if resolved.get("stage2_rw_sd_scale") is None:
+        resolved["stage2_rw_sd_scale"] = float(resolved["rw_sd_scale"])
+    for name in (
+        "stage1_fresh_random_starts",
+        "stage2_fresh_random_starts",
+        "stage1_jittered_restarts",
+        "stage2_jittered_restarts",
+    ):
+        if resolved.get(name) is None:
+            resolved[name] = 0
+    resolved["smoother_scope"] = str(resolved.get("smoother_scope", "none")).strip().lower()
+    if resolved["smoother_scope"] not in {"none", "from_cache_only", "compute_missing_only"}:
+        raise ValueError("smoother_scope must be one of: none, from_cache_only, compute_missing_only")
+    resolved["smoother_method"] = str(resolved.get("smoother_method", "backward_particle")).strip().lower()
+    if resolved["smoother_method"] != "backward_particle":
+        raise ValueError("smoother_method currently supports only: backward_particle")
+    if resolved.get("backward_smoother_trajectories") is None:
+        resolved["backward_smoother_trajectories"] = 80
+    return resolved
+
+
+RAW_PARAMS = _raw_params()
+RESOLVED_CONFIG = resolve_config(RAW_PARAMS)
+
+MODEL_SET_REGISTRY = {
+    "single": [],
+    "smoke": ["ar1", "arma_aic"],
+    "core": [
+        "ar1",
+        "ar2",
+        "wear_observation",
+        "wear_latent",
+        "ar2_wear_observation",
+        "ar2_wear_latent",
+        "arma_aic",
+    ],
+    "all": [
+        "ar1",
+        "ar2",
+        "wear_observation",
+        "wear_latent",
+        "ar2_wear_observation",
+        "ar2_wear_latent",
+        "arma_aic",
+    ],
+}
+
+POOLING_MODE_OPTIONS = [
+    "unit_specific",
+    "global_shared_k",
+    "partial_pooled_k",
+]
+
+GLOBAL_START_BOX_DEFAULTS = {
+    "phi": (-0.95, 0.95),
+    "phi1": (-1.25, 1.25),
+    "phi2": (-0.99, 0.99),
+    "phi24": (-0.99, 0.99),
+    "sigma": (0.05, 2.00),
+    "k_fitbit": (0.01, 10.0),
+    "log_k_fitbit": (-3, 2),
+    "mu_log_k_fitbit": (-3, 2),
+    "log_tau_log_k_fitbit": (-2, 1),
+    "eta_wear_lag1": (-4.0, 4.0),
+    "wear_phi": (-0.99, 0.99),
+    "wear_sigma": (0.05, 2.0),
+}
+
+WINDOW_PARAM_FIELDS = {
+    "phi": ("phi_window_low", "phi_window_high"),
+    "phi1": ("phi1_window_low", "phi1_window_high"),
+    "phi2": ("phi2_window_low", "phi2_window_high"),
+    "phi24": ("phi24_window_low", "phi24_window_high"),
+    "sigma": ("sigma_window_low", "sigma_window_high"),
+    "k_fitbit": ("k_fitbit_window_low", "k_fitbit_window_high"),
+    "log_k_fitbit": ("log_k_fitbit_window_low", "log_k_fitbit_window_high"),
+    "mu_log_k_fitbit": ("mu_log_k_fitbit_window_low", "mu_log_k_fitbit_window_high"),
+    "log_tau_log_k_fitbit": ("log_tau_log_k_fitbit_window_low", "log_tau_log_k_fitbit_window_high"),
+    "eta_wear_lag1": ("eta_wear_lag1_window_low", "eta_wear_lag1_window_high"),
+    "wear_phi": ("wear_phi_window_low", "wear_phi_window_high"),
+    "wear_sigma": ("wear_sigma_window_low", "wear_sigma_window_high"),
+}
+
+
+def _parameter_window_overrides(config: dict[str, object]) -> dict[str, tuple[float, float]]:
+    overrides: dict[str, tuple[float, float]] = {}
+    for param_name, (low_key, high_key) in WINDOW_PARAM_FIELDS.items():
+        low_value = config.get(low_key)
+        high_value = config.get(high_key)
+        if low_value is None and high_value is None:
+            continue
+        default_low, default_high = GLOBAL_START_BOX_DEFAULTS[param_name]
+        resolved_low = float(default_low if low_value is None else low_value)
+        resolved_high = float(default_high if high_value is None else high_value)
+        if resolved_low >= resolved_high:
+            raise ValueError(f"Search window for {param_name} must satisfy low < high.")
+        overrides[param_name] = (resolved_low, resolved_high)
+    return overrides
+
+
+def _active_model_families(config: dict[str, object]) -> list[str]:
+    model_set_name = str(config["model_set"])
+    if model_set_name not in MODEL_SET_REGISTRY:
+        raise ValueError(f"Unknown model_set: {model_set_name}")
+    families = list(MODEL_SET_REGISTRY[model_set_name])
+    requested_family = str(config["model_family"])
+    if requested_family not in families:
+        families.append(requested_family)
+    return families
+
+
+def _active_pooling_modes(config: dict[str, object]) -> list[str]:
+    raw_value = config.get("pooling_mode", "unit_specific")
+    if isinstance(raw_value, str):
+        stripped = raw_value.strip()
+        if stripped.lower() == "all":
+            requested = list(POOLING_MODE_OPTIONS)
+        elif "," in stripped:
+            requested = [part.strip() for part in stripped.split(",") if part.strip()]
+        else:
+            requested = [stripped]
+    elif isinstance(raw_value, (list, tuple, set)):
+        requested = [str(item).strip() for item in raw_value if str(item).strip()]
+    else:
+        requested = [str(raw_value).strip()]
+
+    active_modes: list[str] = []
+    for mode in requested:
+        if mode not in POOLING_MODE_OPTIONS:
+            raise ValueError(f"Unknown pooling_mode: {mode}")
+        if mode not in active_modes:
+            active_modes.append(mode)
+    if not active_modes:
+        raise ValueError("At least one pooling mode must be selected.")
+    return active_modes
+
+
+RESOLVED_CONFIG["active_model_families"] = _active_model_families(RESOLVED_CONFIG)
+RESOLVED_CONFIG["active_pooling_modes"] = _active_pooling_modes(RESOLVED_CONFIG)
+PARAMETER_WINDOW_OVERRIDES = _parameter_window_overrides(RESOLVED_CONFIG)
+RESOLVED_CONFIG["search_windows"] = {
+    **GLOBAL_START_BOX_DEFAULTS,
+    **PARAMETER_WINDOW_OVERRIDES,
+}
+
+CACHE_ROOT = PROJECT_ROOT / "cache" / "computedraft" / str(RESOLVED_CONFIG["cache_version"]) / str(RESOLVED_CONFIG["artifact_tag"])
+CACHE_PATHS = {
+    "root": CACHE_ROOT,
+    "base": CACHE_ROOT / "base",
+    "masks": CACHE_ROOT / "masks",
+    "fits_unmasked": CACHE_ROOT / "fits" / "unmasked",
+    "fits_masked": CACHE_ROOT / "fits" / "masked",
+    "benchmarks": CACHE_ROOT / "benchmarks",
+    "derived": CACHE_ROOT / "derived",
+    "manifests": CACHE_ROOT / "manifests",
+    "logs": CACHE_ROOT / "logs",
+    "report_exports": CACHE_ROOT / "report_exports",
+}
+for path in CACHE_PATHS.values():
+    path.mkdir(parents=True, exist_ok=True)
+
+requested_device = str(RESOLVED_CONFIG["device"]).strip().lower()
+if requested_device not in {"cpu", "gpu"}:
+    raise ValueError(f"device must be 'cpu' or 'gpu', got {RESOLVED_CONFIG['device']!r}")
+# Native Windows preview runs should stay on CPU even when the report defaults
+# to RL=2, because the cached-report workflow does not need CUDA there and the
+# local Windows JAX stack is CPU-oriented.
+effective_device = requested_device
+if os.name == "nt" and requested_device == "gpu":
+    effective_device = "cpu"
+
+RESOLVED_CONFIG["requested_device"] = requested_device
+RESOLVED_CONFIG["effective_device"] = effective_device
+os.environ["JAX_PLATFORMS"] = "cuda" if effective_device == "gpu" else "cpu"
+
+SEARCH_STAGE_SETTINGS = [
+    {
+        "name": "Stage 1",
+        "n_starts": int(RESOLVED_CONFIG["stage1_starts"]),
+        "keep_top": int(RESOLVED_CONFIG["stage1_keep_top"]),
+        "particles": int(RESOLVED_CONFIG["stage1_particles"]),
+        "mif_iterations": int(RESOLVED_CONFIG["stage1_if2_iterations"]),
+        "cooling_fraction": float(RESOLVED_CONFIG["stage1_cooling_fraction"]),
+        "rw_sd_scale": float(RESOLVED_CONFIG["stage1_rw_sd_scale"]),
+        "evaluation_particles": int(RESOLVED_CONFIG["stage1_eval_particles"]),
+        "evaluation_pfilter_reps": int(RESOLVED_CONFIG["stage1_eval_reps"]),
+        "n_fresh_random_starts": int(RESOLVED_CONFIG["stage1_fresh_random_starts"]),
+        "n_jittered_restarts": int(RESOLVED_CONFIG["stage1_jittered_restarts"]),
+    },
+    {
+        "name": "Stage 2",
+        "n_starts": int(RESOLVED_CONFIG["stage2_starts"]),
+        "keep_top": int(RESOLVED_CONFIG["stage2_keep_top"]),
+        "particles": int(RESOLVED_CONFIG["stage2_particles"]),
+        "mif_iterations": int(RESOLVED_CONFIG["stage2_if2_iterations"]),
+        "cooling_fraction": float(RESOLVED_CONFIG["stage2_cooling_fraction"]),
+        "rw_sd_scale": float(RESOLVED_CONFIG["stage2_rw_sd_scale"]),
+        "evaluation_particles": int(RESOLVED_CONFIG["stage2_eval_particles"]),
+        "evaluation_pfilter_reps": int(RESOLVED_CONFIG["stage2_eval_reps"]),
+        "n_fresh_random_starts": int(RESOLVED_CONFIG["stage2_fresh_random_starts"]),
+        "n_jittered_restarts": int(RESOLVED_CONFIG["stage2_jittered_restarts"]),
+    },
+]
+
+RESOLVED_CONFIG["config_hash"] = hashlib.sha256(
+    json.dumps(RESOLVED_CONFIG, sort_keys=True, default=str).encode("utf-8")
+).hexdigest()[:16]
+REPORT_EXPORT_FILES = {
+    "resolved_config": CACHE_PATHS["report_exports"] / "resolved_config.json",
+    "model_comparison": CACHE_PATHS["report_exports"] / "model_comparison.csv",
+    "benchmark_summary": CACHE_PATHS["report_exports"] / "benchmark_summary.csv",
+    "parameter_summary": CACHE_PATHS["report_exports"] / "parameter_summary.csv",
+    "timing_summary": CACHE_PATHS["report_exports"] / "timing_summary.csv",
+    "task_manifest": CACHE_PATHS["report_exports"] / "task_manifest.csv",
+    "cohort_summary": CACHE_PATHS["report_exports"] / "cohort_summary.json",
+}
+REPORT_EXPORT_REQUIRED_KEYS = [
+    "resolved_config",
+    "model_comparison",
+    "benchmark_summary",
+    "parameter_summary",
+    "timing_summary",
+    "task_manifest",
+    "cohort_summary",
+]
+REPORT_EXPORT_PLOT_FILES = {
+    "subtotal_plot": CACHE_PATHS["report_exports"] / "plots" / "heldout_subtotal_benchmark_comparison.png",
+    "parameter_scatterplots": CACHE_PATHS["report_exports"] / "plots" / "ar1_parameter_scatterplots.png",
+}
+RESOLVED_CONFIG["report_exports_ready"] = all(
+    REPORT_EXPORT_FILES[key].exists() for key in REPORT_EXPORT_REQUIRED_KEYS
+)
+EXPECTED_REPORT_BENCHMARK_VERSION = "v2"
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: report-helpers
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from IPython.display import display
+
+CSV_PATH = PROJECT_ROOT / "FitbitHourly.csv"
+if not CSV_PATH.exists():
+    raise FileNotFoundError("FitbitHourly.csv must be in the same folder as finaldraft.qmd.")
+
+
+def display_table(
+    df: pd.DataFrame,
+    *,
+    precision: int = 3,
+) -> None:
+    styled = df.style.hide(axis="index").format(precision=precision, na_rep="")
+    display(styled)
+
+
+def make_key_value_table(
+    mapping: dict[str, object],
+    *,
+    key_label: str = "Setting",
+    value_label: str = "Value",
+) -> pd.DataFrame:
+    return pd.DataFrame(
+        [{key_label: str(key), value_label: value} for key, value in mapping.items()]
+    )
+
+
+def model_label(value: object) -> str:
+    mapping = {
+        "ar1": "AR(1)",
+        "ar2": "AR(2)",
+        "arma_aic": "ARMA(AIC)",
+        "wear_observation": "Wear Obs",
+        "wear_latent": "Wear Latent",
+        "ar2_wear_observation": "AR(2) Wear Obs",
+        "ar2_wear_latent": "AR(2) Wear Latent",
+    }
+    return mapping.get(str(value), str(value))
+
+
+def pooling_label(value: object) -> str:
+    mapping = {
+        "unit_specific": "personal k",
+        "global_shared_k": "global k",
+        "partial_pooled_k": "partial pooled k",
+        "not_applicable": "-",
+    }
+    return mapping.get(str(value), str(value))
+
+
+def estimate_label(value: object) -> str:
+    mapping = {
+        "filter": "filter",
+        "smoothed": "smoothed",
+    }
+    return mapping.get(str(value), str(value))
+
+
+def read_report_json(path: Path) -> object:
+    with path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def read_report_csv(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
+
+
+def load_report_exports(file_map: dict[str, Path]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for key, path in file_map.items():
+        if path.suffix.lower() == ".csv":
+            payload[key] = read_report_csv(path)
+        else:
+            payload[key] = read_report_json(path)
+    return payload
+
+
+def report_exports_cover_active_results(
+    payload: dict[str, object],
+    *,
+    active_model_families: list[str],
+    active_pooling_modes: list[str],
+    expected_benchmark_version: str,
+) -> bool:
+    benchmark_summary = pd.DataFrame(payload.get("benchmark_summary", pd.DataFrame())).copy()
+    parameter_summary = pd.DataFrame(payload.get("parameter_summary", pd.DataFrame())).copy()
+    if benchmark_summary.empty:
+        return False
+    if "benchmark_version" not in benchmark_summary.columns:
+        return False
+    benchmark_versions = {
+        str(value)
+        for value in benchmark_summary["benchmark_version"].dropna().astype(str).tolist()
+    }
+    if expected_benchmark_version not in benchmark_versions:
+        return False
+    for model_family in active_model_families:
+        family_rows = benchmark_summary.loc[
+            benchmark_summary["model_family"].astype(str) == str(model_family)
+        ].copy()
+        if family_rows.empty:
+            return False
+        expected_pooling_modes = (
+            {"not_applicable"} if str(model_family) == "arma_aic" else set(map(str, active_pooling_modes))
+        )
+        present_pooling_modes = set(family_rows["pooling_mode"].astype(str).tolist())
+        if not expected_pooling_modes.issubset(present_pooling_modes):
+            return False
+        if str(model_family) != "arma_aic":
+            if parameter_summary.empty:
+                return False
+            required_parameter_columns = {"model_family", "pooling_mode", "phi", "sigma", "k_fitbit", "panel_unit_loglik"}
+            if not required_parameter_columns.issubset(parameter_summary.columns):
+                return False
+            parameter_family_rows = parameter_summary.loc[
+                parameter_summary["model_family"].astype(str) == str(model_family)
+            ].copy()
+            if parameter_family_rows.empty:
+                return False
+            parameter_pooling_modes = set(parameter_family_rows["pooling_mode"].astype(str).tolist())
+            if not expected_pooling_modes.issubset(parameter_pooling_modes):
+                return False
+    return True
+```
+
+# Introduction
+
+## Background Information and Project Motivation
+
+For a new medical school graduate, the first year of residency is demanding and stressful. The yearly Intern Health Study (IHS) aims to study the effect of stress on mental health outcomes, enrolling over a thousand new interns each year. @internhealthstudy The study collects large amounts of data on interns including quarterly psychological surveys, DNA samples, daily mood scores, and sleep and physical activity data from wearable devices. In this project, we focus only on physical activity measured by step count in the 2024 IHS.
+
+In addition to collecting data, recent iterations of the IHS are incorporating reinforcement-learning based mobile health interventions. At 3:00 p.m. each day, an agent decides based on the participant's context whether to send a participant a message, with some learned probability. This randomized setup allows researchers to study whether these messages influence participant behavior. In this context, the objective is to increase physical activity, so step count serves as the reward outcome of interest. To be precise, the reward for a given day is the number of steps a user takes in the 24 hours after the 3 p.m. decision point in local time.
+
+Reinforcement learning and contextual bandit methods are becoming increasingly important in healthcare because they enable personalized interventions. In digital health, these methods can be used to decide when and how to deliver prompts that encourage healthier behaviors, such as increasing physical activity or improving medication adherence. Contextual bandits are especially useful because they incorporate patient characteristics when selecting an action. For example, RoME is a robust contextual bandit method for mobile health applications that determines when to send notifications and how to personalize interventions based on a user's current situation. @RoME Similarly, Oralytics is a mobile health intervention system that uses an online reinforcement learning algorithm to determine optimal times to deliver interventions that promote oral self-care behaviors. @Oralytics
+
+This project is motivated by the growing need to apply these methods in realistic settings where data are often incomplete. In our dataset, missingness occurs when users do not wear their devices, which leads to gaps in the recorded activity data. Missing data can distort the information available to the algorithm and may ultimately affect its behavior and performance. As a result, robust strategies for handling delayed and missing data are essential so that the algorithm can continue to function reliably and produce reproducible results. @DigitalHealth
+
+## Past Project Context
+
+Most past projects centered on infectious disease or financial topics. There was one project that also looked at measurements from wearable devices @HeartRate. That project focused on the instantaneous effect of environmental noise on heart rate variability, while ours is primarily about predicting step count in the next 24 hours following a motivating message sent to study participants.
+
+Both projects face the same issue of missing data. The heart rate variability project pooled all participants together into a population-level daily summary, taking the median measurement of each day. While we initially designed Partially Observed Markov Process (POMP) models for individual participants, we also incorporated global and partial pooling to jointly learn measurement dispersion parameters across participants in a compute-intensive, high-parameter panel POMP system. We did not find prior course projects that focused on prediction of missing activity data or implemented a panel POMP, so we emphasize predictive model selection on masked data rather than scientific inference.
+
+## Research Question
+
+When a participant does not wear the watch, no step count data are collected during that period. On days when the watch is worn for only a short time, or not at all, a reward cannot be constructed, so that day provides no training information for the reinforcement learning based intervention. The goal of this project is to build personalized POMP models for each doctor and to estimate the missing rewards.
+
+# Exploratory Data Analysis
+
+Participants wear devices from Garmin, Fitbit, and Apple, and some individuals may use more than one device. Since these devices differ in how they record and store data, as well as behavioral differences in device ownership, the data streams cannot be combined perfectly. While joint measurement models across devices would be valuable, due to time and compute constraints, we limit ourselves to Fitbit users.
+
+For this project, we focused only on users who had Fitbit data. Since few users had Garmin devices, it would be difficult to train the model, and Apple HealthKit acts as a central repository for health and fitness data which combines information from both phones and watches and may aggregate step counts originating from other wearables. We found it difficult to disentangle the biases associated with Apple-based measurements.
+
+The `FitbitHourly.csv` file contains data from 299 participants with Fitbit data. We limited our analysis to the period from July 1, 2024, to September 30, 2024, the first three months of IHS 2024. Additionally, we filtered to participants with Fitbit step data in at least half of their hourly rows, which left us with 78 participants.
+
+```{python}
+#| echo: false
+#| label: eda-read-data
+
+df = pd.read_csv(CSV_PATH)
+prune_df = df.loc[(df["date_utc"] >= "2024-07-01") & (df["date_utc"] <= "2024-09-30")].copy()
+
+valid_ids = (
+    prune_df.groupby("PARTICIPANTIDENTIFIER")["fitbitStepsMissing"]
+    .sum()
+    .loc[lambda s: s <= 1104]
+    .index
+)
+prune_df = prune_df.loc[prune_df["PARTICIPANTIDENTIFIER"].isin(valid_ids)].copy()
+```
+
+```{python}
+#| echo: false
+#| include: false
+#| label: eda-mean-vs-sd-build
+
+non_missing = prune_df.loc[prune_df["fitbitStepsMissing"] == 0].copy()
+non_missing["fitbitSteps"] = pd.to_numeric(non_missing["fitbitSteps"], errors="coerce")
+non_missing = non_missing.dropna(subset=["fitbitSteps"])
+
+stats = non_missing.groupby("PARTICIPANTIDENTIFIER")["fitbitSteps"].agg(
+    ["mean", "std"]
+).reset_index()
+
+eda_mean_sd_output_path = CACHE_PATHS["report_exports"] / "plots" / "eda_mean_vs_sd_inline.png"
+eda_mean_sd_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+fig, ax = plt.subplots(figsize=(4.8, 3.6))
+ax.scatter(stats["mean"], stats["std"], alpha=0.8, s=30)
+ax.set_xlabel("Mean Fitbit steps", fontsize=10)
+ax.set_ylabel("Standard deviation of Fitbit steps", fontsize=10)
+ax.set_title("Mean versus variability in non-missing hourly Fitbit steps", fontsize=11)
+ax.tick_params(axis="both", labelsize=9)
+plt.tight_layout()
+plt.savefig(eda_mean_sd_output_path, dpi=180, bbox_inches="tight")
+plt.close(fig)
+```
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.36\textwidth}
+\vspace{0pt}
+The chart on the right is a scatterplot of the mean and standard deviation of hourly steps for each user after filtering to hours with non-missing data. The means are quite a bit larger than would be expected under an iid Poisson observation model, which motivates the use of a latent stochastic process together with a measurement model that allows extra dispersion.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.60\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/computedraft/v1/rl2_masked_v4/report_exports/plots/eda_mean_vs_sd_inline.png}
+\captionof{figure}{Mean versus variability in non-missing hourly Fitbit steps.}
+\label{fig-eda-mean-vs-sd}
+\end{minipage}
+```
+
+# Model Design
+
+Our aim is to estimate the 24-hour reward, the sum of the steps in the 24 hours following 3 p.m. local time. We work at the hourly level, so each hour is treated as one bucket. Fitbit step counts may be observed or missing in a given bucket, which motivates a partially observed Markov process:
+
+$$
+x_{t+1} = \phi x_t + \sigma \varepsilon_t,
+\qquad \varepsilon_t \sim N(0,1),
+$$
+
+where $x_t$ represents hour-to-hour deviations in activity not explained by systematic daily structure, $\phi$ controls temporal persistence, and $\sigma$ controls the magnitude of unexplained hourly variation.
+
+Conditional on the latent state, the latent step count in hour $t$ is
+
+$$
+N_t \mid x_t \sim \mathrm{Poisson}(\lambda_t),
+\qquad
+\log \lambda_t = \bar{\ell} + \alpha_{h(t)} + \delta_{w(t)} + x_t.
+$$
+
+Here, $h(t)$ is the local hour of day and $w(t)$ is the local day of week. The hour-of-day and weekday terms are estimated empirically for each participant from the observed step series, with the construction details given in the supplementary material.
+
+The observed Fitbit step count is modeled as a noisy measurement of the latent hourly steps:
+
+$$
+Y_t \mid N_t \sim \mathrm{NegBin}(N_t, k),
+$$
+
+with variance
+
+$$
+\mathrm{Var}(Y_t \mid N_t) = N_t + \frac{N_t^2}{k}.
+$$
+
+Larger values of $k$ correspond to more Poisson-like measurement behavior. Because all participants are using Fitbit devices, $k$ is the most natural parameter to pool across participants.
+
+Our quantity of interest is the latent 24-hour reward
+
+$$
+R_d = \sum_{t \in H(d)} N_t,
+$$
+
+where $H(d)$ denotes the 24 hourly buckets following the 3 p.m. decision time on day $d$. Because the reward is defined using the latent counts $N_t$, the model can be used to reconstruct daily rewards even when hourly Fitbit observations are missing.
+
+All 78 participants are jointly fit in a panel POMP. We compare three AR(1)-based panel models that differ only in how the measurement over-dispersion parameter is handled:
+
+1. participant-specific $k_i$ with no pooling,
+2. a globally shared $k$,
+3. partially pooled participant-specific $k_i$ values.
+
+For partial pooling, we parameterize $\eta_i = \log k_i$ and apply a Gaussian penalty inside the objective function:
+
+$$
+\sum_{i=1}^{n} \ell_i(\phi_i, \sigma_i, e^{\eta_i})
+- \frac{1}{2 \tau_k^2} \sum_{i=1}^{n} (\eta_i - \mu_k)^2
+- n \log \tau_k.
+$$
+
+When $\tau_k$ is small, the model approaches the globally pooled regime; when $\tau_k$ is large, the model approaches the no-pooling regime. Inuitively, each user gets their own $k$, but the penalty nudges them along the shared Gaussian. Because all participants are using Fitbit devices, $k$ is the parameter with the clearest device-level interpretation and is therefore the most natural candidate for pooling. 
+
+Implementing this within the pypomp panel interface is a bit tricky. Each user has its own Pomp model object. The PanelPomp object takes in a list of these unit pomp objects, as well as a "theta_list", designating which parameters are shared and which are unit-specific. For the global model, the $k$ is kept as shared. For the global, the $k$ is kept personal for each individual, but they all share an extra two parameters, "mu_log_k_fitbit" and "log_tau_log_k_fitbit", which correspond to the parameters of the Gaussian penalty. Then, the Gaussian penalty is implemented into the objective function inside the dmeas for the individual Pomp objects.
+
+Lastly, because the missing rewards which are being estimated aren't needed at decision time but can be backfilled later, future information can be used to estimate the missing reward. So we additionally implement the natural smoother, which performs a backwards pass after the forward pass of the filter is used for a prediction.
+
+# Individual Participant Demonstrations
+
+In order to understand the dynamics of the full panel pomp, it helps to see how the model fits at an individual level. As a demonstration, we run a small global MLE search (10 starts, 100 particles, 4 iterations in stage 1) for three separate participants with low, medium, and high missingness, to get a low-precision sense of the effect of missingness on reward prediction.
+
+<!--
+(ADD Parameter start box for other models)
+-->
+
+```{python}
+#| warning: false
+#| message: false
+#| echo: false
+#| label: set-controls
+# (set XDG_RUNTIME_DIR=HW8 in bash to render quarto on greatlakes)
+
+# Cache controls
+enable_shelve_cache = True
+clear_shelve_cache = False
+cache_version_token = "highmiss_cache_v1"
+shelve_cache_directory = ".highmiss_cache"
+shelve_cache_basename = "highmiss_4796"
+
+# Participant and model controls
+participant_id = "MDH-3531-4796"
+analysis_start_utc_iso = "2024-07-01T00:00:00+00:00"
+analysis_end_utc_iso = "2024-09-30T23:00:00+00:00"
+participant_data_lookback_hours = 48
+assumed_local_timezone = "America/New_York"
+participant_covariate_keys = []  # Example: ["trail_steps_24h", "send_lag_0_3h"]
+estimated_free_params = ["phi", "sigma", "k_fitbit"]
+initial_phi = 0.75
+initial_sigma = 0.30
+initial_k_fitbit = 200.0
+
+# Local MLE controls
+local_mle_particles = 50
+local_mle_mif_iterations = 4
+local_mle_random_seed = 11
+local_mle_cooling_fraction = 0.50
+local_mle_rw_sd_scale = 0.02
+local_mle_evaluation_particles = 50
+local_mle_evaluation_pfilter_reps = 1
+
+# Global MLE search controls
+global_search_random_seed = 37
+global_search_include_current_theta_as_start = True
+global_search_jitter_scale = 0.10
+global_search_box_shrink_factor_per_stage = 1.00
+
+# Global MLE stage 1 controls
+global_stage1_name = "Stage 1"
+global_stage1_n_starts = 10
+global_stage1_keep_top = 2
+global_stage1_particles = 100
+global_stage1_mif_iterations = 4
+global_stage1_cooling_fraction = 0.50
+global_stage1_rw_sd_scale = 0.02
+global_stage1_evaluation_particles = 80
+global_stage1_evaluation_pfilter_reps = 1
+global_stage1_n_fresh_random_starts = 0
+global_stage1_n_jittered_restarts = 0
+
+# Global MLE stage 2 controls
+global_stage2_name = "Stage 2"
+global_stage2_n_starts = 2
+global_stage2_keep_top = 1
+global_stage2_particles = 80
+global_stage2_mif_iterations = 4
+global_stage2_cooling_fraction = 0.50
+global_stage2_rw_sd_scale = 0.015
+global_stage2_evaluation_particles = 120
+global_stage2_evaluation_pfilter_reps = 1
+global_stage2_n_fresh_random_starts = 0
+global_stage2_n_jittered_restarts = 0
+
+# Global start-box controls
+global_start_box_phi_low = -0.95
+global_start_box_phi_high = 0.95
+global_start_box_sigma_low = 0.05
+global_start_box_sigma_high = 2.00
+global_start_box_k_fitbit_low = 1.0
+global_start_box_k_fitbit_high = 50.0
+
+# Reconstructed reward plot controls
+reward_plot_fit_source = "global"  # "local" or "global"
+reward_plot_fig_width = 18.0
+reward_plot_fig_height = 9
+reward_plot_title_fontsize = 25
+reward_plot_axis_label_fontsize = 22
+reward_plot_tick_fontsize = 20
+reward_plot_legend_fontsize = 20
+
+# Residual-vs-missingness plot controls
+residual_plot_fit_source = "global"  # "local" or "global"
+residual_plot_fig_width = 5
+residual_plot_fig_height = 4
+```
+
+```{python}
+#| warning: false
+#| message: false
+#| echo: false
+#| output: asis
+
+# Everything needed to run the analysis is defined in this qmd. The only data
+# file used below is FitbitHourly.csv.
+import copy
+from functools import lru_cache
+import hashlib
+import json
+from pathlib import Path
+import shelve
+from dataclasses import dataclass
+from time import perf_counter
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from IPython.display import Image, display
+import jax
+import jax.numpy as jnp
+from jax.scipy.special import gammaln
+from pypomp import Pomp, ParTrans, RWSigma
+
+# CHANGE PATH
+CSV_PATH = Path("FitbitHourly.csv")
+if not CSV_PATH.exists():
+    raise FileNotFoundError("FitbitHourly.csv must be in the same folder as this qmd.")
+
+CSV_CACHE_SIGNATURE = {
+    "csv_size_bytes": int(CSV_PATH.stat().st_size),
+    "csv_modified_ns": int(CSV_PATH.stat().st_mtime_ns),
+}
+SHELVE_CACHE_DIR = Path(shelve_cache_directory)
+SHELVE_CACHE_PATH = SHELVE_CACHE_DIR / shelve_cache_basename
+if enable_shelve_cache:
+    SHELVE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    if clear_shelve_cache:
+        with shelve.open(str(SHELVE_CACHE_PATH)) as cache_db:
+            cache_db.clear()
+
+CSV_COLUMNS = [
+    "PARTICIPANTIDENTIFIER",
+    "STUDY_USER_ID",
+    "time_utc",
+    "date_utc",
+    "hour_of_day_utc",
+    "fitbitSteps",
+    "fitbitHRAvg",
+    "fitbitSleepMinutes",
+    "moodScore",
+    "messageSent",
+]
+
+def normalize_timestamp_to_utc(value: str) -> pd.Timestamp:
+    """Parse a timestamp string and ensure it is UTC-aware."""
+    timestamp = pd.Timestamp(value)
+    if timestamp.tzinfo is None:
+        return timestamp.tz_localize("UTC")
+    return timestamp.tz_convert("UTC")
+
+
+def _cache_key_default(value):
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()
+    if isinstance(value, tuple):
+        return list(value)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable.")
+
+
+def build_cache_key(cache_name: str, **cache_inputs) -> str:
+    payload = {
+        "cache_name": cache_name,
+        "cache_version_token": cache_version_token,
+        "csv_signature": CSV_CACHE_SIGNATURE,
+        "cache_inputs": cache_inputs,
+    }
+    encoded = json.dumps(payload, sort_keys=True, default=_cache_key_default).encode("utf-8")
+    return f"{cache_name}:{hashlib.sha256(encoded).hexdigest()}"
+
+
+def get_or_compute_shelve(cache_name: str, cache_inputs: dict, compute_fn, *, prepare_for_store=None):
+    """Read a value from the shelve cache or compute and store it."""
+    cache_key = build_cache_key(cache_name, **cache_inputs)
+    if enable_shelve_cache:
+        with shelve.open(str(SHELVE_CACHE_PATH)) as cache_db:
+            if cache_key in cache_db:
+                return cache_db[cache_key]
+    value = compute_fn()
+    stored_value = prepare_for_store(value) if prepare_for_store is not None else value
+    if enable_shelve_cache:
+        with shelve.open(str(SHELVE_CACHE_PATH)) as cache_db:
+            cache_db[cache_key] = stored_value
+    return stored_value
+
+
+def display_table(
+    df: pd.DataFrame,
+    *,
+    precision: int = 3,
+    formatters: dict | None = None,
+) -> None:
+    """Render tables without row indexes in the compiled document."""
+    styled = df.style.hide(axis="index")
+    if formatters is not None:
+        styled = styled.format(formatters, na_rep="")
+    else:
+        styled = styled.format(precision=precision, na_rep="")
+    display(styled)
+
+
+def format_table_value(value, precision: int = 3) -> str:
+    """Format table values compactly for LaTeX output."""
+    if pd.isna(value):
+        return ""
+    if isinstance(value, (int, np.integer)):
+        return str(int(value))
+    if isinstance(value, (float, np.floating)):
+        numeric_value = float(value)
+        if np.isfinite(numeric_value) and abs(numeric_value - round(numeric_value)) < 1e-9:
+            return str(int(round(numeric_value)))
+        return f"{numeric_value:.{precision}f}".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def dataframe_to_latex_tabular(df: pd.DataFrame, *, precision: int = 3) -> str:
+    """Convert a dataframe into a compact LaTeX tabular block."""
+    formatted = df.copy()
+    for column in formatted.columns:
+        formatted[column] = formatted[column].map(lambda value: format_table_value(value, precision))
+    return formatted.to_latex(index=False, escape=True)
+
+
+def render_side_by_side_tables_latex(table_specs: list[dict]) -> str:
+    """Render several small tables side by side using LaTeX minipages."""
+    rendered_blocks = []
+    for spec in table_specs:
+        tabular_latex = dataframe_to_latex_tabular(spec["df"], precision=spec.get("precision", 3))
+        rendered_blocks.append(
+            "\n".join(
+                [
+                    rf"\begin{{minipage}}[t]{{{spec['width']}\linewidth}}",
+                    r"\vspace{0pt}",
+                    r"\centering",
+                    rf"\captionof{{table}}{{{spec['caption']}}}",
+                    r"\scriptsize",
+                    tabular_latex,
+                    r"\end{minipage}",
+                ]
+            )
+        )
+    return "\n\\hfill\n".join(rendered_blocks)
+
+
+@dataclass(frozen=True)
+class CovariateSpec:
+    key: str
+    label: str
+    source_col: str
+    beta_param: str
+    description: str
+    standardize: bool = True
+
+
+COVARIATE_SPECS = {
+    "trail_steps_24h": CovariateSpec(
+        key="trail_steps_24h",
+        label="Trailing 24h steps",
+        source_col="cov_trail_steps_24h",
+        beta_param="beta_steps24",
+        description="Sum of Fitbit steps over the prior 24 hours.",
+    ),
+    "trail_sleep_minutes_24h": CovariateSpec(
+        key="trail_sleep_minutes_24h",
+        label="Trailing 24h sleep minutes",
+        source_col="cov_trail_sleep_minutes_24h",
+        beta_param="beta_sleep24",
+        description="Sum of Fitbit sleep minutes over the prior 24 hours.",
+    ),
+    "trail_hr_mean_24h": CovariateSpec(
+        key="trail_hr_mean_24h",
+        label="Trailing 24h heart rate mean",
+        source_col="cov_trail_hr_mean_24h",
+        beta_param="beta_hr24",
+        description="Average Fitbit heart rate over the prior 24 hours.",
+    ),
+    "trail_mood_mean_24h": CovariateSpec(
+        key="trail_mood_mean_24h",
+        label="Trailing 24h mood mean",
+        source_col="cov_trail_mood_mean_24h",
+        beta_param="beta_mood24",
+        description="Average mood score over the prior 24 hours.",
+    ),
+    "send_lag_0_3h": CovariateSpec(
+        key="send_lag_0_3h",
+        label="Message sent 0 to 3 hours ago",
+        source_col="cov_send_lag_0_3h",
+        beta_param="eta_send_0_3h",
+        description="Indicator that the most recent message was in the current hour or previous 3 hours.",
+        standardize=False,
+    ),
+    "send_lag_4_11h": CovariateSpec(
+        key="send_lag_4_11h",
+        label="Message sent 4 to 11 hours ago",
+        source_col="cov_send_lag_4_11h",
+        beta_param="eta_send_4_11h",
+        description="Indicator that the most recent message was 4 to 11 hours ago.",
+        standardize=False,
+    ),
+    "send_lag_12_23h": CovariateSpec(
+        key="send_lag_12_23h",
+        label="Message sent 12 to 23 hours ago",
+        source_col="cov_send_lag_12_23h",
+        beta_param="eta_send_12_23h",
+        description="Indicator that the most recent message was 12 to 23 hours ago.",
+        standardize=False,
+    ),
+}
+
+
+@dataclass
+class HourlyStepModelData:
+    participant_id: str
+    study_user_id: str | None
+    hourly_frame: pd.DataFrame
+    covariate_keys: list[str]
+    covariate_params: dict[str, str]
+    covariate_standardization: dict[str, dict[str, float]]
+    decision_window_frame: pd.DataFrame
+    dropped_covariates: list[str]
+    start_utc: pd.Timestamp
+    end_utc: pd.Timestamp
+    assumed_timezone: str
+
+    @property
+    def model_covariate_columns(self) -> list[str]:
+        return [COVARIATE_SPECS[key].source_col for key in self.covariate_keys]
+
+    @property
+    def ys(self) -> pd.DataFrame:
+        return self.hourly_frame.set_index("time_index")[["fitbit_steps_obs"]]
+
+    @property
+    def covars(self) -> pd.DataFrame:
+        columns = ["baseline_log_mean"] + self.model_covariate_columns
+        return self.hourly_frame.set_index("time_index")[columns]
+
+
+@dataclass
+class StepPompFitResult:
+    initial_params: dict[str, float]
+    fitted_params: dict[str, float]
+    loglik: float
+    pomp_object: Pomp | None
+    mif_summary: pd.DataFrame
+    mif_traces: pd.DataFrame
+    pfilter_summary: pd.DataFrame
+    timing_frame: pd.DataFrame
+    runtime_breakdown: pd.DataFrame
+
+
+@dataclass
+class StepPompRunResult:
+    initial_params: dict[str, float]
+    fitted_params: dict[str, float]
+    loglik: float
+    pomp_object: Pomp | None
+    mif_summary: pd.DataFrame
+    mif_traces: pd.DataFrame
+    pfilter_summary: pd.DataFrame
+    filtered_states: pd.DataFrame
+    plot_frame: pd.DataFrame
+    reward_frame: pd.DataFrame
+    timing_frame: pd.DataFrame
+    runtime_breakdown: pd.DataFrame
+
+
+@dataclass(frozen=True)
+class GlobalSearchStageConfig:
+    name: str
+    n_starts: int
+    keep_top: int
+    particles: int
+    mif_iterations: int
+    cooling_fraction: float
+    rw_sd_scale: float
+    evaluation_particles: int
+    evaluation_pfilter_reps: int
+    n_fresh_random_starts: int = 0
+    n_jittered_restarts: int = 0
+
+
+@dataclass
+class GlobalSearchResult:
+    best_fit: StepPompFitResult
+    best_run: StepPompRunResult
+    candidate_frame: pd.DataFrame
+    stage_summary: pd.DataFrame
+    start_box_frame: pd.DataFrame
+    total_runtime_seconds: float
+
+
+def clone_hourly_step_model_data(data: HourlyStepModelData) -> HourlyStepModelData:
+    return copy.deepcopy(data)
+
+
+def _copy_frame(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame.copy(deep=True)
+
+
+def strip_step_pomp_fit_result(result: StepPompFitResult) -> StepPompFitResult:
+    return StepPompFitResult(
+        initial_params=copy.deepcopy(result.initial_params),
+        fitted_params=copy.deepcopy(result.fitted_params),
+        loglik=float(result.loglik),
+        pomp_object=None,
+        mif_summary=_copy_frame(result.mif_summary),
+        mif_traces=_copy_frame(result.mif_traces),
+        pfilter_summary=_copy_frame(result.pfilter_summary),
+        timing_frame=_copy_frame(result.timing_frame),
+        runtime_breakdown=_copy_frame(result.runtime_breakdown),
+    )
+
+
+def strip_step_pomp_run_result(result: StepPompRunResult) -> StepPompRunResult:
+    return StepPompRunResult(
+        initial_params=copy.deepcopy(result.initial_params),
+        fitted_params=copy.deepcopy(result.fitted_params),
+        loglik=float(result.loglik),
+        pomp_object=None,
+        mif_summary=_copy_frame(result.mif_summary),
+        mif_traces=_copy_frame(result.mif_traces),
+        pfilter_summary=_copy_frame(result.pfilter_summary),
+        filtered_states=_copy_frame(result.filtered_states),
+        plot_frame=_copy_frame(result.plot_frame),
+        reward_frame=_copy_frame(result.reward_frame),
+        timing_frame=_copy_frame(result.timing_frame),
+        runtime_breakdown=_copy_frame(result.runtime_breakdown),
+    )
+
+
+def strip_global_search_result(result: GlobalSearchResult) -> GlobalSearchResult:
+    return GlobalSearchResult(
+        best_fit=strip_step_pomp_fit_result(result.best_fit),
+        best_run=strip_step_pomp_run_result(result.best_run),
+        candidate_frame=_copy_frame(result.candidate_frame),
+        stage_summary=_copy_frame(result.stage_summary),
+        start_box_frame=_copy_frame(result.start_box_frame),
+        total_runtime_seconds=float(result.total_runtime_seconds),
+    )
+
+
+analysis_start = normalize_timestamp_to_utc(analysis_start_utc_iso)
+analysis_end = normalize_timestamp_to_utc(analysis_end_utc_iso)
+covariate_keys = list(participant_covariate_keys)
+free_params = list(estimated_free_params)
+
+initial_param_overrides = {
+    "phi": float(initial_phi),
+    "sigma": float(initial_sigma),
+    "k_fitbit": float(initial_k_fitbit),
+}
+
+local_if2_controls = {
+    "particles": int(local_mle_particles),
+    "mif_iterations": int(local_mle_mif_iterations),
+    "random_seed": int(local_mle_random_seed),
+    "cooling_fraction": float(local_mle_cooling_fraction),
+    "rw_sd_scale": float(local_mle_rw_sd_scale),
+    "evaluation_particles": int(local_mle_evaluation_particles),
+    "evaluation_pfilter_reps": int(local_mle_evaluation_pfilter_reps),
+}
+
+global_search_start_box = {
+    "phi": (float(global_start_box_phi_low), float(global_start_box_phi_high)),
+    "sigma": (float(global_start_box_sigma_low), float(global_start_box_sigma_high)),
+    "k_fitbit": (float(global_start_box_k_fitbit_low), float(global_start_box_k_fitbit_high)),
+}
+
+global_search_controls = {
+    "random_seed": int(global_search_random_seed),
+    "include_current_theta_as_start": bool(global_search_include_current_theta_as_start),
+    "jitter_scale": float(global_search_jitter_scale),
+    "box_shrink_factor_per_stage": float(global_search_box_shrink_factor_per_stage),
+}
+
+global_search_stage_controls = [
+    {
+        "name": str(global_stage1_name),
+        "n_starts": int(global_stage1_n_starts),
+        "keep_top": int(global_stage1_keep_top),
+        "particles": int(global_stage1_particles),
+        "mif_iterations": int(global_stage1_mif_iterations),
+        "cooling_fraction": float(global_stage1_cooling_fraction),
+        "rw_sd_scale": float(global_stage1_rw_sd_scale),
+        "evaluation_particles": int(global_stage1_evaluation_particles),
+        "evaluation_pfilter_reps": int(global_stage1_evaluation_pfilter_reps),
+        "n_fresh_random_starts": int(global_stage1_n_fresh_random_starts),
+        "n_jittered_restarts": int(global_stage1_n_jittered_restarts),
+    },
+    {
+        "name": str(global_stage2_name),
+        "n_starts": int(global_stage2_n_starts),
+        "keep_top": int(global_stage2_keep_top),
+        "particles": int(global_stage2_particles),
+        "mif_iterations": int(global_stage2_mif_iterations),
+        "cooling_fraction": float(global_stage2_cooling_fraction),
+        "rw_sd_scale": float(global_stage2_rw_sd_scale),
+        "evaluation_particles": int(global_stage2_evaluation_particles),
+        "evaluation_pfilter_reps": int(global_stage2_evaluation_pfilter_reps),
+        "n_fresh_random_starts": int(global_stage2_n_fresh_random_starts),
+        "n_jittered_restarts": int(global_stage2_n_jittered_restarts),
+    },
+]
+
+local_controls_display = (
+    pd.DataFrame(
+        [
+            {
+                "Particles": local_if2_controls["particles"],
+                "IF2 iterations": local_if2_controls["mif_iterations"],
+                "Cooling fraction": local_if2_controls["cooling_fraction"],
+                "RW SD scale": local_if2_controls["rw_sd_scale"],
+                "Evaluation particles": local_if2_controls["evaluation_particles"],
+                "Evaluation pfilter reps": local_if2_controls["evaluation_pfilter_reps"],
+            }
+        ],
+        index=["Local"],
+    )
+    .transpose()
+    .reset_index()
+)
+local_controls_display.columns = ["Setting", "Local"]
+
+global_stage_controls_display = (
+    pd.DataFrame(
+        [
+            {
+                "Stage": stage["name"],
+                "Starts": stage["n_starts"],
+                "Keep top": stage["keep_top"],
+                "Particles": stage["particles"],
+                "IF2 iterations": stage["mif_iterations"],
+                "Cooling fraction": stage["cooling_fraction"],
+                "RW SD scale": stage["rw_sd_scale"],
+                "Evaluation particles": stage["evaluation_particles"],
+                "Evaluation pfilter reps": stage["evaluation_pfilter_reps"],
+                "Fresh random starts": stage["n_fresh_random_starts"],
+                "Jittered restarts": stage["n_jittered_restarts"],
+            }
+            for stage in global_search_stage_controls
+        ]
+    )
+    .set_index("Stage")
+    .transpose()
+    .reset_index()
+    .rename(columns={"index": "Setting"})
+)
+global_start_box_display = pd.DataFrame(
+    [
+        {
+            "Parameter": name,
+            "Low": bounds[0],
+            "High": bounds[1],
+        }
+        for name, bounds in global_search_start_box.items()
+    ]
+)
+```
+
+```{python}
+#| echo: false
+#| label: load-script
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+import hw8_analysis as hw8
+```
+
+```{python}
+#| echo: false
+#| label: run-hw8
+participant_ids = ["MDH-3531-4796", "MDH-4235-8718", "MDH-7960-3351"]
+
+analysis_cfg = hw8.AnalysisConfig(
+    analysis_start_utc_iso=analysis_start_utc_iso,
+    analysis_end_utc_iso=analysis_end_utc_iso,
+    participant_data_lookback_hours=participant_data_lookback_hours,
+    assumed_local_timezone=assumed_local_timezone,
+    participant_covariate_keys=list(participant_covariate_keys),
+    estimated_free_params=list(estimated_free_params),
+    initial_phi=initial_phi,
+    initial_sigma=initial_sigma,
+    initial_k_fitbit=initial_k_fitbit,
+    local_mle_particles=local_mle_particles,
+    local_mle_mif_iterations=local_mle_mif_iterations,
+    local_mle_random_seed=local_mle_random_seed,
+    local_mle_cooling_fraction=local_mle_cooling_fraction,
+    local_mle_rw_sd_scale=local_mle_rw_sd_scale,
+    local_mle_evaluation_particles=local_mle_evaluation_particles,
+    local_mle_evaluation_pfilter_reps=local_mle_evaluation_pfilter_reps,
+    global_search_random_seed=global_search_random_seed,
+    global_search_include_current_theta_as_start=global_search_include_current_theta_as_start,
+    global_search_jitter_scale=global_search_jitter_scale,
+    global_search_box_shrink_factor_per_stage=global_search_box_shrink_factor_per_stage,
+    global_start_box_phi_low=global_start_box_phi_low,
+    global_start_box_phi_high=global_start_box_phi_high,
+    global_start_box_sigma_low=global_start_box_sigma_low,
+    global_start_box_sigma_high=global_start_box_sigma_high,
+    global_start_box_k_fitbit_low=global_start_box_k_fitbit_low,
+    global_start_box_k_fitbit_high=global_start_box_k_fitbit_high,
+    global_search_stage_controls=list(global_search_stage_controls),
+)
+
+results = []
+for pid in participant_ids:
+    last4 = pid.split("-")[-1]
+    cache_cfg = hw8.CacheConfig(
+        enable_shelve_cache=enable_shelve_cache,
+        clear_shelve_cache=clear_shelve_cache,
+        require_existing_cache_hits=False,
+        cache_version_token=cache_version_token,
+        shelve_cache_directory=shelve_cache_directory,
+        shelve_cache_basename=f"example_{last4}",   # per participant
+        csv_path=str(CSV_PATH),
+    )
+    results.append(hw8.run_participant(pid, cache_cfg=cache_cfg, cfg=analysis_cfg))
+```
+
+
+
+```{python}
+#| echo: false
+#| label: concat-tables
+# display tables
+
+participant_summary_all = pd.concat([r.participant_summary for r in results], ignore_index=True)
+participant_summary_all["Fitbit missingness percentage"] = participant_summary_all["Fitbit missingness percentage"].map(lambda x: f"{x:.2f}%")
+
+local_mle_all = pd.concat([r.local_mle_summary for r in results], ignore_index=True).round(3)
+global_best_all = pd.concat([r.global_best_summary for r in results], ignore_index=True).round(3)
+coef_all = pd.concat([r.coefficient_table for r in results], ignore_index=True).round(3)
+stage_all = pd.concat([r.global_stage_summary for r in results], ignore_index=True).round(3)
+
+participant_summary_display = participant_summary_all.drop(columns=["Fitbit missingness percentage"], errors="ignore").copy()
+
+missingness_lookup = participant_summary_all.loc[:, ["Participant ID", "Fitbit missingness percentage"]].copy()
+global_best_display = (
+    global_best_all.merge(missingness_lookup, how="left", on="Participant ID")
+    .rename(
+        columns={
+            "Participant ID": "PID",
+            "k_fitbit": "k",
+            "Fitbit missingness percentage": "Missingness",
+        }
+    )
+)
+global_best_display = global_best_display.loc[
+    :,
+    [column for column in ["PID", "LogLik", "phi", "sigma", "k", "Missingness"] if column in global_best_display.columns],
+]
+
+```
+
+```{python}
+#| echo: false
+#| label: global-mle-table
+
+display_table(global_best_display, precision=3)
+```
+
+```{python}
+#| echo: false
+#| include: false
+#| label: fig-reward-plot-build
+def select_run(r: hw8.ParticipantResult, source: str) -> hw8.StepPompRunResult:
+    s = str(source).lower().strip()
+    if s == "local":
+        return r.local_run
+    return r.global_search_result.best_run
+
+plot_source = reward_plot_fit_source  # "local" or "global"
+
+plot_ids = ["MDH-3531-4796", "MDH-7960-3351"]  # enforce top/bottom order
+plot_results = {r.participant_id: r for r in results}
+plot_results = [plot_results[pid] for pid in plot_ids if pid in plot_results]
+
+reward_plot_output_path = CACHE_PATHS["report_exports"] / "plots" / "section4_reward_plot_inline.png"
+reward_plot_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+n = len(plot_results)
+fig, axes = plt.subplots(
+    nrows=n, ncols=1,
+    figsize=(5.25, 2.7 * n),
+    sharex=True
+)
+if n == 1:
+    axes = [axes]
+
+for i, (ax, r) in enumerate(zip(axes, plot_results)):
+    run = select_run(r, plot_source)
+    reward_plot = run.reward_frame.copy()
+    reward_plot = reward_plot.loc[reward_plot["complete_window"]].copy()
+    reward_plot["decision_date"] = pd.to_datetime(
+        reward_plot["decision_local_time"], errors="coerce"
+    ).dt.tz_localize(None)
+
+    ax.bar(
+        reward_plot["decision_date"],
+        reward_plot["latent_reward_24h"],
+        color="#d69e2e",
+        alpha=0.75,
+        width=0.8,
+        label="Filtered latent reward",
+    )
+    ax.plot(
+        reward_plot["decision_date"],
+        reward_plot["fitbit_observed_reward_24h"],
+        color="#2b6cb0",
+        linewidth=1.1,
+        marker="o",
+        markersize=2.2,
+        label="Observed Fitbit subtotal",
+    )
+
+    ax.set_ylabel("")
+    ax.tick_params(axis="y", labelsize=9)
+
+    if i < n - 1:
+        ax.tick_params(axis="x", which="both", labelbottom=False)
+    else:
+        ax.tick_params(axis="x", labelsize=8)
+        for label in ax.get_xticklabels():
+            label.set_rotation(45)
+            label.set_ha("right")
+
+axes[-1].set_xlabel("Decision date", fontsize=11)
+axes[0].legend(frameon=False, ncol=1, fontsize=8, loc="upper left")
+
+plt.tight_layout()
+plt.savefig(reward_plot_output_path, dpi=180, bbox_inches="tight")
+plt.close(fig)
+```
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.72\textwidth}
+\vspace{0pt}
+\centering
+\refstepcounter{figure}\label{fig-reward-plot}
+\includegraphics[width=\linewidth]{cache/computedraft/v1/rl2_masked_v4/report_exports/plots/section4_reward_plot_inline.png}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.24\textwidth}
+\vspace{0pt}
+Figure~\ref{fig-reward-plot} demonstrates the difference between the latent and observed rewards for individual participants with high and medium missingness. We see that the estimated latent reward is always greater than the observed reward. There is a larger difference for the participant with high missingness. This is expected because it is a sum of hourly buckets, for which many of the observations are missing.
+\end{minipage}
+```
+
+```{python}
+#| echo: false
+#| include: false
+#| label: fig-residual-plot-build
+# Residuals: all participants on one plot + per-participant trend line
+plot_source = residual_plot_fit_source
+
+residual_plot_output_path = CACHE_PATHS["report_exports"] / "plots" / "section4_residual_plot_inline.png"
+residual_plot_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+# Color-blind friendly palette (Okabe-Ito)
+palette = [
+    "#0072B2",  # blue
+    "#D55E00",  # vermillion
+    "#009E73",  # bluish green
+    "#CC79A7",  # reddish purple
+    "#E69F00",  # orange
+    "#56B4E9",  # sky blue
+    "#F0E442",  # yellow (use sparingly on white)
+    "#000000",  # black
+]
+
+plt.style.use("seaborn-v0_8-whitegrid")
+fig, ax = plt.subplots(figsize=(5.1, 3.6))
+
+ax.axhline(0.0, color="#4a5568", linewidth=1.2, linestyle="--")
+
+for i, r in enumerate(results):
+    color = palette[i % len(palette)]
+    run = select_run(r, plot_source)
+
+    df = run.reward_frame.copy()
+    df = df.loc[df["complete_window"]].copy()
+
+    x = (24 - pd.to_numeric(df["fitbit_observed_hours"], errors="coerce").fillna(0.0)).round().clip(0, 24)
+    y = pd.to_numeric(df["latent_reward_24h"], errors="coerce") - pd.to_numeric(df["fitbit_observed_reward_24h"], errors="coerce")
+
+    plot_df = pd.DataFrame({"x": x, "y": y}).dropna()
+    plot_df["x"] = plot_df["x"].astype(int)
+
+    ax.scatter(
+        plot_df["x"],
+        plot_df["y"],
+        color=color,
+        alpha=0.75,
+        s=28,
+        edgecolor="white",
+        linewidth=0.5,
+        label=r.participant_id,
+    )
+
+    if len(plot_df) >= 2 and plot_df["x"].nunique() >= 2:
+        b, a = np.polyfit(plot_df["x"].to_numpy(dtype=float), plot_df["y"].to_numpy(dtype=float), deg=1)
+        xs = np.linspace(0, 24, 200)
+        ys = a + b * xs
+        ax.plot(xs, ys, color=color, linewidth=1.6, alpha=0.95)
+
+ax.set_title("Filtered reward residual vs missingness", fontsize=11)
+ax.set_xlabel("Missing Fitbit hours in 24-hour window", fontsize=10)
+ax.set_ylabel("Filtered reward - observed subtotal", fontsize=10)
+ax.set_xlim(-0.5, 24.5)
+ax.set_xticks(np.arange(0, 25, 2))
+ax.tick_params(axis="both", labelsize=9)
+ax.legend(frameon=False, ncol=1, fontsize=8)
+
+plt.tight_layout()
+plt.savefig(residual_plot_output_path, dpi=180, bbox_inches="tight")
+plt.close(fig)
+```
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.56\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\linewidth]{cache/computedraft/v1/rl2_masked_v4/report_exports/plots/section4_residual_plot_inline.png}
+\captionof{figure}{Filtered reward residual versus missingness for the three participant demonstrations.}
+\label{fig-residual-plot}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.40\textwidth}
+\vspace{0pt}
+Figure \ref{fig-residual-plot} shows a linear trend in how much the estimated latent exceeds the observed. This is unsurprising; if the observed only sums 8 non-zero buckets, the latent sums 24 non-zero buckets, and might be approximately three times larger. This discrepancy is why we use a latent model in the first place, as we expect that there are many steps the participant is taking that are not being picked up by Fitbit or other measurement devices. This phenomenon presents challenges with finding a representative benchmark that we discuss below.
+\end{minipage}
+```
+
+# Benchmarks for Aggregate Modeling
+
+There were several benchmarks to consider, and narrowing them down was challenging. Since our goal was prediction rather than inference, we prioritized models that perform best on unseen data. Specifically, we aimed to improve the accuracy of predicted 24-hour rewards when users have missing hourly observations. Because we fit 78 personalized models jointly, we also need aggregate summaries that capture predictive ability across participants.
+
+Direct error is only meaningful on hours where Fitbit originally recorded nonzero step counts. When a participant is not wearing the device, the observed series can contain zeros that do not represent true inactivity, so evaluating prediction error against those zeros would be misleading. We therefore use a masking approach: for each participant, we refit the model after masking 20% of the observed hourly Fitbit data and then evaluate reconstruction quality on the held-out masked observations. We report both hourly reconstruction metrics and a daily held-out subtotal benchmark that aligns more directly with the 24-hour reward target. Additional details on the masked subtotal metric are given in the supplementary material.
+
+# Inference Settings
+
+We ran a global IF2 MLE search for each of the three models with two stages. Stage 1, 32 starts, 1024 particles, 16 iterations, with 256 evaluation particles with 16 evaluation repeats, with a smaller stage 2, 16 starts, 512 particles, 16 iterations, 256 evaluation particles repeated 8 times. Each fit took about an hour and a half on a 3080 Nvidia GPU with 10GB of VRAM, with 8704 CUDA cores.
+
+The scale of this made computation very challenging! Considering just the version with no pooling, each of the 78 participants had 3 parameters, which comes out to 234 parameters total. Running this across 3 models was very time intensive, and getting it to function correctly in qmd was another challenge entirely! 
+
+In Table~\ref{tbl-inference-search-window} we display the window for each global model that we perform the search on. $k$ was searched on a log scale, and for the partial pooling, the variance $\tau$ and $\mu$ for the penalty term were searched also on the log scale. Figure~\ref{fig-empirical-mu-logk-window} displays the global window for those distribution terms, alongside empirical bootstrap estimates from the partial-pooling and no-pooling models. It is not conclusive, but it suggests that our window does cover this region.
+
+```{python}
+#| echo: false
+#| label: inference-search-window-table-build
+
+search_window_display = (
+    pd.DataFrame(
+        [
+            {
+                "Parameter": parameter_name,
+                "Low": float(bounds[0]),
+                "High": float(bounds[1]),
+            }
+            for parameter_name, bounds in RESOLVED_CONFIG["search_windows"].items()
+        ]
+    )
+    .loc[
+        lambda df: ~df["Parameter"].isin(
+            [
+                "eta_wear_lag1",
+                "phi1",
+                "phi2",
+                "phi24",
+                "wear_phi",
+                "wear_sigma",
+            ]
+        )
+    ]
+    .sort_values("Parameter")
+    .reset_index(drop=True)
+)
+
+search_window_table_render = search_window_display.copy()
+for column_name in ("Low", "High"):
+    search_window_table_render[column_name] = pd.to_numeric(
+        search_window_table_render[column_name],
+        errors="coerce",
+    ).map(lambda value: f"{value:.3f}" if pd.notna(value) else "")
+
+search_window_table_path = (
+    CACHE_PATHS["report_exports"] / "plots" / "inference_search_window_table_inline.png"
+)
+search_window_table_path.parent.mkdir(parents=True, exist_ok=True)
+
+fig, ax = plt.subplots(figsize=(8.2, 5.6))
+ax.axis("off")
+ax.set_position([0.0, 0.0, 1.0, 1.0])
+table = ax.table(
+    cellText=search_window_table_render.values,
+    colLabels=search_window_table_render.columns,
+    cellLoc="center",
+    colWidths=[0.56, 0.22, 0.22],
+    bbox=[0.02, 0.02, 0.96, 0.96],
+)
+table.auto_set_font_size(False)
+table.set_fontsize(32)
+
+for (row, col), cell in table.get_celld().items():
+    cell.set_edgecolor("#444444")
+    cell.set_linewidth(0.4)
+    if row == 0:
+        cell.set_text_props(weight="bold")
+        cell.set_facecolor("#f3f4f6")
+    elif col == 0:
+        cell.set_text_props(ha="left")
+
+fig.savefig(search_window_table_path, dpi=300, bbox_inches="tight", pad_inches=0.02, facecolor="white")
+plt.close(fig)
+```
+
+```{=latex}
+\noindent
+\begin{minipage}[t]{0.7\textwidth}
+\centering
+\refstepcounter{figure}\label{fig-empirical-mu-logk-window}
+\includegraphics[width=\linewidth]{cache/computedraft/v1/rl2_masked_v4/report_exports/plots/empirical_mu_logk_vs_log_tau_personal_partial.png}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.28\textwidth}
+\centering
+\refstepcounter{table}\label{tbl-inference-search-window}
+\includegraphics[width=\linewidth]{cache/computedraft/v1/rl2_masked_v4/report_exports/plots/inference_search_window_table_inline.png}
+\end{minipage}
+```
+
+# Results
+
+Next, we fit the three primary models, as well as ARMA. The ARMA $(p, q)$ is picked by best scoring on AIC independently for each individual. After fitting the three primary models, we make predictions in one pass with a filter (labeling these globalfilter, partialfilter, and personalfilter), then perform the natural smoother with a following backward pass across the data (likewise named globalsmooth, partialsmooth, personalsmooth).
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: aggregate-results-imports
+
+aggregate_config = dict(RESOLVED_CONFIG)
+aggregate_config["search_stage_settings"] = SEARCH_STAGE_SETTINGS
+
+aggregate_export_payload: dict[str, object] = {}
+aggregate_result = None
+report_exports_exist = all(REPORT_EXPORT_FILES[key].exists() for key in REPORT_EXPORT_REQUIRED_KEYS)
+use_report_exports = False
+
+if str(aggregate_config["cache_mode"]) != "force_recompute" and report_exports_exist:
+    # Report exports are plain CSV/JSON artifacts so preview renders can avoid
+    # importing the heavy JAX / pypomp stack when cached results already exist.
+    aggregate_export_payload = load_report_exports(REPORT_EXPORT_FILES)
+    use_report_exports = report_exports_cover_active_results(
+        aggregate_export_payload,
+        active_model_families=list(map(str, aggregate_config["active_model_families"])),
+        active_pooling_modes=list(map(str, aggregate_config["active_pooling_modes"])),
+        expected_benchmark_version=EXPECTED_REPORT_BENCHMARK_VERSION,
+    )
+
+if not use_report_exports:
+    import jax
+
+    jax_backend = str(jax.default_backend())
+    if effective_device == "gpu":
+        gpu_devices = [device for device in jax.devices() if device.platform == "gpu"]
+        if not gpu_devices or jax_backend != "gpu":
+            raise RuntimeError(
+                "device='gpu' was requested in finaldraft.qmd, but JAX did not initialize a GPU backend. "
+                f"default_backend={jax_backend!r}, devices={[device.platform for device in jax.devices()]!r}"
+            )
+    elif jax_backend != "cpu":
+        raise RuntimeError(
+            "device='cpu' was requested in finaldraft.qmd, but JAX initialized a different backend. "
+            f"default_backend={jax_backend!r}"
+        )
+
+    from helpers.computedraft_pipeline import run_cache_first_pipeline
+
+    aggregate_result = run_cache_first_pipeline(
+        CSV_PATH,
+        resolved_config=aggregate_config,
+        cache_paths=CACHE_PATHS,
+        active_model_families=list(aggregate_config["active_model_families"]),
+        active_pooling_modes=list(aggregate_config["active_pooling_modes"]),
+        progress_callback=lambda message: print(message, flush=True),
+    )
+```
+
+```{python}
+#| echo: false
+#| warning: false
+#| message: false
+#| label: aggregate-results-derived
+
+if use_report_exports:
+    aggregate_task_manifest = pd.DataFrame(aggregate_export_payload.get("task_manifest", pd.DataFrame())).copy()
+    aggregate_model_comparison = pd.DataFrame(aggregate_export_payload.get("model_comparison", pd.DataFrame())).copy()
+    aggregate_benchmark_summary = pd.DataFrame(aggregate_export_payload.get("benchmark_summary", pd.DataFrame())).copy()
+    aggregate_parameter_summary = pd.DataFrame(aggregate_export_payload.get("parameter_summary", pd.DataFrame())).copy()
+    aggregate_timing_summary = pd.DataFrame(aggregate_export_payload.get("timing_summary", pd.DataFrame())).copy()
+    aggregate_masked_fits = {}
+    exported_cohort_summary = dict(aggregate_export_payload.get("cohort_summary", {}))
+else:
+    aggregate_task_manifest = aggregate_result.task_manifest.copy()
+    aggregate_derived_artifact = aggregate_result.derived_artifact
+    aggregate_model_comparison = aggregate_derived_artifact.get("model_comparison", pd.DataFrame()).copy()
+    aggregate_benchmark_summary = aggregate_derived_artifact.get("benchmark_summary", pd.DataFrame()).copy()
+    aggregate_parameter_summary = aggregate_derived_artifact.get("parameter_summary", pd.DataFrame()).copy()
+    aggregate_timing_summary = aggregate_result.timing_summary.copy()
+    aggregate_masked_fits = aggregate_derived_artifact.get("masked_fits", {})
+    exported_cohort_summary = {
+        "selected_participants": len(aggregate_derived_artifact.get("participant_ids", [])),
+        "full_set_participants": len(aggregate_result.base_artifact.get("full_set_ids", [])),
+        "small_set_participants": len(aggregate_result.base_artifact.get("small_set_ids", [])),
+    }
+
+if aggregate_parameter_summary.empty and aggregate_masked_fits:
+    parameter_rows = []
+    seen_model_pooling = set()
+    for (model_family, pooling_mode, mask_id), artifact in sorted(aggregate_masked_fits.items()):
+        key = (str(model_family), str(pooling_mode))
+        if key in seen_model_pooling:
+            continue
+        participant_estimates = artifact.get("participant_estimates", pd.DataFrame()).copy()
+        if participant_estimates.empty:
+            continue
+        participant_estimates["model_family"] = str(model_family)
+        participant_estimates["pooling_mode"] = str(pooling_mode)
+        participant_estimates["mask_id"] = str(mask_id)
+        parameter_rows.append(participant_estimates)
+        seen_model_pooling.add(key)
+    if parameter_rows:
+        aggregate_parameter_summary = pd.concat(parameter_rows, ignore_index=True)
+
+if (
+    not aggregate_model_comparison.empty
+    and not aggregate_parameter_summary.empty
+    and {"model_family", "pooling_mode", "panel_unit_loglik"}.issubset(aggregate_parameter_summary.columns)
+):
+    mean_loglik_by_model = (
+        aggregate_parameter_summary.groupby(["model_family", "pooling_mode"], as_index=False)
+        .agg(mean_panel_unit_loglik=("panel_unit_loglik", lambda s: float(pd.to_numeric(s, errors="coerce").mean())))
+    )
+    aggregate_model_comparison = aggregate_model_comparison.drop(columns=["mean_panel_unit_loglik"], errors="ignore").merge(
+        mean_loglik_by_model,
+        how="left",
+        on=["model_family", "pooling_mode"],
+    )
+
+if not aggregate_model_comparison.empty and "estimate_type" not in aggregate_model_comparison.columns:
+    aggregate_model_comparison["estimate_type"] = "filter"
+
+parameter_model_summary = pd.DataFrame()
+if not aggregate_parameter_summary.empty and {"model_family", "pooling_mode"}.issubset(aggregate_parameter_summary.columns):
+    parameter_model_summary = (
+        aggregate_parameter_summary.groupby(["model_family", "pooling_mode"], as_index=False)
+        .agg(
+            mean_phi=("phi", "mean"),
+            mean_sigma=("sigma", "mean"),
+            mean_k=("k_fitbit", "mean"),
+            sd_k=("k_fitbit", "std"),
+        )
+    )
+
+aggregate_cohort_summary = {
+    "Selected participants": int(
+        exported_cohort_summary.get(
+            "selected_participants",
+            aggregate_parameter_summary["participant_id"].nunique() if "participant_id" in aggregate_parameter_summary.columns else 0,
+        )
+    ),
+    "Full-set participants": int(exported_cohort_summary.get("full_set_participants", 0)),
+    "Small-set participants": int(exported_cohort_summary.get("small_set_participants", 0)),
+    "Benchmark rows": int(len(aggregate_benchmark_summary)),
+}
+```
+
+```{python}
+#| echo: false
+#| label: results-model-summary-table
+
+if aggregate_model_comparison.empty:
+    print("No aggregate benchmark summaries are available for the current configuration.")
+else:
+    comparison_source = aggregate_model_comparison.copy()
+    comparison_source["model_family"] = comparison_source["model_family"].astype(str)
+    comparison_source["pooling_mode"] = comparison_source["pooling_mode"].astype(str)
+    comparison_source["estimate_type"] = comparison_source["estimate_type"].astype(str)
+    comparison_source = comparison_source.loc[comparison_source["estimate_type"] == "filter"].copy()
+
+    smoother_summary_path = CACHE_PATHS["root"] / "smoother_report_exports" / "jax_masked_ar1_v1" / "combined_summary.csv"
+    smoother_summary = pd.DataFrame()
+    if smoother_summary_path.exists():
+        smoother_summary = pd.read_csv(smoother_summary_path)
+        if not smoother_summary.empty:
+            smoother_summary["model_family"] = smoother_summary["model_family"].astype(str)
+            smoother_summary["pooling_mode"] = smoother_summary["pooling_mode"].astype(str)
+            smoother_summary["estimate_type"] = "smoothed"
+
+    model_column_order = [
+        ("ar1", "global_shared_k", "filter", "globalfilter"),
+        ("ar1", "global_shared_k", "smoothed", "globalsmooth"),
+        ("ar1", "partial_pooled_k", "filter", "partialfilter"),
+        ("ar1", "partial_pooled_k", "smoothed", "partialsmooth"),
+        ("ar1", "unit_specific", "filter", "personalfilter"),
+        ("ar1", "unit_specific", "smoothed", "personalsmooth"),
+        ("arma_aic", "not_applicable", "filter", "ARMA"),
+    ]
+
+    metric_lookup: dict[tuple[str, str, str], dict[str, object]] = {}
+    for _, row in comparison_source.iterrows():
+        model_key = (str(row["model_family"]), str(row["pooling_mode"]), "filter")
+        metric_lookup[model_key] = {
+            "Avg logLik": row.get("mean_panel_unit_loglik"),
+            "Hourly RMSE": row.get("hourly_masked_rmse"),
+            "RMSE Subtotal": row.get("heldout_subtotal_rmse_sqrtm"),
+            "Avg hr corr": row.get("hourly_masked_correlation"),
+            "Avg day corr": row.get("daily_correlation"),
+        }
+
+    if not smoother_summary.empty:
+        for _, row in smoother_summary.iterrows():
+            model_key = (str(row["model_family"]), str(row["pooling_mode"]), "smoothed")
+            metric_lookup[model_key] = {
+                "Avg logLik": row.get("avg_log_likelihood"),
+                "Hourly RMSE": row.get("hourly_rmse"),
+                "RMSE Subtotal": row.get("rmse_subtotal_participant_mean"),
+                "Avg hr corr": row.get("avg_hourly_correlation"),
+                "Avg day corr": row.get("avg_daily_correlation"),
+            }
+
+    if not parameter_model_summary.empty:
+        parameter_source = parameter_model_summary.copy()
+        parameter_source["model_family"] = parameter_source["model_family"].astype(str)
+        parameter_source["pooling_mode"] = parameter_source["pooling_mode"].astype(str)
+        smoother_supported_keys = {
+            (model_family, pooling_mode, estimate_type)
+            for model_family, pooling_mode, estimate_type, _ in model_column_order
+        }
+        for _, row in parameter_source.iterrows():
+            filter_key = (str(row["model_family"]), str(row["pooling_mode"]), "filter")
+            parameter_metrics = {
+                "Avg phi": row.get("mean_phi"),
+                "Avg sigma": row.get("mean_sigma"),
+                "Avg k": row.get("mean_k"),
+                "SD k": row.get("sd_k"),
+            }
+            metric_lookup.setdefault(filter_key, {}).update(parameter_metrics)
+            smooth_key = (str(row["model_family"]), str(row["pooling_mode"]), "smoothed")
+            if smooth_key in smoother_supported_keys:
+                metric_lookup.setdefault(smooth_key, {}).update(parameter_metrics)
+
+    row_order = [
+        "Avg logLik",
+        "RMSE Subtotal",
+        "Avg hr corr",
+        "Avg day corr",
+        "Avg phi",
+        "Avg sigma",
+        "Avg k",
+        "SD k",
+    ]
+
+    combined_summary_display = pd.DataFrame({"Metric": row_order})
+    for model_family, pooling_mode, estimate_type, column_label in model_column_order:
+        model_metrics = metric_lookup.get((model_family, pooling_mode, estimate_type), {})
+        combined_summary_display[column_label] = [model_metrics.get(metric_name, np.nan) for metric_name in row_order]
+
+    combined_summary_render = combined_summary_display.copy()
+    for column_name in combined_summary_render.columns:
+        if column_name == "Metric":
+            continue
+        combined_summary_render[column_name] = pd.to_numeric(
+            combined_summary_render[column_name],
+            errors="coerce",
+        ).map(lambda value: f"{value:.3f}" if pd.notna(value) else "")
+
+    fig_height = 1.6 * (len(combined_summary_render) + 1) + 0.6
+    fig, ax = plt.subplots(figsize=(16, fig_height))
+    ax.axis("off")
+    table = ax.table(
+        cellText=combined_summary_render.values,
+        colLabels=combined_summary_render.columns,
+        cellLoc="center",
+        loc="center",
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(36)
+    table.scale(4.3, 5.5)
+    try:
+        table.auto_set_column_width(col=list(range(len(combined_summary_render.columns))))
+    except Exception:
+        pass
+
+    for (row, col), cell in table.get_celld().items():
+        cell.set_edgecolor("#444444")
+        cell.set_linewidth(0.4)
+        if row == 0:
+            cell.set_text_props(weight="bold")
+            cell.set_facecolor("#f3f4f6")
+        elif col == 0:
+            cell.set_text_props(ha="left")
+
+    plt.show()
+```
+
+All the POMP models performed substantially better than the baseline ARMA models. The log-likelihoods appear much worse, but this is to be expected. The POMP models are not trying to estimate the data, they're trying to estimate an underlying latent that always upper bounds the data. So while ARMA has a much lower log likelihood, it just tries to fit itself to observed rewards, and hence performs much worse on the normalized benchmark proposed for tracking prediction ability.
+
+The "avg hr corr" and "avg day corr" are average correlations between the prediction and held-out masked data on the hourly level, and on the daily subtotal level respectively. The daily level is more relevant to the task of predicting daily level rewards, but the contrast with the hourly is of note: While these models may predict a single hour poorly, their ability to predict a larger sum of values improves relatively.
+
+For the filtered models, they perform very similarly. The partial pooling performs slightly better on the RMSE Subtotal, but 807 vs 809 is likely within range of Monte Carlo noise. The same trend can be seen in the smoothing case; the personal smoother now performs 0.7 RMSE Subtotal units better.
+
+The smoothers consistently gain a modest boost over the filtered versions, suggesting that the future information does help predict unseen prior information. Interestingly, their daily correlation decreases substantially! We aren't sure why this is. It also presents more of a tradeoff than expected between a filtered estimate and a smoother estimate. 
+
+```{python}
+#| echo: false
+#| label: results-participant-scatterplots
+
+saved_parameter_plot = REPORT_EXPORT_PLOT_FILES["parameter_scatterplots"]
+scatter_source = aggregate_parameter_summary.copy()
+if not scatter_source.empty:
+    scatter_source = scatter_source.loc[scatter_source["model_family"].astype(str) == "ar1"].copy()
+
+required_columns = {"phi", "sigma", "k_fitbit"}
+if use_report_exports and saved_parameter_plot.exists():
+    display(Image(filename=str(saved_parameter_plot)))
+elif scatter_source.empty or not required_columns.issubset(scatter_source.columns):
+    print("No participant-level phi / sigma / k estimates are available for scatter plots.")
+else:
+    scatter_source["pooling_mode"] = scatter_source["pooling_mode"].astype(str)
+    color_map = {
+        "unit_specific": "#1f77b4",
+        "global_shared_k": "#ff7f0e",
+        "partial_pooled_k": "#2ca02c",
+        "not_applicable": "#7f7f7f",
+    }
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
+    scatter_specs = [
+        ("phi", "sigma", "phi vs sigma"),
+        ("sigma", "k_fitbit", "sigma vs k"),
+        ("phi", "k_fitbit", "phi vs k"),
+    ]
+    for ax, (x_col, y_col, title) in zip(axes, scatter_specs):
+        plotted_labels = set()
+        for pooling_mode, part in scatter_source.groupby("pooling_mode", dropna=False):
+            valid = pd.DataFrame(
+                {
+                    "x": pd.to_numeric(part[x_col], errors="coerce"),
+                    "y": pd.to_numeric(part[y_col], errors="coerce"),
+                }
+            ).dropna()
+            if valid.empty:
+                continue
+            ax.scatter(
+                valid["x"],
+                valid["y"],
+                s=28,
+                alpha=0.80,
+                color=color_map.get(str(pooling_mode), "#444444"),
+                label=pooling_label(pooling_mode) if str(pooling_mode) not in plotted_labels else None,
+            )
+            plotted_labels.add(str(pooling_mode))
+        ax.set_title(title, fontsize = 20)
+        ax.set_xlabel(x_col, fontsize=18)
+        ax.set_ylabel(y_col, fontsize=18)
+        ax.grid(True, alpha=0.25)
+    handles, labels = axes[0].get_legend_handles_labels()
+    if handles:
+        axes[0].legend(handles, labels, title="pooling", fontsize=13)
+    plt.tight_layout()
+    plt.show()
+```
+
+Each dot is a fit for a different participant. Visibly there is a minor tradeoff between $\phi$ and $\sigma$. Additionally, there's a small positive trend between fit $k$ and $\sigma$, for both partial and individual pooling. Oddly, the partial fits are slightly more spread than the individual fits.
+
+# Conclusion
+
+<!--
+paragraph 1: summary of the analysis that was done
+
+partial pooling did slightly better compared to individual with no pooling - suggesting shared structure
+[ which suggests the presence of shared structure across participants.] 
+individiual
+paritial normal distribution
+globally shared k 
+
+three maksed subtotal correlation, log likelihood
+
+paragraph 2: limitations, direction for future analysis, wrap up sentence
+-->
+
+Our project focused on predicting the 24-hour reward for participants using Fitbit step count data. We compared three different AR(1)-based panel POMP models: an individual (no pooling) model, in which each participant has their own over-dispersion parameter $k$; a partial pooling model, in which each participant’s $k$ value is drawn from a shared distribution with a penalty term to prevent extreme deviations; and a global pooling model, in which all participants share the same $k$ value. We also compare to a baseline ARMA model. Our results show highly similar results across the different pooling regimes, and a substantial improvement with mechanistic models over the baseline ARMA fits. Additionally, smoothers modestly reduce error, but reduce day-level masked correlation.
+
+To evaluate performance, we trained each model on 80\% of the observed hourly data and predicted the remaining 20\% of observed step counts. We calculated the masked subtotal error ($\text{RMSE}_\frac{\text{subtotal}}{\sqrt{m}}$), which describes the difference between predicted and observed values, for the remaining 20\%, normalized across a single day.
+
+In future work, there are several additional methods we could explore in our model specification. Our current latent process model only incorporates baseline averages over hour of day and week. For $log \lambda_t$, we could try including additional covariates related to physical activity, such as heart rate and sleep. Additionally, we were not able to model the measurement distribution jointly across all three devices for participants who used multiple devices, and therefore could not fully leverage all available data. Instead, we focused primarily on Fitbit data due to difficulties in disentangling device-specific biases. In terms of parameter sharing, we also considered clustering participants based on shared characteristics, such as similar sleep schedules, to better capture common behavioral patterns.
+
+In terms of model structure, there are also limitations imposed by the pypomp library. We initially intended to include a broader set of covariates and use LASSO regularization for participant-specific feature selection to improve flexibility in modeling long-term dependencies. However, this was not feasible within the current framework of the library.
+
+There are more robust approaches we could have used to evaluate model accuracy. In our analysis, we only applied masking to 20% of non-missing hourly observations per participant. Future work could explore a range of masking proportions to assess sensitivity to missingness. Additionally, masking could be applied in different structures, such as contiguous hourly blocks, full-day removals, or random missingness patterns.
+
+Finally, we had a major reproducibility incident in the last hours of the submission day. The complexity of the model was large, and between merging code from multiple participants, the panel pomp fits which compiled on one group member's machine with GPU was not able to compile on the other group members' machines. While attempting to fix this, so that the .qmd was robust to small RL=0 CPU runs, and large RL=2 GPU runs, with caching implemented, there was a git merge conflict. In resolving this conflict by returning to a prior branch, very expensive cached model parameters were lost. In order to submit, the model parameters for the panel pomp were recomputed, with the benchmarked results saved externally, and imported to the document. 
+
+If we had more time, our immediate priority would be to fix these compile errors, and reimplement the results to run directly from the computations within the qmd. For any future students, let this be a lesson to plan your version control and prioritize incremental change which works across devices in the very early stages of the project.
+
+# Contributions
+
+- Group Member 1: Model and benchmark design, implementation of panel pomps on local GPU, and messed up version control, and reproducibility.
+- Group Member 2: EDA, section 1.2, section 4 figures, analysis brainstorming, editing and formatting
+- Group Member 3: EDA, abstract, introduction literature review, conclusion, analysis brainstorming, editing and formatting
+
+# Acknowledgments {.unnumbered}
+
+This report used the template available in the STATS 531 GitHub repository. AI was used with ChatGPT 5.3 Codex extensively for coding, analysis, and formatting in Quarto, using the Codex and Quarto VS Code extensions. Microsoft Copilot and UM-GPT 5.2 were also used.
+
+# Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+# Supplementary material {#sec-supp}
+
+## Data Sources and Transformations
+
+This project uses 2024 Intern Health Study (IHS) data provided by a group member who is currently conducting research on this topic.
+
+The following data file was used for this project:
+
+- `FitbitHourly.csv`
+  - `PARTICIPANTIDENTIFIER`: unique ID for each doctor that participated in the study
+  - `STUDY_USER_ID`: study-specific unique ID for each participant
+  - `time_utc`: local time
+  - `date_utc`: local date
+  - `hour_of_day_utc`: local hour from 0 to 23
+  - for Apple, Fitbit, and Garmin, the file records steps, heart rate, heart rate variability, sleep, and the corresponding missingness indicators
+  - `moodScore`: survey-based score ranging from 0 to 10
+  - `messageSent`: binary indicator for whether the agent sent the participant a message during that hour
+
+## Masked Subtotal Benchmarking Metric
+
+Using hourly observations with nonzero Fitbit step counts, we compute error at the daily level to align with the research goal of predicting 24-hour rewards. First, define
+
+$$
+\mathcal{H}_d = \{ t \in d : \text{hour } t \text{ was artificially masked and } y_t \text{ is observed} \}.
+$$
+
+Let $m_d = |\mathcal{H}_d|$ represent the 20% of available data that was masked but originally had nonzero step counts.
+
+Next, define the true observed subtotal for this masked subset as
+
+$$
+S_d = \sum_{t \in \mathcal{H}_d} y_t,
+$$
+
+and the corresponding predicted subtotal as
+
+$$
+\hat{S}_d = \sum_{t \in \mathcal{H}_d} \hat{y}_t.
+$$
+
+The subtotal error is defined as
+
+$$
+E_d = \hat{S}_d - S_d = \sum_{t \in \mathcal{H}_d} (\hat{y}_t - y_t),
+$$
+
+It is important to normalize the subtotal error, since the raw subtotal error tends to grow with the number of masked hourly observations in the day. The normalized subtotal error is
+
+$$
+Z_d = \frac{E_d}{\sqrt{m_d}}.
+$$
+
+Finally, the benchmark is defined as
+
+$$
+\mathrm{RMSE}_{\text{subtotal}/\sqrt{m}} = \sqrt{\frac{1}{D} \sum_{d=1}^{D} Z_d^2}.
+$$
+
+# Supplementary Tables
+
+```{python}
+# | echo: false
+# | label: local-global-tables
+
+supplementary_tables_ready = all(
+    name in globals() for name in ["local_mle_all", "stage_all", "coef_all"]
+)
+if supplementary_tables_ready:
+    display_table(local_mle_all, precision=3)
+    display_table(stage_all, precision=3)
+    display_table(coef_all, precision=3)
+else:
+    print("Exploratory local/global search tables are omitted in this aggregate final draft.")
+```
+

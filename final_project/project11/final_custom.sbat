@@ -1,0 +1,26 @@
+#!/bin/bash
+
+#SBATCH --job-name=jax_gpu_sir
+#SBATCH --mail-user=leonestv@umich.edu
+#SBATCH --mail-type=BEGIN,END,FAIL
+
+#SBATCH --account=stats531w26s001_class
+#SBATCH --partition=spgpu
+
+## the GPU automatically gets the entire VRAM
+#SBATCH --mem=8GB
+
+## wall time hours:minutes:seconds
+#SBATCH --time=10:00:00
+
+###   Load software modules
+
+module load python
+module list
+
+####  Commands your job should run follow this line
+
+echo "Running on $SLURM_JOB_NODELIST"
+echo "Running in $(pwd)"
+source ~/.venv-gpu/bin/activate
+python cdc_seir_implementaion.py > test-gpu.out

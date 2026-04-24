@@ -1,0 +1,7106 @@
+week,state,count
+2015-07-06,Alaska,0
+2015-07-13,Alaska,0
+2015-07-20,Alaska,0
+2015-07-27,Alaska,0
+2015-08-03,Alaska,0
+2015-08-10,Alaska,0
+2015-08-17,Alaska,0
+2015-08-24,Alaska,0
+2015-08-31,Alaska,0
+2015-09-07,Alaska,0
+2015-09-14,Alaska,0
+2015-09-21,Alaska,0
+2015-09-28,Alaska,0
+2015-10-05,Alaska,0
+2015-10-12,Alaska,0
+2015-10-19,Alaska,0
+2015-10-26,Alaska,0
+2015-11-02,Alaska,0
+2015-11-09,Alaska,0
+2015-11-16,Alaska,0
+2015-11-23,Alaska,0
+2015-11-30,Alaska,0
+2015-12-07,Alaska,0
+2015-12-14,Alaska,0
+2015-12-21,Alaska,0
+2015-12-28,Alaska,0
+2016-01-04,Alaska,0
+2016-01-11,Alaska,0
+2016-01-18,Alaska,0
+2016-01-25,Alaska,0
+2016-02-01,Alaska,3
+2016-02-08,Alaska,1
+2016-02-15,Alaska,3
+2016-02-22,Alaska,1
+2016-02-29,Alaska,0
+2016-03-07,Alaska,0
+2016-03-14,Alaska,1
+2016-03-21,Alaska,15
+2016-03-28,Alaska,3
+2016-04-04,Alaska,7
+2016-04-11,Alaska,0
+2016-04-18,Alaska,0
+2016-04-25,Alaska,0
+2016-05-02,Alaska,0
+2016-05-09,Alaska,0
+2016-05-16,Alaska,0
+2016-05-23,Alaska,0
+2016-05-30,Alaska,0
+2016-06-06,Alaska,0
+2016-06-13,Alaska,0
+2016-06-20,Alaska,0
+2016-06-27,Alaska,0
+2016-07-04,Alaska,0
+2016-07-11,Alaska,0
+2016-07-18,Alaska,0
+2016-07-25,Alaska,0
+2016-08-01,Alaska,0
+2016-08-08,Alaska,0
+2016-08-15,Alaska,0
+2016-08-22,Alaska,0
+2016-08-29,Alaska,0
+2016-09-05,Alaska,0
+2016-09-12,Alaska,0
+2016-09-19,Alaska,0
+2016-09-26,Alaska,0
+2016-10-03,Alaska,0
+2016-10-10,Alaska,0
+2016-10-17,Alaska,0
+2016-10-24,Alaska,0
+2016-10-31,Alaska,0
+2016-11-07,Alaska,3
+2016-11-14,Alaska,6
+2016-11-21,Alaska,0
+2016-11-28,Alaska,6
+2016-12-05,Alaska,2
+2016-12-12,Alaska,2
+2016-12-19,Alaska,0
+2016-12-26,Alaska,1
+2017-01-02,Alaska,4
+2017-01-09,Alaska,1
+2017-01-16,Alaska,0
+2017-01-23,Alaska,0
+2017-01-30,Alaska,4
+2017-02-06,Alaska,4
+2017-02-13,Alaska,0
+2017-02-20,Alaska,0
+2017-02-27,Alaska,7
+2017-03-06,Alaska,0
+2017-03-13,Alaska,0
+2017-03-20,Alaska,0
+2017-03-27,Alaska,0
+2017-04-03,Alaska,0
+2017-04-10,Alaska,0
+2017-04-17,Alaska,0
+2017-04-24,Alaska,0
+2017-05-01,Alaska,0
+2017-05-08,Alaska,0
+2017-05-15,Alaska,0
+2017-05-22,Alaska,0
+2017-05-29,Alaska,0
+2017-06-05,Alaska,0
+2017-06-12,Alaska,0
+2017-06-19,Alaska,0
+2017-06-26,Alaska,0
+2017-07-03,Alaska,0
+2017-07-10,Alaska,0
+2017-07-17,Alaska,0
+2017-07-24,Alaska,0
+2017-07-31,Alaska,0
+2017-08-07,Alaska,0
+2017-08-14,Alaska,0
+2017-08-21,Alaska,0
+2017-08-28,Alaska,0
+2017-09-04,Alaska,0
+2017-09-11,Alaska,0
+2017-09-18,Alaska,0
+2017-09-25,Alaska,0
+2017-10-02,Alaska,0
+2017-10-09,Alaska,0
+2017-10-16,Alaska,0
+2017-10-23,Alaska,0
+2017-10-30,Alaska,1
+2017-11-06,Alaska,1
+2017-11-13,Alaska,0
+2017-11-20,Alaska,4
+2017-11-27,Alaska,3
+2017-12-04,Alaska,5
+2017-12-11,Alaska,0
+2017-12-18,Alaska,0
+2017-12-25,Alaska,0
+2018-01-01,Alaska,6
+2018-01-08,Alaska,0
+2018-01-15,Alaska,0
+2018-01-22,Alaska,0
+2018-01-29,Alaska,2
+2018-02-05,Alaska,2
+2018-02-12,Alaska,3
+2018-02-19,Alaska,0
+2018-02-26,Alaska,7
+2018-03-05,Alaska,3
+2018-03-12,Alaska,0
+2018-03-19,Alaska,0
+2018-03-26,Alaska,0
+2018-04-02,Alaska,0
+2018-04-09,Alaska,0
+2018-04-16,Alaska,0
+2018-04-23,Alaska,0
+2018-04-30,Alaska,0
+2018-05-07,Alaska,0
+2018-05-14,Alaska,0
+2018-05-21,Alaska,0
+2018-05-28,Alaska,0
+2018-06-04,Alaska,0
+2018-06-11,Alaska,0
+2018-06-18,Alaska,0
+2018-06-25,Alaska,0
+2018-07-02,Alaska,0
+2018-07-09,Alaska,0
+2018-07-16,Alaska,0
+2018-07-23,Alaska,0
+2018-07-30,Alaska,0
+2018-08-06,Alaska,0
+2018-08-13,Alaska,0
+2018-08-20,Alaska,0
+2018-08-27,Alaska,0
+2018-09-03,Alaska,0
+2018-09-10,Alaska,0
+2018-09-17,Alaska,0
+2018-09-24,Alaska,0
+2018-10-01,Alaska,0
+2018-10-08,Alaska,0
+2018-10-15,Alaska,0
+2018-10-22,Alaska,0
+2018-10-29,Alaska,6
+2018-11-05,Alaska,1
+2018-11-12,Alaska,0
+2018-11-19,Alaska,0
+2018-11-26,Alaska,6
+2018-12-03,Alaska,2
+2018-12-10,Alaska,0
+2018-12-17,Alaska,0
+2018-12-24,Alaska,0
+2018-12-31,Alaska,5
+2019-01-07,Alaska,3
+2019-01-14,Alaska,0
+2019-01-21,Alaska,0
+2019-01-28,Alaska,8
+2019-02-04,Alaska,2
+2019-02-11,Alaska,0
+2019-02-18,Alaska,0
+2019-02-25,Alaska,3
+2019-03-04,Alaska,2
+2019-03-11,Alaska,0
+2019-03-18,Alaska,0
+2019-03-25,Alaska,0
+2019-04-01,Alaska,0
+2019-04-08,Alaska,0
+2019-04-15,Alaska,0
+2019-04-22,Alaska,0
+2019-04-29,Alaska,0
+2019-05-06,Alaska,0
+2019-05-13,Alaska,0
+2019-05-20,Alaska,0
+2019-05-27,Alaska,0
+2019-06-03,Alaska,0
+2019-06-10,Alaska,0
+2019-06-17,Alaska,0
+2019-06-24,Alaska,0
+2019-07-01,Alaska,0
+2019-07-08,Alaska,0
+2019-07-15,Alaska,0
+2019-07-22,Alaska,0
+2019-07-29,Alaska,0
+2019-08-05,Alaska,0
+2019-08-12,Alaska,0
+2019-08-19,Alaska,0
+2019-08-26,Alaska,0
+2019-09-02,Alaska,0
+2019-09-09,Alaska,0
+2019-09-16,Alaska,0
+2019-09-23,Alaska,0
+2019-09-30,Alaska,0
+2019-10-07,Alaska,0
+2019-10-14,Alaska,0
+2019-10-21,Alaska,0
+2019-10-28,Alaska,1
+2019-11-04,Alaska,0
+2019-11-11,Alaska,1
+2019-11-18,Alaska,1
+2019-11-25,Alaska,2
+2019-12-02,Alaska,4
+2019-12-09,Alaska,0
+2019-12-16,Alaska,0
+2019-12-23,Alaska,1
+2019-12-30,Alaska,3
+2020-01-06,Alaska,2
+2020-01-13,Alaska,5
+2020-01-20,Alaska,0
+2020-01-27,Alaska,0
+2020-02-03,Alaska,5
+2020-02-10,Alaska,0
+2020-02-17,Alaska,2
+2020-02-24,Alaska,1
+2020-03-02,Alaska,3
+2020-03-09,Alaska,4
+2015-07-06,Arizona,0
+2015-07-13,Arizona,0
+2015-07-20,Arizona,0
+2015-07-27,Arizona,0
+2015-08-03,Arizona,0
+2015-08-10,Arizona,0
+2015-08-17,Arizona,0
+2015-08-24,Arizona,0
+2015-08-31,Arizona,0
+2015-09-07,Arizona,0
+2015-09-14,Arizona,0
+2015-09-21,Arizona,0
+2015-09-28,Arizona,0
+2015-10-05,Arizona,0
+2015-10-12,Arizona,0
+2015-10-19,Arizona,0
+2015-10-26,Arizona,0
+2015-11-02,Arizona,0
+2015-11-09,Arizona,0
+2015-11-16,Arizona,0
+2015-11-23,Arizona,0
+2015-11-30,Arizona,0
+2015-12-07,Arizona,0
+2015-12-14,Arizona,1
+2015-12-21,Arizona,0
+2015-12-28,Arizona,2
+2016-01-04,Arizona,2
+2016-01-11,Arizona,2
+2016-01-18,Arizona,0
+2016-01-25,Arizona,1
+2016-02-01,Arizona,0
+2016-02-08,Arizona,1
+2016-02-15,Arizona,0
+2016-02-22,Arizona,0
+2016-02-29,Arizona,1
+2016-03-07,Arizona,0
+2016-03-14,Arizona,1
+2016-03-21,Arizona,0
+2016-03-28,Arizona,0
+2016-04-04,Arizona,0
+2016-04-11,Arizona,0
+2016-04-18,Arizona,0
+2016-04-25,Arizona,0
+2016-05-02,Arizona,0
+2016-05-09,Arizona,0
+2016-05-16,Arizona,0
+2016-05-23,Arizona,0
+2016-05-30,Arizona,0
+2016-06-06,Arizona,0
+2016-06-13,Arizona,0
+2016-06-20,Arizona,0
+2016-06-27,Arizona,0
+2016-07-04,Arizona,0
+2016-07-11,Arizona,0
+2016-07-18,Arizona,0
+2016-07-25,Arizona,0
+2016-08-01,Arizona,0
+2016-08-08,Arizona,0
+2016-08-15,Arizona,0
+2016-08-22,Arizona,0
+2016-08-29,Arizona,0
+2016-09-05,Arizona,0
+2016-09-12,Arizona,0
+2016-09-19,Arizona,0
+2016-09-26,Arizona,0
+2016-10-03,Arizona,0
+2016-10-10,Arizona,0
+2016-10-17,Arizona,0
+2016-10-24,Arizona,0
+2016-10-31,Arizona,0
+2016-11-07,Arizona,1
+2016-11-14,Arizona,2
+2016-11-21,Arizona,5
+2016-11-28,Arizona,3
+2016-12-05,Arizona,4
+2016-12-12,Arizona,6
+2016-12-19,Arizona,1
+2016-12-26,Arizona,4
+2017-01-02,Arizona,4
+2017-01-09,Arizona,8
+2017-01-16,Arizona,1
+2017-01-23,Arizona,0
+2017-01-30,Arizona,6
+2017-02-06,Arizona,8
+2017-02-13,Arizona,3
+2017-02-20,Arizona,2
+2017-02-27,Arizona,5
+2017-03-06,Arizona,6
+2017-03-13,Arizona,3
+2017-03-20,Arizona,1
+2017-03-27,Arizona,0
+2017-04-03,Arizona,0
+2017-04-10,Arizona,0
+2017-04-17,Arizona,0
+2017-04-24,Arizona,0
+2017-05-01,Arizona,0
+2017-05-08,Arizona,0
+2017-05-15,Arizona,0
+2017-05-22,Arizona,0
+2017-05-29,Arizona,0
+2017-06-05,Arizona,0
+2017-06-12,Arizona,0
+2017-06-19,Arizona,0
+2017-06-26,Arizona,0
+2017-07-03,Arizona,0
+2017-07-10,Arizona,0
+2017-07-17,Arizona,0
+2017-07-24,Arizona,0
+2017-07-31,Arizona,0
+2017-08-07,Arizona,0
+2017-08-14,Arizona,0
+2017-08-21,Arizona,0
+2017-08-28,Arizona,0
+2017-09-04,Arizona,0
+2017-09-11,Arizona,0
+2017-09-18,Arizona,0
+2017-09-25,Arizona,0
+2017-10-02,Arizona,0
+2017-10-09,Arizona,0
+2017-10-16,Arizona,0
+2017-10-23,Arizona,0
+2017-10-30,Arizona,1
+2017-11-06,Arizona,1
+2017-11-13,Arizona,1
+2017-11-20,Arizona,4
+2017-11-27,Arizona,1
+2017-12-04,Arizona,1
+2017-12-11,Arizona,2
+2017-12-18,Arizona,9
+2017-12-25,Arizona,3
+2018-01-01,Arizona,12
+2018-01-08,Arizona,3
+2018-01-15,Arizona,2
+2018-01-22,Arizona,0
+2018-01-29,Arizona,5
+2018-02-05,Arizona,3
+2018-02-12,Arizona,5
+2018-02-19,Arizona,1
+2018-02-26,Arizona,5
+2018-03-05,Arizona,5
+2018-03-12,Arizona,1
+2018-03-19,Arizona,2
+2018-03-26,Arizona,2
+2018-04-02,Arizona,0
+2018-04-09,Arizona,0
+2018-04-16,Arizona,0
+2018-04-23,Arizona,0
+2018-04-30,Arizona,0
+2018-05-07,Arizona,0
+2018-05-14,Arizona,0
+2018-05-21,Arizona,0
+2018-05-28,Arizona,0
+2018-06-04,Arizona,0
+2018-06-11,Arizona,0
+2018-06-18,Arizona,0
+2018-06-25,Arizona,0
+2018-07-02,Arizona,0
+2018-07-09,Arizona,0
+2018-07-16,Arizona,0
+2018-07-23,Arizona,0
+2018-07-30,Arizona,0
+2018-08-06,Arizona,0
+2018-08-13,Arizona,0
+2018-08-20,Arizona,0
+2018-08-27,Arizona,0
+2018-09-03,Arizona,0
+2018-09-10,Arizona,0
+2018-09-17,Arizona,0
+2018-09-24,Arizona,0
+2018-10-01,Arizona,0
+2018-10-08,Arizona,0
+2018-10-15,Arizona,0
+2018-10-22,Arizona,0
+2018-10-29,Arizona,0
+2018-11-05,Arizona,0
+2018-11-12,Arizona,1
+2018-11-19,Arizona,1
+2018-11-26,Arizona,1
+2018-12-03,Arizona,0
+2018-12-10,Arizona,3
+2018-12-17,Arizona,2
+2018-12-24,Arizona,8
+2018-12-31,Arizona,7
+2019-01-07,Arizona,6
+2019-01-14,Arizona,4
+2019-01-21,Arizona,3
+2019-01-28,Arizona,2
+2019-02-04,Arizona,2
+2019-02-11,Arizona,2
+2019-02-18,Arizona,6
+2019-02-25,Arizona,7
+2019-03-04,Arizona,3
+2019-03-11,Arizona,6
+2019-03-18,Arizona,1
+2019-03-25,Arizona,3
+2019-04-01,Arizona,0
+2019-04-08,Arizona,0
+2019-04-15,Arizona,0
+2019-04-22,Arizona,0
+2019-04-29,Arizona,0
+2019-05-06,Arizona,0
+2019-05-13,Arizona,0
+2019-05-20,Arizona,0
+2019-05-27,Arizona,0
+2019-06-03,Arizona,0
+2019-06-10,Arizona,0
+2019-06-17,Arizona,0
+2019-06-24,Arizona,0
+2019-07-01,Arizona,0
+2019-07-08,Arizona,0
+2019-07-15,Arizona,0
+2019-07-22,Arizona,0
+2019-07-29,Arizona,0
+2019-08-05,Arizona,0
+2019-08-12,Arizona,0
+2019-08-19,Arizona,0
+2019-08-26,Arizona,0
+2019-09-02,Arizona,0
+2019-09-09,Arizona,0
+2019-09-16,Arizona,0
+2019-09-23,Arizona,0
+2019-09-30,Arizona,0
+2019-10-07,Arizona,0
+2019-10-14,Arizona,0
+2019-10-21,Arizona,0
+2019-10-28,Arizona,1
+2019-11-04,Arizona,0
+2019-11-11,Arizona,2
+2019-11-18,Arizona,4
+2019-11-25,Arizona,7
+2019-12-02,Arizona,5
+2019-12-09,Arizona,6
+2019-12-16,Arizona,4
+2019-12-23,Arizona,0
+2019-12-30,Arizona,9
+2020-01-06,Arizona,0
+2020-01-13,Arizona,0
+2020-01-20,Arizona,6
+2020-01-27,Arizona,11
+2020-02-03,Arizona,4
+2020-02-10,Arizona,2
+2020-02-17,Arizona,0
+2020-02-24,Arizona,0
+2020-03-02,Arizona,5
+2020-03-09,Arizona,3
+2015-07-06,Arkansas,0
+2015-07-13,Arkansas,0
+2015-07-20,Arkansas,0
+2015-07-27,Arkansas,0
+2015-08-03,Arkansas,0
+2015-08-10,Arkansas,0
+2015-08-17,Arkansas,0
+2015-08-24,Arkansas,0
+2015-08-31,Arkansas,0
+2015-09-07,Arkansas,0
+2015-09-14,Arkansas,0
+2015-09-21,Arkansas,0
+2015-09-28,Arkansas,0
+2015-10-05,Arkansas,0
+2015-10-12,Arkansas,0
+2015-10-19,Arkansas,0
+2015-10-26,Arkansas,0
+2015-11-02,Arkansas,0
+2015-11-09,Arkansas,0
+2015-11-16,Arkansas,0
+2015-11-23,Arkansas,0
+2015-11-30,Arkansas,0
+2015-12-07,Arkansas,0
+2015-12-14,Arkansas,0
+2015-12-21,Arkansas,0
+2015-12-28,Arkansas,0
+2016-01-04,Arkansas,1
+2016-01-11,Arkansas,3
+2016-01-18,Arkansas,10
+2016-01-25,Arkansas,4
+2016-02-01,Arkansas,4
+2016-02-08,Arkansas,0
+2016-02-15,Arkansas,0
+2016-02-22,Arkansas,1
+2016-02-29,Arkansas,6
+2016-03-07,Arkansas,1
+2016-03-14,Arkansas,1
+2016-03-21,Arkansas,0
+2016-03-28,Arkansas,1
+2016-04-04,Arkansas,0
+2016-04-11,Arkansas,0
+2016-04-18,Arkansas,0
+2016-04-25,Arkansas,0
+2016-05-02,Arkansas,0
+2016-05-09,Arkansas,0
+2016-05-16,Arkansas,0
+2016-05-23,Arkansas,0
+2016-05-30,Arkansas,0
+2016-06-06,Arkansas,0
+2016-06-13,Arkansas,0
+2016-06-20,Arkansas,0
+2016-06-27,Arkansas,1
+2016-07-04,Arkansas,0
+2016-07-11,Arkansas,0
+2016-07-18,Arkansas,0
+2016-07-25,Arkansas,0
+2016-08-01,Arkansas,0
+2016-08-08,Arkansas,0
+2016-08-15,Arkansas,0
+2016-08-22,Arkansas,0
+2016-08-29,Arkansas,0
+2016-09-05,Arkansas,0
+2016-09-12,Arkansas,0
+2016-09-19,Arkansas,0
+2016-09-26,Arkansas,0
+2016-10-03,Arkansas,0
+2016-10-10,Arkansas,0
+2016-10-17,Arkansas,0
+2016-10-24,Arkansas,0
+2016-10-31,Arkansas,0
+2016-11-07,Arkansas,0
+2016-11-14,Arkansas,0
+2016-11-21,Arkansas,0
+2016-11-28,Arkansas,0
+2016-12-05,Arkansas,0
+2016-12-12,Arkansas,0
+2016-12-19,Arkansas,0
+2016-12-26,Arkansas,0
+2017-01-02,Arkansas,0
+2017-01-09,Arkansas,0
+2017-01-16,Arkansas,0
+2017-01-23,Arkansas,0
+2017-01-30,Arkansas,0
+2017-02-06,Arkansas,0
+2017-02-13,Arkansas,0
+2017-02-20,Arkansas,0
+2017-02-27,Arkansas,0
+2017-03-06,Arkansas,0
+2017-03-13,Arkansas,0
+2017-03-20,Arkansas,0
+2017-03-27,Arkansas,0
+2017-04-03,Arkansas,0
+2017-04-10,Arkansas,0
+2017-04-17,Arkansas,0
+2017-04-24,Arkansas,0
+2017-05-01,Arkansas,0
+2017-05-08,Arkansas,0
+2017-05-15,Arkansas,0
+2017-05-22,Arkansas,0
+2017-05-29,Arkansas,0
+2017-06-05,Arkansas,0
+2017-06-12,Arkansas,0
+2017-06-19,Arkansas,0
+2017-06-26,Arkansas,0
+2017-07-03,Arkansas,0
+2017-07-10,Arkansas,0
+2017-07-17,Arkansas,0
+2017-07-24,Arkansas,0
+2017-07-31,Arkansas,0
+2017-08-07,Arkansas,0
+2017-08-14,Arkansas,0
+2017-08-21,Arkansas,0
+2017-08-28,Arkansas,0
+2017-09-04,Arkansas,0
+2017-09-11,Arkansas,0
+2017-09-18,Arkansas,0
+2017-09-25,Arkansas,0
+2017-10-02,Arkansas,0
+2017-10-09,Arkansas,0
+2017-10-16,Arkansas,0
+2017-10-23,Arkansas,0
+2017-10-30,Arkansas,0
+2017-11-06,Arkansas,0
+2017-11-13,Arkansas,0
+2017-11-20,Arkansas,0
+2017-11-27,Arkansas,0
+2017-12-04,Arkansas,0
+2017-12-11,Arkansas,0
+2017-12-18,Arkansas,0
+2017-12-25,Arkansas,0
+2018-01-01,Arkansas,0
+2018-01-08,Arkansas,0
+2018-01-15,Arkansas,0
+2018-01-22,Arkansas,0
+2018-01-29,Arkansas,0
+2018-02-05,Arkansas,0
+2018-02-12,Arkansas,0
+2018-02-19,Arkansas,0
+2018-02-26,Arkansas,0
+2018-03-05,Arkansas,0
+2018-03-12,Arkansas,0
+2018-03-19,Arkansas,0
+2018-03-26,Arkansas,0
+2018-04-02,Arkansas,0
+2018-04-09,Arkansas,0
+2018-04-16,Arkansas,0
+2018-04-23,Arkansas,0
+2018-04-30,Arkansas,0
+2018-05-07,Arkansas,0
+2018-05-14,Arkansas,0
+2018-05-21,Arkansas,0
+2018-05-28,Arkansas,0
+2018-06-04,Arkansas,0
+2018-06-11,Arkansas,0
+2018-06-18,Arkansas,0
+2018-06-25,Arkansas,0
+2018-07-02,Arkansas,0
+2018-07-09,Arkansas,0
+2018-07-16,Arkansas,0
+2018-07-23,Arkansas,0
+2018-07-30,Arkansas,0
+2018-08-06,Arkansas,0
+2018-08-13,Arkansas,0
+2018-08-20,Arkansas,0
+2018-08-27,Arkansas,0
+2018-09-03,Arkansas,0
+2018-09-10,Arkansas,0
+2018-09-17,Arkansas,0
+2018-09-24,Arkansas,0
+2018-10-01,Arkansas,0
+2018-10-08,Arkansas,0
+2018-10-15,Arkansas,0
+2018-10-22,Arkansas,0
+2018-10-29,Arkansas,0
+2018-11-05,Arkansas,0
+2018-11-12,Arkansas,0
+2018-11-19,Arkansas,0
+2018-11-26,Arkansas,0
+2018-12-03,Arkansas,0
+2018-12-10,Arkansas,0
+2018-12-17,Arkansas,0
+2018-12-24,Arkansas,0
+2018-12-31,Arkansas,0
+2019-01-07,Arkansas,0
+2019-01-14,Arkansas,0
+2019-01-21,Arkansas,0
+2019-01-28,Arkansas,0
+2019-02-04,Arkansas,0
+2019-02-11,Arkansas,0
+2019-02-18,Arkansas,0
+2019-02-25,Arkansas,0
+2019-03-04,Arkansas,0
+2019-03-11,Arkansas,0
+2019-03-18,Arkansas,0
+2019-03-25,Arkansas,0
+2019-04-01,Arkansas,0
+2019-04-08,Arkansas,0
+2019-04-15,Arkansas,0
+2019-04-22,Arkansas,0
+2019-04-29,Arkansas,0
+2019-05-06,Arkansas,0
+2019-05-13,Arkansas,0
+2019-05-20,Arkansas,0
+2019-05-27,Arkansas,0
+2019-06-03,Arkansas,0
+2019-06-10,Arkansas,0
+2019-06-17,Arkansas,0
+2019-06-24,Arkansas,0
+2019-07-01,Arkansas,0
+2019-07-08,Arkansas,0
+2019-07-15,Arkansas,0
+2019-07-22,Arkansas,0
+2019-07-29,Arkansas,0
+2019-08-05,Arkansas,0
+2019-08-12,Arkansas,0
+2019-08-19,Arkansas,0
+2019-08-26,Arkansas,0
+2019-09-02,Arkansas,0
+2019-09-09,Arkansas,0
+2019-09-16,Arkansas,0
+2019-09-23,Arkansas,0
+2019-09-30,Arkansas,0
+2019-10-07,Arkansas,0
+2019-10-14,Arkansas,0
+2019-10-21,Arkansas,0
+2019-10-28,Arkansas,0
+2019-11-04,Arkansas,0
+2019-11-11,Arkansas,0
+2019-11-18,Arkansas,0
+2019-11-25,Arkansas,0
+2019-12-02,Arkansas,0
+2019-12-09,Arkansas,0
+2019-12-16,Arkansas,0
+2019-12-23,Arkansas,0
+2019-12-30,Arkansas,0
+2020-01-06,Arkansas,0
+2020-01-13,Arkansas,0
+2020-01-20,Arkansas,0
+2020-01-27,Arkansas,0
+2020-02-03,Arkansas,0
+2020-02-10,Arkansas,0
+2020-02-17,Arkansas,0
+2020-02-24,Arkansas,0
+2020-03-02,Arkansas,0
+2020-03-09,Arkansas,0
+2015-07-06,California,0
+2015-07-13,California,0
+2015-07-20,California,0
+2015-07-27,California,0
+2015-08-03,California,0
+2015-08-10,California,0
+2015-08-17,California,0
+2015-08-24,California,0
+2015-08-31,California,0
+2015-09-07,California,0
+2015-09-14,California,0
+2015-09-21,California,0
+2015-09-28,California,0
+2015-10-05,California,0
+2015-10-12,California,0
+2015-10-19,California,0
+2015-10-26,California,0
+2015-11-02,California,0
+2015-11-09,California,0
+2015-11-16,California,0
+2015-11-23,California,0
+2015-11-30,California,0
+2015-12-07,California,0
+2015-12-14,California,0
+2015-12-21,California,0
+2015-12-28,California,0
+2016-01-04,California,0
+2016-01-11,California,0
+2016-01-18,California,0
+2016-01-25,California,0
+2016-02-01,California,0
+2016-02-08,California,3
+2016-02-15,California,2
+2016-02-22,California,1
+2016-02-29,California,0
+2016-03-07,California,1
+2016-03-14,California,1
+2016-03-21,California,0
+2016-03-28,California,0
+2016-04-04,California,0
+2016-04-11,California,0
+2016-04-18,California,0
+2016-04-25,California,0
+2016-05-02,California,0
+2016-05-09,California,0
+2016-05-16,California,0
+2016-05-23,California,0
+2016-05-30,California,0
+2016-06-06,California,0
+2016-06-13,California,0
+2016-06-20,California,0
+2016-06-27,California,0
+2016-07-04,California,0
+2016-07-11,California,0
+2016-07-18,California,0
+2016-07-25,California,0
+2016-08-01,California,0
+2016-08-08,California,0
+2016-08-15,California,0
+2016-08-22,California,0
+2016-08-29,California,0
+2016-09-05,California,0
+2016-09-12,California,0
+2016-09-19,California,0
+2016-09-26,California,0
+2016-10-03,California,0
+2016-10-10,California,0
+2016-10-17,California,0
+2016-10-24,California,0
+2016-10-31,California,1
+2016-11-07,California,1
+2016-11-14,California,0
+2016-11-21,California,2
+2016-11-28,California,3
+2016-12-05,California,0
+2016-12-12,California,1
+2016-12-19,California,4
+2016-12-26,California,7
+2017-01-02,California,5
+2017-01-09,California,3
+2017-01-16,California,0
+2017-01-23,California,0
+2017-01-30,California,0
+2017-02-06,California,0
+2017-02-13,California,0
+2017-02-20,California,0
+2017-02-27,California,0
+2017-03-06,California,0
+2017-03-13,California,0
+2017-03-20,California,0
+2017-03-27,California,0
+2017-04-03,California,0
+2017-04-10,California,0
+2017-04-17,California,0
+2017-04-24,California,0
+2017-05-01,California,0
+2017-05-08,California,0
+2017-05-15,California,0
+2017-05-22,California,0
+2017-05-29,California,0
+2017-06-05,California,0
+2017-06-12,California,0
+2017-06-19,California,0
+2017-06-26,California,0
+2017-07-03,California,0
+2017-07-10,California,0
+2017-07-17,California,0
+2017-07-24,California,0
+2017-07-31,California,0
+2017-08-07,California,0
+2017-08-14,California,0
+2017-08-21,California,0
+2017-08-28,California,0
+2017-09-04,California,0
+2017-09-11,California,0
+2017-09-18,California,0
+2017-09-25,California,0
+2017-10-02,California,0
+2017-10-09,California,0
+2017-10-16,California,0
+2017-10-23,California,0
+2017-10-30,California,1
+2017-11-06,California,1
+2017-11-13,California,0
+2017-11-20,California,2
+2017-11-27,California,1
+2017-12-04,California,0
+2017-12-11,California,2
+2017-12-18,California,1
+2017-12-25,California,7
+2018-01-01,California,2
+2018-01-08,California,2
+2018-01-15,California,2
+2018-01-22,California,3
+2018-01-29,California,7
+2018-02-05,California,4
+2018-02-12,California,0
+2018-02-19,California,0
+2018-02-26,California,5
+2018-03-05,California,2
+2018-03-12,California,2
+2018-03-19,California,1
+2018-03-26,California,0
+2018-04-02,California,0
+2018-04-09,California,0
+2018-04-16,California,0
+2018-04-23,California,0
+2018-04-30,California,0
+2018-05-07,California,0
+2018-05-14,California,0
+2018-05-21,California,0
+2018-05-28,California,0
+2018-06-04,California,0
+2018-06-11,California,0
+2018-06-18,California,0
+2018-06-25,California,0
+2018-07-02,California,0
+2018-07-09,California,0
+2018-07-16,California,0
+2018-07-23,California,0
+2018-07-30,California,0
+2018-08-06,California,0
+2018-08-13,California,0
+2018-08-20,California,0
+2018-08-27,California,0
+2018-09-03,California,0
+2018-09-10,California,0
+2018-09-17,California,0
+2018-09-24,California,0
+2018-10-01,California,0
+2018-10-08,California,0
+2018-10-15,California,0
+2018-10-22,California,0
+2018-10-29,California,0
+2018-11-05,California,0
+2018-11-12,California,0
+2018-11-19,California,0
+2018-11-26,California,1
+2018-12-03,California,0
+2018-12-10,California,0
+2018-12-17,California,0
+2018-12-24,California,0
+2018-12-31,California,0
+2019-01-07,California,1
+2019-01-14,California,0
+2019-01-21,California,6
+2019-01-28,California,4
+2019-02-04,California,4
+2019-02-11,California,4
+2019-02-18,California,0
+2019-02-25,California,0
+2019-03-04,California,0
+2019-03-11,California,0
+2019-03-18,California,0
+2019-03-25,California,0
+2019-04-01,California,0
+2019-04-08,California,0
+2019-04-15,California,0
+2019-04-22,California,0
+2019-04-29,California,0
+2019-05-06,California,0
+2019-05-13,California,0
+2019-05-20,California,0
+2019-05-27,California,0
+2019-06-03,California,0
+2019-06-10,California,0
+2019-06-17,California,0
+2019-06-24,California,0
+2019-07-01,California,0
+2019-07-08,California,0
+2019-07-15,California,0
+2019-07-22,California,0
+2019-07-29,California,0
+2019-08-05,California,0
+2019-08-12,California,0
+2019-08-19,California,0
+2019-08-26,California,0
+2019-09-02,California,0
+2019-09-09,California,0
+2019-09-16,California,0
+2019-09-23,California,0
+2019-09-30,California,0
+2019-10-07,California,0
+2019-10-14,California,0
+2019-10-21,California,0
+2019-10-28,California,0
+2019-11-04,California,3
+2019-11-11,California,4
+2019-11-18,California,0
+2019-11-25,California,3
+2019-12-02,California,5
+2019-12-09,California,8
+2019-12-16,California,2
+2019-12-23,California,2
+2019-12-30,California,11
+2020-01-06,California,6
+2020-01-13,California,1
+2020-01-20,California,2
+2020-01-27,California,8
+2020-02-03,California,8
+2020-02-10,California,5
+2020-02-17,California,0
+2020-02-24,California,0
+2020-03-02,California,9
+2020-03-09,California,1
+2015-07-06,Connecticut,0
+2015-07-13,Connecticut,0
+2015-07-20,Connecticut,0
+2015-07-27,Connecticut,0
+2015-08-03,Connecticut,0
+2015-08-10,Connecticut,0
+2015-08-17,Connecticut,0
+2015-08-24,Connecticut,0
+2015-08-31,Connecticut,0
+2015-09-07,Connecticut,0
+2015-09-14,Connecticut,0
+2015-09-21,Connecticut,0
+2015-09-28,Connecticut,0
+2015-10-05,Connecticut,0
+2015-10-12,Connecticut,0
+2015-10-19,Connecticut,0
+2015-10-26,Connecticut,0
+2015-11-02,Connecticut,0
+2015-11-09,Connecticut,0
+2015-11-16,Connecticut,0
+2015-11-23,Connecticut,0
+2015-11-30,Connecticut,0
+2015-12-07,Connecticut,0
+2015-12-14,Connecticut,0
+2015-12-21,Connecticut,0
+2015-12-28,Connecticut,0
+2016-01-04,Connecticut,0
+2016-01-11,Connecticut,0
+2016-01-18,Connecticut,0
+2016-01-25,Connecticut,0
+2016-02-01,Connecticut,0
+2016-02-08,Connecticut,0
+2016-02-15,Connecticut,0
+2016-02-22,Connecticut,0
+2016-02-29,Connecticut,0
+2016-03-07,Connecticut,0
+2016-03-14,Connecticut,0
+2016-03-21,Connecticut,0
+2016-03-28,Connecticut,0
+2016-04-04,Connecticut,0
+2016-04-11,Connecticut,0
+2016-04-18,Connecticut,0
+2016-04-25,Connecticut,0
+2016-05-02,Connecticut,0
+2016-05-09,Connecticut,0
+2016-05-16,Connecticut,0
+2016-05-23,Connecticut,0
+2016-05-30,Connecticut,0
+2016-06-06,Connecticut,0
+2016-06-13,Connecticut,0
+2016-06-20,Connecticut,0
+2016-06-27,Connecticut,0
+2016-07-04,Connecticut,0
+2016-07-11,Connecticut,0
+2016-07-18,Connecticut,0
+2016-07-25,Connecticut,0
+2016-08-01,Connecticut,0
+2016-08-08,Connecticut,0
+2016-08-15,Connecticut,0
+2016-08-22,Connecticut,0
+2016-08-29,Connecticut,0
+2016-09-05,Connecticut,0
+2016-09-12,Connecticut,0
+2016-09-19,Connecticut,0
+2016-09-26,Connecticut,0
+2016-10-03,Connecticut,0
+2016-10-10,Connecticut,0
+2016-10-17,Connecticut,0
+2016-10-24,Connecticut,0
+2016-10-31,Connecticut,1
+2016-11-07,Connecticut,2
+2016-11-14,Connecticut,1
+2016-11-21,Connecticut,0
+2016-11-28,Connecticut,3
+2016-12-05,Connecticut,4
+2016-12-12,Connecticut,4
+2016-12-19,Connecticut,0
+2016-12-26,Connecticut,4
+2017-01-02,Connecticut,5
+2017-01-09,Connecticut,1
+2017-01-16,Connecticut,0
+2017-01-23,Connecticut,0
+2017-01-30,Connecticut,4
+2017-02-06,Connecticut,3
+2017-02-13,Connecticut,1
+2017-02-20,Connecticut,1
+2017-02-27,Connecticut,2
+2017-03-06,Connecticut,5
+2017-03-13,Connecticut,1
+2017-03-20,Connecticut,1
+2017-03-27,Connecticut,0
+2017-04-03,Connecticut,0
+2017-04-10,Connecticut,0
+2017-04-17,Connecticut,0
+2017-04-24,Connecticut,0
+2017-05-01,Connecticut,0
+2017-05-08,Connecticut,0
+2017-05-15,Connecticut,0
+2017-05-22,Connecticut,0
+2017-05-29,Connecticut,0
+2017-06-05,Connecticut,0
+2017-06-12,Connecticut,0
+2017-06-19,Connecticut,0
+2017-06-26,Connecticut,0
+2017-07-03,Connecticut,0
+2017-07-10,Connecticut,0
+2017-07-17,Connecticut,0
+2017-07-24,Connecticut,0
+2017-07-31,Connecticut,0
+2017-08-07,Connecticut,0
+2017-08-14,Connecticut,0
+2017-08-21,Connecticut,0
+2017-08-28,Connecticut,0
+2017-09-04,Connecticut,0
+2017-09-11,Connecticut,0
+2017-09-18,Connecticut,0
+2017-09-25,Connecticut,0
+2017-10-02,Connecticut,0
+2017-10-09,Connecticut,0
+2017-10-16,Connecticut,0
+2017-10-23,Connecticut,0
+2017-10-30,Connecticut,0
+2017-11-06,Connecticut,0
+2017-11-13,Connecticut,4
+2017-11-20,Connecticut,3
+2017-11-27,Connecticut,1
+2017-12-04,Connecticut,9
+2017-12-11,Connecticut,0
+2017-12-18,Connecticut,0
+2017-12-25,Connecticut,0
+2018-01-01,Connecticut,4
+2018-01-08,Connecticut,5
+2018-01-15,Connecticut,1
+2018-01-22,Connecticut,0
+2018-01-29,Connecticut,2
+2018-02-05,Connecticut,2
+2018-02-12,Connecticut,4
+2018-02-19,Connecticut,0
+2018-02-26,Connecticut,0
+2018-03-05,Connecticut,2
+2018-03-12,Connecticut,0
+2018-03-19,Connecticut,0
+2018-03-26,Connecticut,0
+2018-04-02,Connecticut,0
+2018-04-09,Connecticut,0
+2018-04-16,Connecticut,0
+2018-04-23,Connecticut,0
+2018-04-30,Connecticut,0
+2018-05-07,Connecticut,0
+2018-05-14,Connecticut,0
+2018-05-21,Connecticut,0
+2018-05-28,Connecticut,0
+2018-06-04,Connecticut,0
+2018-06-11,Connecticut,0
+2018-06-18,Connecticut,0
+2018-06-25,Connecticut,0
+2018-07-02,Connecticut,0
+2018-07-09,Connecticut,0
+2018-07-16,Connecticut,0
+2018-07-23,Connecticut,0
+2018-07-30,Connecticut,0
+2018-08-06,Connecticut,0
+2018-08-13,Connecticut,0
+2018-08-20,Connecticut,0
+2018-08-27,Connecticut,0
+2018-09-03,Connecticut,0
+2018-09-10,Connecticut,0
+2018-09-17,Connecticut,0
+2018-09-24,Connecticut,0
+2018-10-01,Connecticut,0
+2018-10-08,Connecticut,0
+2018-10-15,Connecticut,0
+2018-10-22,Connecticut,0
+2018-10-29,Connecticut,0
+2018-11-05,Connecticut,0
+2018-11-12,Connecticut,0
+2018-11-19,Connecticut,0
+2018-11-26,Connecticut,0
+2018-12-03,Connecticut,0
+2018-12-10,Connecticut,0
+2018-12-17,Connecticut,0
+2018-12-24,Connecticut,0
+2018-12-31,Connecticut,0
+2019-01-07,Connecticut,0
+2019-01-14,Connecticut,0
+2019-01-21,Connecticut,0
+2019-01-28,Connecticut,0
+2019-02-04,Connecticut,0
+2019-02-11,Connecticut,0
+2019-02-18,Connecticut,0
+2019-02-25,Connecticut,0
+2019-03-04,Connecticut,0
+2019-03-11,Connecticut,0
+2019-03-18,Connecticut,0
+2019-03-25,Connecticut,0
+2019-04-01,Connecticut,0
+2019-04-08,Connecticut,0
+2019-04-15,Connecticut,0
+2019-04-22,Connecticut,0
+2019-04-29,Connecticut,0
+2019-05-06,Connecticut,0
+2019-05-13,Connecticut,0
+2019-05-20,Connecticut,0
+2019-05-27,Connecticut,0
+2019-06-03,Connecticut,0
+2019-06-10,Connecticut,0
+2019-06-17,Connecticut,0
+2019-06-24,Connecticut,0
+2019-07-01,Connecticut,0
+2019-07-08,Connecticut,0
+2019-07-15,Connecticut,0
+2019-07-22,Connecticut,0
+2019-07-29,Connecticut,0
+2019-08-05,Connecticut,0
+2019-08-12,Connecticut,0
+2019-08-19,Connecticut,0
+2019-08-26,Connecticut,0
+2019-09-02,Connecticut,0
+2019-09-09,Connecticut,0
+2019-09-16,Connecticut,0
+2019-09-23,Connecticut,0
+2019-09-30,Connecticut,0
+2019-10-07,Connecticut,0
+2019-10-14,Connecticut,0
+2019-10-21,Connecticut,0
+2019-10-28,Connecticut,0
+2019-11-04,Connecticut,0
+2019-11-11,Connecticut,0
+2019-11-18,Connecticut,0
+2019-11-25,Connecticut,0
+2019-12-02,Connecticut,0
+2019-12-09,Connecticut,0
+2019-12-16,Connecticut,0
+2019-12-23,Connecticut,0
+2019-12-30,Connecticut,0
+2020-01-06,Connecticut,0
+2020-01-13,Connecticut,0
+2020-01-20,Connecticut,0
+2020-01-27,Connecticut,0
+2020-02-03,Connecticut,0
+2020-02-10,Connecticut,0
+2020-02-17,Connecticut,0
+2020-02-24,Connecticut,0
+2020-03-02,Connecticut,0
+2020-03-09,Connecticut,0
+2015-07-06,Florida,0
+2015-07-13,Florida,0
+2015-07-20,Florida,0
+2015-07-27,Florida,0
+2015-08-03,Florida,0
+2015-08-10,Florida,0
+2015-08-17,Florida,0
+2015-08-24,Florida,0
+2015-08-31,Florida,0
+2015-09-07,Florida,0
+2015-09-14,Florida,0
+2015-09-21,Florida,0
+2015-09-28,Florida,0
+2015-10-05,Florida,0
+2015-10-12,Florida,0
+2015-10-19,Florida,0
+2015-10-26,Florida,0
+2015-11-02,Florida,0
+2015-11-09,Florida,0
+2015-11-16,Florida,0
+2015-11-23,Florida,0
+2015-11-30,Florida,0
+2015-12-07,Florida,0
+2015-12-14,Florida,0
+2015-12-21,Florida,0
+2015-12-28,Florida,0
+2016-01-04,Florida,0
+2016-01-11,Florida,0
+2016-01-18,Florida,0
+2016-01-25,Florida,0
+2016-02-01,Florida,0
+2016-02-08,Florida,0
+2016-02-15,Florida,0
+2016-02-22,Florida,0
+2016-02-29,Florida,0
+2016-03-07,Florida,0
+2016-03-14,Florida,0
+2016-03-21,Florida,0
+2016-03-28,Florida,0
+2016-04-04,Florida,0
+2016-04-11,Florida,0
+2016-04-18,Florida,0
+2016-04-25,Florida,0
+2016-05-02,Florida,0
+2016-05-09,Florida,0
+2016-05-16,Florida,0
+2016-05-23,Florida,0
+2016-05-30,Florida,0
+2016-06-06,Florida,0
+2016-06-13,Florida,0
+2016-06-20,Florida,0
+2016-06-27,Florida,0
+2016-07-04,Florida,0
+2016-07-11,Florida,0
+2016-07-18,Florida,0
+2016-07-25,Florida,0
+2016-08-01,Florida,0
+2016-08-08,Florida,0
+2016-08-15,Florida,0
+2016-08-22,Florida,0
+2016-08-29,Florida,0
+2016-09-05,Florida,0
+2016-09-12,Florida,0
+2016-09-19,Florida,0
+2016-09-26,Florida,0
+2016-10-03,Florida,0
+2016-10-10,Florida,0
+2016-10-17,Florida,0
+2016-10-24,Florida,0
+2016-10-31,Florida,0
+2016-11-07,Florida,0
+2016-11-14,Florida,0
+2016-11-21,Florida,8
+2016-11-28,Florida,1
+2016-12-05,Florida,0
+2016-12-12,Florida,4
+2016-12-19,Florida,6
+2016-12-26,Florida,1
+2017-01-02,Florida,9
+2017-01-09,Florida,0
+2017-01-16,Florida,0
+2017-01-23,Florida,0
+2017-01-30,Florida,2
+2017-02-06,Florida,7
+2017-02-13,Florida,1
+2017-02-20,Florida,0
+2017-02-27,Florida,4
+2017-03-06,Florida,1
+2017-03-13,Florida,1
+2017-03-20,Florida,1
+2017-03-27,Florida,2
+2017-04-03,Florida,0
+2017-04-10,Florida,0
+2017-04-17,Florida,0
+2017-04-24,Florida,0
+2017-05-01,Florida,0
+2017-05-08,Florida,0
+2017-05-15,Florida,0
+2017-05-22,Florida,0
+2017-05-29,Florida,0
+2017-06-05,Florida,0
+2017-06-12,Florida,0
+2017-06-19,Florida,0
+2017-06-26,Florida,0
+2017-07-03,Florida,0
+2017-07-10,Florida,0
+2017-07-17,Florida,0
+2017-07-24,Florida,0
+2017-07-31,Florida,0
+2017-08-07,Florida,0
+2017-08-14,Florida,0
+2017-08-21,Florida,0
+2017-08-28,Florida,0
+2017-09-04,Florida,0
+2017-09-11,Florida,0
+2017-09-18,Florida,0
+2017-09-25,Florida,0
+2017-10-02,Florida,0
+2017-10-09,Florida,0
+2017-10-16,Florida,0
+2017-10-23,Florida,0
+2017-10-30,Florida,0
+2017-11-06,Florida,0
+2017-11-13,Florida,2
+2017-11-20,Florida,4
+2017-11-27,Florida,2
+2017-12-04,Florida,0
+2017-12-11,Florida,3
+2017-12-18,Florida,4
+2017-12-25,Florida,0
+2018-01-01,Florida,4
+2018-01-08,Florida,1
+2018-01-15,Florida,0
+2018-01-22,Florida,3
+2018-01-29,Florida,2
+2018-02-05,Florida,0
+2018-02-12,Florida,0
+2018-02-19,Florida,0
+2018-02-26,Florida,2
+2018-03-05,Florida,2
+2018-03-12,Florida,1
+2018-03-19,Florida,0
+2018-03-26,Florida,2
+2018-04-02,Florida,0
+2018-04-09,Florida,0
+2018-04-16,Florida,0
+2018-04-23,Florida,0
+2018-04-30,Florida,0
+2018-05-07,Florida,0
+2018-05-14,Florida,0
+2018-05-21,Florida,0
+2018-05-28,Florida,0
+2018-06-04,Florida,0
+2018-06-11,Florida,0
+2018-06-18,Florida,0
+2018-06-25,Florida,0
+2018-07-02,Florida,0
+2018-07-09,Florida,0
+2018-07-16,Florida,0
+2018-07-23,Florida,0
+2018-07-30,Florida,0
+2018-08-06,Florida,0
+2018-08-13,Florida,0
+2018-08-20,Florida,0
+2018-08-27,Florida,0
+2018-09-03,Florida,0
+2018-09-10,Florida,0
+2018-09-17,Florida,0
+2018-09-24,Florida,0
+2018-10-01,Florida,0
+2018-10-08,Florida,0
+2018-10-15,Florida,0
+2018-10-22,Florida,0
+2018-10-29,Florida,0
+2018-11-05,Florida,2
+2018-11-12,Florida,0
+2018-11-19,Florida,6
+2018-11-26,Florida,2
+2018-12-03,Florida,3
+2018-12-10,Florida,2
+2018-12-17,Florida,0
+2018-12-24,Florida,3
+2018-12-31,Florida,3
+2019-01-07,Florida,1
+2019-01-14,Florida,0
+2019-01-21,Florida,0
+2019-01-28,Florida,0
+2019-02-04,Florida,0
+2019-02-11,Florida,0
+2019-02-18,Florida,0
+2019-02-25,Florida,0
+2019-03-04,Florida,0
+2019-03-11,Florida,0
+2019-03-18,Florida,0
+2019-03-25,Florida,0
+2019-04-01,Florida,0
+2019-04-08,Florida,0
+2019-04-15,Florida,0
+2019-04-22,Florida,0
+2019-04-29,Florida,0
+2019-05-06,Florida,0
+2019-05-13,Florida,0
+2019-05-20,Florida,0
+2019-05-27,Florida,0
+2019-06-03,Florida,0
+2019-06-10,Florida,0
+2019-06-17,Florida,0
+2019-06-24,Florida,0
+2019-07-01,Florida,0
+2019-07-08,Florida,0
+2019-07-15,Florida,0
+2019-07-22,Florida,0
+2019-07-29,Florida,0
+2019-08-05,Florida,0
+2019-08-12,Florida,0
+2019-08-19,Florida,0
+2019-08-26,Florida,0
+2019-09-02,Florida,0
+2019-09-09,Florida,0
+2019-09-16,Florida,0
+2019-09-23,Florida,0
+2019-09-30,Florida,0
+2019-10-07,Florida,0
+2019-10-14,Florida,0
+2019-10-21,Florida,0
+2019-10-28,Florida,1
+2019-11-04,Florida,4
+2019-11-11,Florida,2
+2019-11-18,Florida,1
+2019-11-25,Florida,0
+2019-12-02,Florida,4
+2019-12-09,Florida,4
+2019-12-16,Florida,0
+2019-12-23,Florida,0
+2019-12-30,Florida,1
+2020-01-06,Florida,1
+2020-01-13,Florida,2
+2020-01-20,Florida,0
+2020-01-27,Florida,0
+2020-02-03,Florida,1
+2020-02-10,Florida,0
+2020-02-17,Florida,0
+2020-02-24,Florida,0
+2020-03-02,Florida,1
+2020-03-09,Florida,0
+2015-07-06,Georgia,0
+2015-07-13,Georgia,0
+2015-07-20,Georgia,0
+2015-07-27,Georgia,0
+2015-08-03,Georgia,0
+2015-08-10,Georgia,0
+2015-08-17,Georgia,0
+2015-08-24,Georgia,0
+2015-08-31,Georgia,0
+2015-09-07,Georgia,0
+2015-09-14,Georgia,0
+2015-09-21,Georgia,0
+2015-09-28,Georgia,0
+2015-10-05,Georgia,0
+2015-10-12,Georgia,0
+2015-10-19,Georgia,0
+2015-10-26,Georgia,0
+2015-11-02,Georgia,0
+2015-11-09,Georgia,0
+2015-11-16,Georgia,0
+2015-11-23,Georgia,0
+2015-11-30,Georgia,0
+2015-12-07,Georgia,0
+2015-12-14,Georgia,0
+2015-12-21,Georgia,0
+2015-12-28,Georgia,0
+2016-01-04,Georgia,0
+2016-01-11,Georgia,0
+2016-01-18,Georgia,0
+2016-01-25,Georgia,0
+2016-02-01,Georgia,0
+2016-02-08,Georgia,0
+2016-02-15,Georgia,0
+2016-02-22,Georgia,0
+2016-02-29,Georgia,0
+2016-03-07,Georgia,0
+2016-03-14,Georgia,0
+2016-03-21,Georgia,0
+2016-03-28,Georgia,0
+2016-04-04,Georgia,0
+2016-04-11,Georgia,0
+2016-04-18,Georgia,0
+2016-04-25,Georgia,0
+2016-05-02,Georgia,0
+2016-05-09,Georgia,0
+2016-05-16,Georgia,0
+2016-05-23,Georgia,0
+2016-05-30,Georgia,0
+2016-06-06,Georgia,0
+2016-06-13,Georgia,0
+2016-06-20,Georgia,0
+2016-06-27,Georgia,0
+2016-07-04,Georgia,0
+2016-07-11,Georgia,0
+2016-07-18,Georgia,0
+2016-07-25,Georgia,0
+2016-08-01,Georgia,0
+2016-08-08,Georgia,0
+2016-08-15,Georgia,0
+2016-08-22,Georgia,0
+2016-08-29,Georgia,0
+2016-09-05,Georgia,0
+2016-09-12,Georgia,0
+2016-09-19,Georgia,0
+2016-09-26,Georgia,0
+2016-10-03,Georgia,0
+2016-10-10,Georgia,0
+2016-10-17,Georgia,0
+2016-10-24,Georgia,0
+2016-10-31,Georgia,2
+2016-11-07,Georgia,6
+2016-11-14,Georgia,0
+2016-11-21,Georgia,0
+2016-11-28,Georgia,0
+2016-12-05,Georgia,1
+2016-12-12,Georgia,1
+2016-12-19,Georgia,2
+2016-12-26,Georgia,3
+2017-01-02,Georgia,1
+2017-01-09,Georgia,4
+2017-01-16,Georgia,3
+2017-01-23,Georgia,1
+2017-01-30,Georgia,2
+2017-02-06,Georgia,2
+2017-02-13,Georgia,2
+2017-02-20,Georgia,0
+2017-02-27,Georgia,0
+2017-03-06,Georgia,0
+2017-03-13,Georgia,0
+2017-03-20,Georgia,0
+2017-03-27,Georgia,0
+2017-04-03,Georgia,0
+2017-04-10,Georgia,0
+2017-04-17,Georgia,0
+2017-04-24,Georgia,0
+2017-05-01,Georgia,0
+2017-05-08,Georgia,0
+2017-05-15,Georgia,0
+2017-05-22,Georgia,0
+2017-05-29,Georgia,0
+2017-06-05,Georgia,0
+2017-06-12,Georgia,0
+2017-06-19,Georgia,0
+2017-06-26,Georgia,0
+2017-07-03,Georgia,0
+2017-07-10,Georgia,0
+2017-07-17,Georgia,0
+2017-07-24,Georgia,0
+2017-07-31,Georgia,0
+2017-08-07,Georgia,0
+2017-08-14,Georgia,0
+2017-08-21,Georgia,0
+2017-08-28,Georgia,0
+2017-09-04,Georgia,0
+2017-09-11,Georgia,0
+2017-09-18,Georgia,0
+2017-09-25,Georgia,0
+2017-10-02,Georgia,0
+2017-10-09,Georgia,0
+2017-10-16,Georgia,0
+2017-10-23,Georgia,0
+2017-10-30,Georgia,0
+2017-11-06,Georgia,0
+2017-11-13,Georgia,0
+2017-11-20,Georgia,0
+2017-11-27,Georgia,0
+2017-12-04,Georgia,1
+2017-12-11,Georgia,0
+2017-12-18,Georgia,0
+2017-12-25,Georgia,0
+2018-01-01,Georgia,0
+2018-01-08,Georgia,0
+2018-01-15,Georgia,0
+2018-01-22,Georgia,0
+2018-01-29,Georgia,0
+2018-02-05,Georgia,0
+2018-02-12,Georgia,0
+2018-02-19,Georgia,0
+2018-02-26,Georgia,0
+2018-03-05,Georgia,0
+2018-03-12,Georgia,0
+2018-03-19,Georgia,0
+2018-03-26,Georgia,0
+2018-04-02,Georgia,0
+2018-04-09,Georgia,0
+2018-04-16,Georgia,0
+2018-04-23,Georgia,0
+2018-04-30,Georgia,0
+2018-05-07,Georgia,0
+2018-05-14,Georgia,0
+2018-05-21,Georgia,0
+2018-05-28,Georgia,0
+2018-06-04,Georgia,0
+2018-06-11,Georgia,0
+2018-06-18,Georgia,0
+2018-06-25,Georgia,0
+2018-07-02,Georgia,0
+2018-07-09,Georgia,0
+2018-07-16,Georgia,0
+2018-07-23,Georgia,0
+2018-07-30,Georgia,0
+2018-08-06,Georgia,0
+2018-08-13,Georgia,0
+2018-08-20,Georgia,0
+2018-08-27,Georgia,0
+2018-09-03,Georgia,0
+2018-09-10,Georgia,0
+2018-09-17,Georgia,0
+2018-09-24,Georgia,0
+2018-10-01,Georgia,0
+2018-10-08,Georgia,0
+2018-10-15,Georgia,0
+2018-10-22,Georgia,0
+2018-10-29,Georgia,0
+2018-11-05,Georgia,0
+2018-11-12,Georgia,0
+2018-11-19,Georgia,0
+2018-11-26,Georgia,0
+2018-12-03,Georgia,0
+2018-12-10,Georgia,0
+2018-12-17,Georgia,0
+2018-12-24,Georgia,0
+2018-12-31,Georgia,0
+2019-01-07,Georgia,0
+2019-01-14,Georgia,0
+2019-01-21,Georgia,0
+2019-01-28,Georgia,0
+2019-02-04,Georgia,0
+2019-02-11,Georgia,0
+2019-02-18,Georgia,0
+2019-02-25,Georgia,0
+2019-03-04,Georgia,0
+2019-03-11,Georgia,0
+2019-03-18,Georgia,0
+2019-03-25,Georgia,0
+2019-04-01,Georgia,0
+2019-04-08,Georgia,0
+2019-04-15,Georgia,0
+2019-04-22,Georgia,0
+2019-04-29,Georgia,0
+2019-05-06,Georgia,0
+2019-05-13,Georgia,0
+2019-05-20,Georgia,0
+2019-05-27,Georgia,0
+2019-06-03,Georgia,0
+2019-06-10,Georgia,0
+2019-06-17,Georgia,0
+2019-06-24,Georgia,0
+2019-07-01,Georgia,0
+2019-07-08,Georgia,0
+2019-07-15,Georgia,0
+2019-07-22,Georgia,0
+2019-07-29,Georgia,0
+2019-08-05,Georgia,0
+2019-08-12,Georgia,0
+2019-08-19,Georgia,0
+2019-08-26,Georgia,0
+2019-09-02,Georgia,0
+2019-09-09,Georgia,0
+2019-09-16,Georgia,0
+2019-09-23,Georgia,0
+2019-09-30,Georgia,0
+2019-10-07,Georgia,0
+2019-10-14,Georgia,0
+2019-10-21,Georgia,0
+2019-10-28,Georgia,0
+2019-11-04,Georgia,0
+2019-11-11,Georgia,0
+2019-11-18,Georgia,0
+2019-11-25,Georgia,0
+2019-12-02,Georgia,0
+2019-12-09,Georgia,0
+2019-12-16,Georgia,0
+2019-12-23,Georgia,0
+2019-12-30,Georgia,0
+2020-01-06,Georgia,0
+2020-01-13,Georgia,0
+2020-01-20,Georgia,0
+2020-01-27,Georgia,0
+2020-02-03,Georgia,0
+2020-02-10,Georgia,0
+2020-02-17,Georgia,0
+2020-02-24,Georgia,0
+2020-03-02,Georgia,0
+2020-03-09,Georgia,0
+2015-07-06,Hawaii,0
+2015-07-13,Hawaii,0
+2015-07-20,Hawaii,0
+2015-07-27,Hawaii,0
+2015-08-03,Hawaii,0
+2015-08-10,Hawaii,0
+2015-08-17,Hawaii,0
+2015-08-24,Hawaii,0
+2015-08-31,Hawaii,0
+2015-09-07,Hawaii,0
+2015-09-14,Hawaii,0
+2015-09-21,Hawaii,0
+2015-09-28,Hawaii,0
+2015-10-05,Hawaii,0
+2015-10-12,Hawaii,0
+2015-10-19,Hawaii,0
+2015-10-26,Hawaii,0
+2015-11-02,Hawaii,0
+2015-11-09,Hawaii,0
+2015-11-16,Hawaii,0
+2015-11-23,Hawaii,0
+2015-11-30,Hawaii,0
+2015-12-07,Hawaii,0
+2015-12-14,Hawaii,0
+2015-12-21,Hawaii,0
+2015-12-28,Hawaii,0
+2016-01-04,Hawaii,0
+2016-01-11,Hawaii,0
+2016-01-18,Hawaii,0
+2016-01-25,Hawaii,0
+2016-02-01,Hawaii,0
+2016-02-08,Hawaii,0
+2016-02-15,Hawaii,0
+2016-02-22,Hawaii,0
+2016-02-29,Hawaii,0
+2016-03-07,Hawaii,0
+2016-03-14,Hawaii,0
+2016-03-21,Hawaii,0
+2016-03-28,Hawaii,0
+2016-04-04,Hawaii,0
+2016-04-11,Hawaii,0
+2016-04-18,Hawaii,0
+2016-04-25,Hawaii,0
+2016-05-02,Hawaii,0
+2016-05-09,Hawaii,0
+2016-05-16,Hawaii,0
+2016-05-23,Hawaii,0
+2016-05-30,Hawaii,0
+2016-06-06,Hawaii,0
+2016-06-13,Hawaii,0
+2016-06-20,Hawaii,0
+2016-06-27,Hawaii,0
+2016-07-04,Hawaii,0
+2016-07-11,Hawaii,0
+2016-07-18,Hawaii,0
+2016-07-25,Hawaii,0
+2016-08-01,Hawaii,0
+2016-08-08,Hawaii,0
+2016-08-15,Hawaii,0
+2016-08-22,Hawaii,0
+2016-08-29,Hawaii,0
+2016-09-05,Hawaii,0
+2016-09-12,Hawaii,0
+2016-09-19,Hawaii,0
+2016-09-26,Hawaii,0
+2016-10-03,Hawaii,0
+2016-10-10,Hawaii,0
+2016-10-17,Hawaii,0
+2016-10-24,Hawaii,0
+2016-10-31,Hawaii,2
+2016-11-07,Hawaii,8
+2016-11-14,Hawaii,0
+2016-11-21,Hawaii,0
+2016-11-28,Hawaii,0
+2016-12-05,Hawaii,3
+2016-12-12,Hawaii,5
+2016-12-19,Hawaii,0
+2016-12-26,Hawaii,1
+2017-01-02,Hawaii,2
+2017-01-09,Hawaii,2
+2017-01-16,Hawaii,2
+2017-01-23,Hawaii,3
+2017-01-30,Hawaii,0
+2017-02-06,Hawaii,0
+2017-02-13,Hawaii,0
+2017-02-20,Hawaii,0
+2017-02-27,Hawaii,0
+2017-03-06,Hawaii,0
+2017-03-13,Hawaii,0
+2017-03-20,Hawaii,0
+2017-03-27,Hawaii,0
+2017-04-03,Hawaii,0
+2017-04-10,Hawaii,0
+2017-04-17,Hawaii,0
+2017-04-24,Hawaii,0
+2017-05-01,Hawaii,0
+2017-05-08,Hawaii,0
+2017-05-15,Hawaii,0
+2017-05-22,Hawaii,0
+2017-05-29,Hawaii,0
+2017-06-05,Hawaii,0
+2017-06-12,Hawaii,0
+2017-06-19,Hawaii,0
+2017-06-26,Hawaii,0
+2017-07-03,Hawaii,0
+2017-07-10,Hawaii,0
+2017-07-17,Hawaii,0
+2017-07-24,Hawaii,0
+2017-07-31,Hawaii,0
+2017-08-07,Hawaii,0
+2017-08-14,Hawaii,0
+2017-08-21,Hawaii,0
+2017-08-28,Hawaii,0
+2017-09-04,Hawaii,0
+2017-09-11,Hawaii,0
+2017-09-18,Hawaii,0
+2017-09-25,Hawaii,0
+2017-10-02,Hawaii,0
+2017-10-09,Hawaii,0
+2017-10-16,Hawaii,0
+2017-10-23,Hawaii,0
+2017-10-30,Hawaii,0
+2017-11-06,Hawaii,0
+2017-11-13,Hawaii,8
+2017-11-20,Hawaii,2
+2017-11-27,Hawaii,0
+2017-12-04,Hawaii,0
+2017-12-11,Hawaii,8
+2017-12-18,Hawaii,2
+2017-12-25,Hawaii,0
+2018-01-01,Hawaii,6
+2018-01-08,Hawaii,3
+2018-01-15,Hawaii,0
+2018-01-22,Hawaii,0
+2018-01-29,Hawaii,0
+2018-02-05,Hawaii,8
+2018-02-12,Hawaii,1
+2018-02-19,Hawaii,0
+2018-02-26,Hawaii,1
+2018-03-05,Hawaii,5
+2018-03-12,Hawaii,2
+2018-03-19,Hawaii,1
+2018-03-26,Hawaii,0
+2018-04-02,Hawaii,0
+2018-04-09,Hawaii,0
+2018-04-16,Hawaii,0
+2018-04-23,Hawaii,0
+2018-04-30,Hawaii,0
+2018-05-07,Hawaii,0
+2018-05-14,Hawaii,0
+2018-05-21,Hawaii,0
+2018-05-28,Hawaii,0
+2018-06-04,Hawaii,0
+2018-06-11,Hawaii,0
+2018-06-18,Hawaii,0
+2018-06-25,Hawaii,0
+2018-07-02,Hawaii,0
+2018-07-09,Hawaii,0
+2018-07-16,Hawaii,0
+2018-07-23,Hawaii,0
+2018-07-30,Hawaii,0
+2018-08-06,Hawaii,0
+2018-08-13,Hawaii,0
+2018-08-20,Hawaii,0
+2018-08-27,Hawaii,0
+2018-09-03,Hawaii,0
+2018-09-10,Hawaii,0
+2018-09-17,Hawaii,0
+2018-09-24,Hawaii,0
+2018-10-01,Hawaii,0
+2018-10-08,Hawaii,0
+2018-10-15,Hawaii,0
+2018-10-22,Hawaii,0
+2018-10-29,Hawaii,1
+2018-11-05,Hawaii,2
+2018-11-12,Hawaii,4
+2018-11-19,Hawaii,0
+2018-11-26,Hawaii,3
+2018-12-03,Hawaii,7
+2018-12-10,Hawaii,0
+2018-12-17,Hawaii,0
+2018-12-24,Hawaii,0
+2018-12-31,Hawaii,0
+2019-01-07,Hawaii,0
+2019-01-14,Hawaii,0
+2019-01-21,Hawaii,9
+2019-01-28,Hawaii,2
+2019-02-04,Hawaii,2
+2019-02-11,Hawaii,4
+2019-02-18,Hawaii,2
+2019-02-25,Hawaii,1
+2019-03-04,Hawaii,3
+2019-03-11,Hawaii,4
+2019-03-18,Hawaii,0
+2019-03-25,Hawaii,0
+2019-04-01,Hawaii,0
+2019-04-08,Hawaii,0
+2019-04-15,Hawaii,0
+2019-04-22,Hawaii,0
+2019-04-29,Hawaii,0
+2019-05-06,Hawaii,0
+2019-05-13,Hawaii,0
+2019-05-20,Hawaii,0
+2019-05-27,Hawaii,0
+2019-06-03,Hawaii,0
+2019-06-10,Hawaii,0
+2019-06-17,Hawaii,0
+2019-06-24,Hawaii,0
+2019-07-01,Hawaii,0
+2019-07-08,Hawaii,0
+2019-07-15,Hawaii,0
+2019-07-22,Hawaii,0
+2019-07-29,Hawaii,0
+2019-08-05,Hawaii,0
+2019-08-12,Hawaii,0
+2019-08-19,Hawaii,0
+2019-08-26,Hawaii,0
+2019-09-02,Hawaii,0
+2019-09-09,Hawaii,0
+2019-09-16,Hawaii,0
+2019-09-23,Hawaii,0
+2019-09-30,Hawaii,0
+2019-10-07,Hawaii,0
+2019-10-14,Hawaii,0
+2019-10-21,Hawaii,0
+2019-10-28,Hawaii,5
+2019-11-04,Hawaii,5
+2019-11-11,Hawaii,0
+2019-11-18,Hawaii,0
+2019-11-25,Hawaii,0
+2019-12-02,Hawaii,3
+2019-12-09,Hawaii,4
+2019-12-16,Hawaii,1
+2019-12-23,Hawaii,1
+2019-12-30,Hawaii,1
+2020-01-06,Hawaii,5
+2020-01-13,Hawaii,1
+2020-01-20,Hawaii,1
+2020-01-27,Hawaii,0
+2020-02-03,Hawaii,3
+2020-02-10,Hawaii,1
+2020-02-17,Hawaii,3
+2020-02-24,Hawaii,2
+2020-03-02,Hawaii,0
+2020-03-09,Hawaii,3
+2015-07-06,Idaho,0
+2015-07-13,Idaho,0
+2015-07-20,Idaho,0
+2015-07-27,Idaho,0
+2015-08-03,Idaho,0
+2015-08-10,Idaho,0
+2015-08-17,Idaho,0
+2015-08-24,Idaho,0
+2015-08-31,Idaho,0
+2015-09-07,Idaho,0
+2015-09-14,Idaho,0
+2015-09-21,Idaho,0
+2015-09-28,Idaho,0
+2015-10-05,Idaho,0
+2015-10-12,Idaho,0
+2015-10-19,Idaho,0
+2015-10-26,Idaho,0
+2015-11-02,Idaho,0
+2015-11-09,Idaho,0
+2015-11-16,Idaho,0
+2015-11-23,Idaho,0
+2015-11-30,Idaho,0
+2015-12-07,Idaho,0
+2015-12-14,Idaho,0
+2015-12-21,Idaho,0
+2015-12-28,Idaho,0
+2016-01-04,Idaho,0
+2016-01-11,Idaho,0
+2016-01-18,Idaho,0
+2016-01-25,Idaho,0
+2016-02-01,Idaho,0
+2016-02-08,Idaho,0
+2016-02-15,Idaho,0
+2016-02-22,Idaho,0
+2016-02-29,Idaho,0
+2016-03-07,Idaho,0
+2016-03-14,Idaho,0
+2016-03-21,Idaho,0
+2016-03-28,Idaho,0
+2016-04-04,Idaho,0
+2016-04-11,Idaho,0
+2016-04-18,Idaho,0
+2016-04-25,Idaho,0
+2016-05-02,Idaho,0
+2016-05-09,Idaho,0
+2016-05-16,Idaho,0
+2016-05-23,Idaho,0
+2016-05-30,Idaho,0
+2016-06-06,Idaho,0
+2016-06-13,Idaho,0
+2016-06-20,Idaho,0
+2016-06-27,Idaho,0
+2016-07-04,Idaho,0
+2016-07-11,Idaho,0
+2016-07-18,Idaho,0
+2016-07-25,Idaho,0
+2016-08-01,Idaho,0
+2016-08-08,Idaho,0
+2016-08-15,Idaho,0
+2016-08-22,Idaho,0
+2016-08-29,Idaho,0
+2016-09-05,Idaho,0
+2016-09-12,Idaho,0
+2016-09-19,Idaho,0
+2016-09-26,Idaho,0
+2016-10-03,Idaho,0
+2016-10-10,Idaho,0
+2016-10-17,Idaho,0
+2016-10-24,Idaho,0
+2016-10-31,Idaho,0
+2016-11-07,Idaho,0
+2016-11-14,Idaho,0
+2016-11-21,Idaho,0
+2016-11-28,Idaho,0
+2016-12-05,Idaho,0
+2016-12-12,Idaho,0
+2016-12-19,Idaho,0
+2016-12-26,Idaho,0
+2017-01-02,Idaho,0
+2017-01-09,Idaho,0
+2017-01-16,Idaho,0
+2017-01-23,Idaho,0
+2017-01-30,Idaho,0
+2017-02-06,Idaho,0
+2017-02-13,Idaho,0
+2017-02-20,Idaho,0
+2017-02-27,Idaho,0
+2017-03-06,Idaho,0
+2017-03-13,Idaho,0
+2017-03-20,Idaho,0
+2017-03-27,Idaho,0
+2017-04-03,Idaho,0
+2017-04-10,Idaho,0
+2017-04-17,Idaho,0
+2017-04-24,Idaho,0
+2017-05-01,Idaho,0
+2017-05-08,Idaho,0
+2017-05-15,Idaho,0
+2017-05-22,Idaho,0
+2017-05-29,Idaho,0
+2017-06-05,Idaho,0
+2017-06-12,Idaho,0
+2017-06-19,Idaho,0
+2017-06-26,Idaho,0
+2017-07-03,Idaho,0
+2017-07-10,Idaho,0
+2017-07-17,Idaho,0
+2017-07-24,Idaho,0
+2017-07-31,Idaho,0
+2017-08-07,Idaho,0
+2017-08-14,Idaho,0
+2017-08-21,Idaho,0
+2017-08-28,Idaho,0
+2017-09-04,Idaho,0
+2017-09-11,Idaho,0
+2017-09-18,Idaho,0
+2017-09-25,Idaho,0
+2017-10-02,Idaho,0
+2017-10-09,Idaho,0
+2017-10-16,Idaho,0
+2017-10-23,Idaho,0
+2017-10-30,Idaho,0
+2017-11-06,Idaho,0
+2017-11-13,Idaho,0
+2017-11-20,Idaho,0
+2017-11-27,Idaho,0
+2017-12-04,Idaho,0
+2017-12-11,Idaho,0
+2017-12-18,Idaho,0
+2017-12-25,Idaho,0
+2018-01-01,Idaho,0
+2018-01-08,Idaho,0
+2018-01-15,Idaho,0
+2018-01-22,Idaho,0
+2018-01-29,Idaho,0
+2018-02-05,Idaho,0
+2018-02-12,Idaho,0
+2018-02-19,Idaho,0
+2018-02-26,Idaho,0
+2018-03-05,Idaho,0
+2018-03-12,Idaho,0
+2018-03-19,Idaho,0
+2018-03-26,Idaho,0
+2018-04-02,Idaho,0
+2018-04-09,Idaho,0
+2018-04-16,Idaho,0
+2018-04-23,Idaho,0
+2018-04-30,Idaho,0
+2018-05-07,Idaho,0
+2018-05-14,Idaho,0
+2018-05-21,Idaho,0
+2018-05-28,Idaho,0
+2018-06-04,Idaho,0
+2018-06-11,Idaho,0
+2018-06-18,Idaho,0
+2018-06-25,Idaho,0
+2018-07-02,Idaho,0
+2018-07-09,Idaho,0
+2018-07-16,Idaho,0
+2018-07-23,Idaho,0
+2018-07-30,Idaho,0
+2018-08-06,Idaho,0
+2018-08-13,Idaho,0
+2018-08-20,Idaho,0
+2018-08-27,Idaho,0
+2018-09-03,Idaho,0
+2018-09-10,Idaho,0
+2018-09-17,Idaho,0
+2018-09-24,Idaho,0
+2018-10-01,Idaho,0
+2018-10-08,Idaho,0
+2018-10-15,Idaho,0
+2018-10-22,Idaho,0
+2018-10-29,Idaho,0
+2018-11-05,Idaho,0
+2018-11-12,Idaho,0
+2018-11-19,Idaho,0
+2018-11-26,Idaho,0
+2018-12-03,Idaho,0
+2018-12-10,Idaho,0
+2018-12-17,Idaho,0
+2018-12-24,Idaho,0
+2018-12-31,Idaho,0
+2019-01-07,Idaho,0
+2019-01-14,Idaho,0
+2019-01-21,Idaho,0
+2019-01-28,Idaho,0
+2019-02-04,Idaho,0
+2019-02-11,Idaho,0
+2019-02-18,Idaho,0
+2019-02-25,Idaho,0
+2019-03-04,Idaho,0
+2019-03-11,Idaho,0
+2019-03-18,Idaho,0
+2019-03-25,Idaho,0
+2019-04-01,Idaho,0
+2019-04-08,Idaho,0
+2019-04-15,Idaho,0
+2019-04-22,Idaho,0
+2019-04-29,Idaho,0
+2019-05-06,Idaho,0
+2019-05-13,Idaho,0
+2019-05-20,Idaho,0
+2019-05-27,Idaho,0
+2019-06-03,Idaho,0
+2019-06-10,Idaho,0
+2019-06-17,Idaho,0
+2019-06-24,Idaho,0
+2019-07-01,Idaho,0
+2019-07-08,Idaho,0
+2019-07-15,Idaho,0
+2019-07-22,Idaho,0
+2019-07-29,Idaho,0
+2019-08-05,Idaho,0
+2019-08-12,Idaho,0
+2019-08-19,Idaho,0
+2019-08-26,Idaho,0
+2019-09-02,Idaho,0
+2019-09-09,Idaho,0
+2019-09-16,Idaho,0
+2019-09-23,Idaho,0
+2019-09-30,Idaho,0
+2019-10-07,Idaho,0
+2019-10-14,Idaho,0
+2019-10-21,Idaho,0
+2019-10-28,Idaho,0
+2019-11-04,Idaho,0
+2019-11-11,Idaho,0
+2019-11-18,Idaho,1
+2019-11-25,Idaho,0
+2019-12-02,Idaho,0
+2019-12-09,Idaho,0
+2019-12-16,Idaho,0
+2019-12-23,Idaho,0
+2019-12-30,Idaho,0
+2020-01-06,Idaho,0
+2020-01-13,Idaho,0
+2020-01-20,Idaho,3
+2020-01-27,Idaho,0
+2020-02-03,Idaho,1
+2020-02-10,Idaho,0
+2020-02-17,Idaho,0
+2020-02-24,Idaho,0
+2020-03-02,Idaho,0
+2020-03-09,Idaho,1
+2015-07-06,Indiana,0
+2015-07-13,Indiana,0
+2015-07-20,Indiana,0
+2015-07-27,Indiana,0
+2015-08-03,Indiana,0
+2015-08-10,Indiana,0
+2015-08-17,Indiana,0
+2015-08-24,Indiana,0
+2015-08-31,Indiana,0
+2015-09-07,Indiana,0
+2015-09-14,Indiana,0
+2015-09-21,Indiana,0
+2015-09-28,Indiana,0
+2015-10-05,Indiana,0
+2015-10-12,Indiana,0
+2015-10-19,Indiana,0
+2015-10-26,Indiana,0
+2015-11-02,Indiana,0
+2015-11-09,Indiana,0
+2015-11-16,Indiana,0
+2015-11-23,Indiana,0
+2015-11-30,Indiana,0
+2015-12-07,Indiana,0
+2015-12-14,Indiana,0
+2015-12-21,Indiana,0
+2015-12-28,Indiana,0
+2016-01-04,Indiana,0
+2016-01-11,Indiana,1
+2016-01-18,Indiana,0
+2016-01-25,Indiana,0
+2016-02-01,Indiana,0
+2016-02-08,Indiana,2
+2016-02-15,Indiana,3
+2016-02-22,Indiana,3
+2016-02-29,Indiana,3
+2016-03-07,Indiana,3
+2016-03-14,Indiana,4
+2016-03-21,Indiana,4
+2016-03-28,Indiana,3
+2016-04-04,Indiana,2
+2016-04-11,Indiana,1
+2016-04-18,Indiana,2
+2016-04-25,Indiana,2
+2016-05-02,Indiana,0
+2016-05-09,Indiana,0
+2016-05-16,Indiana,0
+2016-05-23,Indiana,0
+2016-05-30,Indiana,0
+2016-06-06,Indiana,0
+2016-06-13,Indiana,0
+2016-06-20,Indiana,0
+2016-06-27,Indiana,0
+2016-07-04,Indiana,0
+2016-07-11,Indiana,0
+2016-07-18,Indiana,0
+2016-07-25,Indiana,0
+2016-08-01,Indiana,0
+2016-08-08,Indiana,0
+2016-08-15,Indiana,0
+2016-08-22,Indiana,0
+2016-08-29,Indiana,0
+2016-09-05,Indiana,0
+2016-09-12,Indiana,0
+2016-09-19,Indiana,0
+2016-09-26,Indiana,0
+2016-10-03,Indiana,0
+2016-10-10,Indiana,0
+2016-10-17,Indiana,0
+2016-10-24,Indiana,0
+2016-10-31,Indiana,2
+2016-11-07,Indiana,2
+2016-11-14,Indiana,4
+2016-11-21,Indiana,1
+2016-11-28,Indiana,2
+2016-12-05,Indiana,4
+2016-12-12,Indiana,0
+2016-12-19,Indiana,0
+2016-12-26,Indiana,0
+2017-01-02,Indiana,5
+2017-01-09,Indiana,1
+2017-01-16,Indiana,0
+2017-01-23,Indiana,0
+2017-01-30,Indiana,10
+2017-02-06,Indiana,0
+2017-02-13,Indiana,0
+2017-02-20,Indiana,0
+2017-02-27,Indiana,2
+2017-03-06,Indiana,5
+2017-03-13,Indiana,2
+2017-03-20,Indiana,0
+2017-03-27,Indiana,0
+2017-04-03,Indiana,0
+2017-04-10,Indiana,0
+2017-04-17,Indiana,0
+2017-04-24,Indiana,0
+2017-05-01,Indiana,0
+2017-05-08,Indiana,0
+2017-05-15,Indiana,0
+2017-05-22,Indiana,0
+2017-05-29,Indiana,0
+2017-06-05,Indiana,0
+2017-06-12,Indiana,0
+2017-06-19,Indiana,0
+2017-06-26,Indiana,0
+2017-07-03,Indiana,0
+2017-07-10,Indiana,0
+2017-07-17,Indiana,0
+2017-07-24,Indiana,0
+2017-07-31,Indiana,0
+2017-08-07,Indiana,0
+2017-08-14,Indiana,0
+2017-08-21,Indiana,0
+2017-08-28,Indiana,0
+2017-09-04,Indiana,0
+2017-09-11,Indiana,0
+2017-09-18,Indiana,0
+2017-09-25,Indiana,0
+2017-10-02,Indiana,0
+2017-10-09,Indiana,0
+2017-10-16,Indiana,0
+2017-10-23,Indiana,0
+2017-10-30,Indiana,0
+2017-11-06,Indiana,1
+2017-11-13,Indiana,1
+2017-11-20,Indiana,5
+2017-11-27,Indiana,3
+2017-12-04,Indiana,4
+2017-12-11,Indiana,2
+2017-12-18,Indiana,0
+2017-12-25,Indiana,0
+2018-01-01,Indiana,8
+2018-01-08,Indiana,0
+2018-01-15,Indiana,0
+2018-01-22,Indiana,0
+2018-01-29,Indiana,0
+2018-02-05,Indiana,9
+2018-02-12,Indiana,0
+2018-02-19,Indiana,0
+2018-02-26,Indiana,8
+2018-03-05,Indiana,2
+2018-03-12,Indiana,0
+2018-03-19,Indiana,0
+2018-03-26,Indiana,0
+2018-04-02,Indiana,0
+2018-04-09,Indiana,0
+2018-04-16,Indiana,0
+2018-04-23,Indiana,0
+2018-04-30,Indiana,0
+2018-05-07,Indiana,0
+2018-05-14,Indiana,0
+2018-05-21,Indiana,0
+2018-05-28,Indiana,0
+2018-06-04,Indiana,0
+2018-06-11,Indiana,0
+2018-06-18,Indiana,0
+2018-06-25,Indiana,0
+2018-07-02,Indiana,0
+2018-07-09,Indiana,0
+2018-07-16,Indiana,0
+2018-07-23,Indiana,0
+2018-07-30,Indiana,0
+2018-08-06,Indiana,0
+2018-08-13,Indiana,0
+2018-08-20,Indiana,0
+2018-08-27,Indiana,0
+2018-09-03,Indiana,0
+2018-09-10,Indiana,0
+2018-09-17,Indiana,0
+2018-09-24,Indiana,0
+2018-10-01,Indiana,0
+2018-10-08,Indiana,0
+2018-10-15,Indiana,0
+2018-10-22,Indiana,0
+2018-10-29,Indiana,0
+2018-11-05,Indiana,2
+2018-11-12,Indiana,0
+2018-11-19,Indiana,4
+2018-11-26,Indiana,5
+2018-12-03,Indiana,5
+2018-12-10,Indiana,1
+2018-12-17,Indiana,0
+2018-12-24,Indiana,0
+2018-12-31,Indiana,3
+2019-01-07,Indiana,7
+2019-01-14,Indiana,0
+2019-01-21,Indiana,0
+2019-01-28,Indiana,2
+2019-02-04,Indiana,3
+2019-02-11,Indiana,3
+2019-02-18,Indiana,0
+2019-02-25,Indiana,0
+2019-03-04,Indiana,1
+2019-03-11,Indiana,5
+2019-03-18,Indiana,1
+2019-03-25,Indiana,2
+2019-04-01,Indiana,0
+2019-04-08,Indiana,0
+2019-04-15,Indiana,0
+2019-04-22,Indiana,0
+2019-04-29,Indiana,0
+2019-05-06,Indiana,0
+2019-05-13,Indiana,0
+2019-05-20,Indiana,0
+2019-05-27,Indiana,0
+2019-06-03,Indiana,0
+2019-06-10,Indiana,0
+2019-06-17,Indiana,0
+2019-06-24,Indiana,0
+2019-07-01,Indiana,0
+2019-07-08,Indiana,0
+2019-07-15,Indiana,0
+2019-07-22,Indiana,0
+2019-07-29,Indiana,0
+2019-08-05,Indiana,0
+2019-08-12,Indiana,0
+2019-08-19,Indiana,0
+2019-08-26,Indiana,0
+2019-09-02,Indiana,0
+2019-09-09,Indiana,0
+2019-09-16,Indiana,0
+2019-09-23,Indiana,0
+2019-09-30,Indiana,0
+2019-10-07,Indiana,0
+2019-10-14,Indiana,0
+2019-10-21,Indiana,0
+2019-10-28,Indiana,0
+2019-11-04,Indiana,5
+2019-11-11,Indiana,3
+2019-11-18,Indiana,2
+2019-11-25,Indiana,0
+2019-12-02,Indiana,7
+2019-12-09,Indiana,0
+2019-12-16,Indiana,3
+2019-12-23,Indiana,0
+2019-12-30,Indiana,0
+2020-01-06,Indiana,7
+2020-01-13,Indiana,1
+2020-01-20,Indiana,0
+2020-01-27,Indiana,0
+2020-02-03,Indiana,2
+2020-02-10,Indiana,2
+2020-02-17,Indiana,2
+2020-02-24,Indiana,2
+2020-03-02,Indiana,2
+2020-03-09,Indiana,0
+2015-07-06,Kansas,0
+2015-07-13,Kansas,0
+2015-07-20,Kansas,0
+2015-07-27,Kansas,0
+2015-08-03,Kansas,0
+2015-08-10,Kansas,0
+2015-08-17,Kansas,0
+2015-08-24,Kansas,0
+2015-08-31,Kansas,0
+2015-09-07,Kansas,0
+2015-09-14,Kansas,0
+2015-09-21,Kansas,0
+2015-09-28,Kansas,0
+2015-10-05,Kansas,0
+2015-10-12,Kansas,0
+2015-10-19,Kansas,0
+2015-10-26,Kansas,0
+2015-11-02,Kansas,0
+2015-11-09,Kansas,0
+2015-11-16,Kansas,0
+2015-11-23,Kansas,0
+2015-11-30,Kansas,0
+2015-12-07,Kansas,0
+2015-12-14,Kansas,0
+2015-12-21,Kansas,0
+2015-12-28,Kansas,0
+2016-01-04,Kansas,0
+2016-01-11,Kansas,0
+2016-01-18,Kansas,0
+2016-01-25,Kansas,0
+2016-02-01,Kansas,0
+2016-02-08,Kansas,0
+2016-02-15,Kansas,0
+2016-02-22,Kansas,0
+2016-02-29,Kansas,0
+2016-03-07,Kansas,0
+2016-03-14,Kansas,0
+2016-03-21,Kansas,0
+2016-03-28,Kansas,0
+2016-04-04,Kansas,0
+2016-04-11,Kansas,0
+2016-04-18,Kansas,0
+2016-04-25,Kansas,0
+2016-05-02,Kansas,0
+2016-05-09,Kansas,0
+2016-05-16,Kansas,0
+2016-05-23,Kansas,0
+2016-05-30,Kansas,0
+2016-06-06,Kansas,0
+2016-06-13,Kansas,0
+2016-06-20,Kansas,0
+2016-06-27,Kansas,0
+2016-07-04,Kansas,0
+2016-07-11,Kansas,0
+2016-07-18,Kansas,0
+2016-07-25,Kansas,0
+2016-08-01,Kansas,0
+2016-08-08,Kansas,0
+2016-08-15,Kansas,0
+2016-08-22,Kansas,0
+2016-08-29,Kansas,0
+2016-09-05,Kansas,0
+2016-09-12,Kansas,0
+2016-09-19,Kansas,0
+2016-09-26,Kansas,0
+2016-10-03,Kansas,0
+2016-10-10,Kansas,0
+2016-10-17,Kansas,0
+2016-10-24,Kansas,0
+2016-10-31,Kansas,0
+2016-11-07,Kansas,0
+2016-11-14,Kansas,1
+2016-11-21,Kansas,1
+2016-11-28,Kansas,2
+2016-12-05,Kansas,0
+2016-12-12,Kansas,1
+2016-12-19,Kansas,4
+2016-12-26,Kansas,4
+2017-01-02,Kansas,4
+2017-01-09,Kansas,0
+2017-01-16,Kansas,0
+2017-01-23,Kansas,0
+2017-01-30,Kansas,6
+2017-02-06,Kansas,2
+2017-02-13,Kansas,0
+2017-02-20,Kansas,0
+2017-02-27,Kansas,8
+2017-03-06,Kansas,1
+2017-03-13,Kansas,0
+2017-03-20,Kansas,0
+2017-03-27,Kansas,0
+2017-04-03,Kansas,0
+2017-04-10,Kansas,0
+2017-04-17,Kansas,0
+2017-04-24,Kansas,0
+2017-05-01,Kansas,0
+2017-05-08,Kansas,0
+2017-05-15,Kansas,0
+2017-05-22,Kansas,0
+2017-05-29,Kansas,0
+2017-06-05,Kansas,0
+2017-06-12,Kansas,0
+2017-06-19,Kansas,0
+2017-06-26,Kansas,0
+2017-07-03,Kansas,0
+2017-07-10,Kansas,0
+2017-07-17,Kansas,0
+2017-07-24,Kansas,0
+2017-07-31,Kansas,0
+2017-08-07,Kansas,0
+2017-08-14,Kansas,0
+2017-08-21,Kansas,0
+2017-08-28,Kansas,0
+2017-09-04,Kansas,0
+2017-09-11,Kansas,0
+2017-09-18,Kansas,0
+2017-09-25,Kansas,0
+2017-10-02,Kansas,0
+2017-10-09,Kansas,0
+2017-10-16,Kansas,0
+2017-10-23,Kansas,0
+2017-10-30,Kansas,0
+2017-11-06,Kansas,0
+2017-11-13,Kansas,2
+2017-11-20,Kansas,0
+2017-11-27,Kansas,2
+2017-12-04,Kansas,4
+2017-12-11,Kansas,4
+2017-12-18,Kansas,1
+2017-12-25,Kansas,0
+2018-01-01,Kansas,5
+2018-01-08,Kansas,2
+2018-01-15,Kansas,1
+2018-01-22,Kansas,1
+2018-01-29,Kansas,4
+2018-02-05,Kansas,3
+2018-02-12,Kansas,0
+2018-02-19,Kansas,0
+2018-02-26,Kansas,3
+2018-03-05,Kansas,1
+2018-03-12,Kansas,2
+2018-03-19,Kansas,1
+2018-03-26,Kansas,0
+2018-04-02,Kansas,0
+2018-04-09,Kansas,0
+2018-04-16,Kansas,0
+2018-04-23,Kansas,0
+2018-04-30,Kansas,0
+2018-05-07,Kansas,0
+2018-05-14,Kansas,0
+2018-05-21,Kansas,0
+2018-05-28,Kansas,0
+2018-06-04,Kansas,0
+2018-06-11,Kansas,0
+2018-06-18,Kansas,0
+2018-06-25,Kansas,0
+2018-07-02,Kansas,0
+2018-07-09,Kansas,0
+2018-07-16,Kansas,0
+2018-07-23,Kansas,0
+2018-07-30,Kansas,0
+2018-08-06,Kansas,0
+2018-08-13,Kansas,0
+2018-08-20,Kansas,0
+2018-08-27,Kansas,0
+2018-09-03,Kansas,0
+2018-09-10,Kansas,0
+2018-09-17,Kansas,0
+2018-09-24,Kansas,0
+2018-10-01,Kansas,0
+2018-10-08,Kansas,0
+2018-10-15,Kansas,0
+2018-10-22,Kansas,0
+2018-10-29,Kansas,0
+2018-11-05,Kansas,0
+2018-11-12,Kansas,3
+2018-11-19,Kansas,2
+2018-11-26,Kansas,4
+2018-12-03,Kansas,2
+2018-12-10,Kansas,1
+2018-12-17,Kansas,3
+2018-12-24,Kansas,0
+2018-12-31,Kansas,5
+2019-01-07,Kansas,2
+2019-01-14,Kansas,1
+2019-01-21,Kansas,0
+2019-01-28,Kansas,1
+2019-02-04,Kansas,0
+2019-02-11,Kansas,2
+2019-02-18,Kansas,4
+2019-02-25,Kansas,2
+2019-03-04,Kansas,4
+2019-03-11,Kansas,2
+2019-03-18,Kansas,0
+2019-03-25,Kansas,3
+2019-04-01,Kansas,0
+2019-04-08,Kansas,0
+2019-04-15,Kansas,0
+2019-04-22,Kansas,0
+2019-04-29,Kansas,0
+2019-05-06,Kansas,0
+2019-05-13,Kansas,0
+2019-05-20,Kansas,0
+2019-05-27,Kansas,0
+2019-06-03,Kansas,0
+2019-06-10,Kansas,0
+2019-06-17,Kansas,0
+2019-06-24,Kansas,0
+2019-07-01,Kansas,0
+2019-07-08,Kansas,0
+2019-07-15,Kansas,0
+2019-07-22,Kansas,0
+2019-07-29,Kansas,0
+2019-08-05,Kansas,0
+2019-08-12,Kansas,0
+2019-08-19,Kansas,0
+2019-08-26,Kansas,0
+2019-09-02,Kansas,0
+2019-09-09,Kansas,0
+2019-09-16,Kansas,0
+2019-09-23,Kansas,0
+2019-09-30,Kansas,0
+2019-10-07,Kansas,0
+2019-10-14,Kansas,0
+2019-10-21,Kansas,0
+2019-10-28,Kansas,0
+2019-11-04,Kansas,0
+2019-11-11,Kansas,1
+2019-11-18,Kansas,2
+2019-11-25,Kansas,7
+2019-12-02,Kansas,3
+2019-12-09,Kansas,4
+2019-12-16,Kansas,3
+2019-12-23,Kansas,0
+2019-12-30,Kansas,7
+2020-01-06,Kansas,1
+2020-01-13,Kansas,0
+2020-01-20,Kansas,1
+2020-01-27,Kansas,3
+2020-02-03,Kansas,1
+2020-02-10,Kansas,0
+2020-02-17,Kansas,3
+2020-02-24,Kansas,0
+2020-03-02,Kansas,2
+2020-03-09,Kansas,0
+2015-07-06,Maine,0
+2015-07-13,Maine,0
+2015-07-20,Maine,0
+2015-07-27,Maine,0
+2015-08-03,Maine,0
+2015-08-10,Maine,0
+2015-08-17,Maine,0
+2015-08-24,Maine,0
+2015-08-31,Maine,0
+2015-09-07,Maine,0
+2015-09-14,Maine,0
+2015-09-21,Maine,0
+2015-09-28,Maine,0
+2015-10-05,Maine,0
+2015-10-12,Maine,0
+2015-10-19,Maine,0
+2015-10-26,Maine,0
+2015-11-02,Maine,0
+2015-11-09,Maine,0
+2015-11-16,Maine,0
+2015-11-23,Maine,0
+2015-11-30,Maine,0
+2015-12-07,Maine,0
+2015-12-14,Maine,0
+2015-12-21,Maine,1
+2015-12-28,Maine,2
+2016-01-04,Maine,0
+2016-01-11,Maine,2
+2016-01-18,Maine,1
+2016-01-25,Maine,1
+2016-02-01,Maine,3
+2016-02-08,Maine,5
+2016-02-15,Maine,3
+2016-02-22,Maine,7
+2016-02-29,Maine,14
+2016-03-07,Maine,0
+2016-03-14,Maine,0
+2016-03-21,Maine,0
+2016-03-28,Maine,0
+2016-04-04,Maine,0
+2016-04-11,Maine,0
+2016-04-18,Maine,0
+2016-04-25,Maine,0
+2016-05-02,Maine,0
+2016-05-09,Maine,2
+2016-05-16,Maine,0
+2016-05-23,Maine,3
+2016-05-30,Maine,0
+2016-06-06,Maine,0
+2016-06-13,Maine,0
+2016-06-20,Maine,0
+2016-06-27,Maine,0
+2016-07-04,Maine,0
+2016-07-11,Maine,0
+2016-07-18,Maine,0
+2016-07-25,Maine,0
+2016-08-01,Maine,0
+2016-08-08,Maine,0
+2016-08-15,Maine,0
+2016-08-22,Maine,0
+2016-08-29,Maine,0
+2016-09-05,Maine,0
+2016-09-12,Maine,0
+2016-09-19,Maine,0
+2016-09-26,Maine,0
+2016-10-03,Maine,0
+2016-10-10,Maine,0
+2016-10-17,Maine,0
+2016-10-24,Maine,0
+2016-10-31,Maine,0
+2016-11-07,Maine,0
+2016-11-14,Maine,0
+2016-11-21,Maine,0
+2016-11-28,Maine,0
+2016-12-05,Maine,0
+2016-12-12,Maine,0
+2016-12-19,Maine,0
+2016-12-26,Maine,0
+2017-01-02,Maine,0
+2017-01-09,Maine,0
+2017-01-16,Maine,0
+2017-01-23,Maine,0
+2017-01-30,Maine,0
+2017-02-06,Maine,0
+2017-02-13,Maine,0
+2017-02-20,Maine,0
+2017-02-27,Maine,0
+2017-03-06,Maine,0
+2017-03-13,Maine,0
+2017-03-20,Maine,0
+2017-03-27,Maine,0
+2017-04-03,Maine,0
+2017-04-10,Maine,0
+2017-04-17,Maine,0
+2017-04-24,Maine,0
+2017-05-01,Maine,0
+2017-05-08,Maine,0
+2017-05-15,Maine,0
+2017-05-22,Maine,0
+2017-05-29,Maine,0
+2017-06-05,Maine,0
+2017-06-12,Maine,0
+2017-06-19,Maine,0
+2017-06-26,Maine,0
+2017-07-03,Maine,0
+2017-07-10,Maine,0
+2017-07-17,Maine,0
+2017-07-24,Maine,0
+2017-07-31,Maine,0
+2017-08-07,Maine,0
+2017-08-14,Maine,0
+2017-08-21,Maine,0
+2017-08-28,Maine,0
+2017-09-04,Maine,0
+2017-09-11,Maine,0
+2017-09-18,Maine,0
+2017-09-25,Maine,0
+2017-10-02,Maine,0
+2017-10-09,Maine,0
+2017-10-16,Maine,0
+2017-10-23,Maine,0
+2017-10-30,Maine,0
+2017-11-06,Maine,0
+2017-11-13,Maine,0
+2017-11-20,Maine,0
+2017-11-27,Maine,0
+2017-12-04,Maine,0
+2017-12-11,Maine,0
+2017-12-18,Maine,0
+2017-12-25,Maine,0
+2018-01-01,Maine,0
+2018-01-08,Maine,0
+2018-01-15,Maine,0
+2018-01-22,Maine,0
+2018-01-29,Maine,0
+2018-02-05,Maine,0
+2018-02-12,Maine,0
+2018-02-19,Maine,0
+2018-02-26,Maine,0
+2018-03-05,Maine,0
+2018-03-12,Maine,0
+2018-03-19,Maine,0
+2018-03-26,Maine,0
+2018-04-02,Maine,0
+2018-04-09,Maine,0
+2018-04-16,Maine,0
+2018-04-23,Maine,0
+2018-04-30,Maine,0
+2018-05-07,Maine,0
+2018-05-14,Maine,0
+2018-05-21,Maine,0
+2018-05-28,Maine,0
+2018-06-04,Maine,0
+2018-06-11,Maine,0
+2018-06-18,Maine,0
+2018-06-25,Maine,0
+2018-07-02,Maine,0
+2018-07-09,Maine,0
+2018-07-16,Maine,0
+2018-07-23,Maine,0
+2018-07-30,Maine,0
+2018-08-06,Maine,0
+2018-08-13,Maine,0
+2018-08-20,Maine,0
+2018-08-27,Maine,0
+2018-09-03,Maine,0
+2018-09-10,Maine,0
+2018-09-17,Maine,0
+2018-09-24,Maine,0
+2018-10-01,Maine,0
+2018-10-08,Maine,0
+2018-10-15,Maine,0
+2018-10-22,Maine,0
+2018-10-29,Maine,0
+2018-11-05,Maine,0
+2018-11-12,Maine,0
+2018-11-19,Maine,0
+2018-11-26,Maine,0
+2018-12-03,Maine,1
+2018-12-10,Maine,5
+2018-12-17,Maine,3
+2018-12-24,Maine,0
+2018-12-31,Maine,7
+2019-01-07,Maine,3
+2019-01-14,Maine,0
+2019-01-21,Maine,0
+2019-01-28,Maine,10
+2019-02-04,Maine,0
+2019-02-11,Maine,0
+2019-02-18,Maine,0
+2019-02-25,Maine,0
+2019-03-04,Maine,1
+2019-03-11,Maine,9
+2019-03-18,Maine,0
+2019-03-25,Maine,0
+2019-04-01,Maine,0
+2019-04-08,Maine,0
+2019-04-15,Maine,0
+2019-04-22,Maine,0
+2019-04-29,Maine,0
+2019-05-06,Maine,0
+2019-05-13,Maine,0
+2019-05-20,Maine,0
+2019-05-27,Maine,0
+2019-06-03,Maine,0
+2019-06-10,Maine,0
+2019-06-17,Maine,0
+2019-06-24,Maine,0
+2019-07-01,Maine,0
+2019-07-08,Maine,0
+2019-07-15,Maine,0
+2019-07-22,Maine,0
+2019-07-29,Maine,0
+2019-08-05,Maine,0
+2019-08-12,Maine,0
+2019-08-19,Maine,0
+2019-08-26,Maine,0
+2019-09-02,Maine,0
+2019-09-09,Maine,0
+2019-09-16,Maine,0
+2019-09-23,Maine,0
+2019-09-30,Maine,0
+2019-10-07,Maine,0
+2019-10-14,Maine,0
+2019-10-21,Maine,0
+2019-10-28,Maine,1
+2019-11-04,Maine,4
+2019-11-11,Maine,5
+2019-11-18,Maine,0
+2019-11-25,Maine,1
+2019-12-02,Maine,1
+2019-12-09,Maine,2
+2019-12-16,Maine,4
+2019-12-23,Maine,0
+2019-12-30,Maine,6
+2020-01-06,Maine,3
+2020-01-13,Maine,0
+2020-01-20,Maine,0
+2020-01-27,Maine,0
+2020-02-03,Maine,8
+2020-02-10,Maine,0
+2020-02-17,Maine,0
+2020-02-24,Maine,0
+2020-03-02,Maine,9
+2020-03-09,Maine,0
+2015-07-06,Maryland,0
+2015-07-13,Maryland,0
+2015-07-20,Maryland,0
+2015-07-27,Maryland,0
+2015-08-03,Maryland,0
+2015-08-10,Maryland,0
+2015-08-17,Maryland,0
+2015-08-24,Maryland,0
+2015-08-31,Maryland,0
+2015-09-07,Maryland,0
+2015-09-14,Maryland,0
+2015-09-21,Maryland,0
+2015-09-28,Maryland,0
+2015-10-05,Maryland,0
+2015-10-12,Maryland,0
+2015-10-19,Maryland,0
+2015-10-26,Maryland,0
+2015-11-02,Maryland,0
+2015-11-09,Maryland,0
+2015-11-16,Maryland,0
+2015-11-23,Maryland,0
+2015-11-30,Maryland,0
+2015-12-07,Maryland,0
+2015-12-14,Maryland,0
+2015-12-21,Maryland,0
+2015-12-28,Maryland,0
+2016-01-04,Maryland,0
+2016-01-11,Maryland,0
+2016-01-18,Maryland,0
+2016-01-25,Maryland,0
+2016-02-01,Maryland,0
+2016-02-08,Maryland,0
+2016-02-15,Maryland,0
+2016-02-22,Maryland,0
+2016-02-29,Maryland,0
+2016-03-07,Maryland,0
+2016-03-14,Maryland,0
+2016-03-21,Maryland,0
+2016-03-28,Maryland,0
+2016-04-04,Maryland,0
+2016-04-11,Maryland,0
+2016-04-18,Maryland,0
+2016-04-25,Maryland,0
+2016-05-02,Maryland,0
+2016-05-09,Maryland,0
+2016-05-16,Maryland,0
+2016-05-23,Maryland,0
+2016-05-30,Maryland,0
+2016-06-06,Maryland,0
+2016-06-13,Maryland,0
+2016-06-20,Maryland,0
+2016-06-27,Maryland,0
+2016-07-04,Maryland,0
+2016-07-11,Maryland,0
+2016-07-18,Maryland,0
+2016-07-25,Maryland,0
+2016-08-01,Maryland,0
+2016-08-08,Maryland,0
+2016-08-15,Maryland,0
+2016-08-22,Maryland,0
+2016-08-29,Maryland,0
+2016-09-05,Maryland,0
+2016-09-12,Maryland,0
+2016-09-19,Maryland,0
+2016-09-26,Maryland,0
+2016-10-03,Maryland,0
+2016-10-10,Maryland,0
+2016-10-17,Maryland,0
+2016-10-24,Maryland,0
+2016-10-31,Maryland,0
+2016-11-07,Maryland,2
+2016-11-14,Maryland,2
+2016-11-21,Maryland,5
+2016-11-28,Maryland,7
+2016-12-05,Maryland,4
+2016-12-12,Maryland,0
+2016-12-19,Maryland,0
+2016-12-26,Maryland,2
+2017-01-02,Maryland,8
+2017-01-09,Maryland,0
+2017-01-16,Maryland,0
+2017-01-23,Maryland,0
+2017-01-30,Maryland,3
+2017-02-06,Maryland,2
+2017-02-13,Maryland,2
+2017-02-20,Maryland,0
+2017-02-27,Maryland,1
+2017-03-06,Maryland,1
+2017-03-13,Maryland,2
+2017-03-20,Maryland,2
+2017-03-27,Maryland,1
+2017-04-03,Maryland,0
+2017-04-10,Maryland,0
+2017-04-17,Maryland,0
+2017-04-24,Maryland,0
+2017-05-01,Maryland,0
+2017-05-08,Maryland,0
+2017-05-15,Maryland,0
+2017-05-22,Maryland,0
+2017-05-29,Maryland,0
+2017-06-05,Maryland,0
+2017-06-12,Maryland,0
+2017-06-19,Maryland,0
+2017-06-26,Maryland,0
+2017-07-03,Maryland,0
+2017-07-10,Maryland,0
+2017-07-17,Maryland,0
+2017-07-24,Maryland,0
+2017-07-31,Maryland,0
+2017-08-07,Maryland,0
+2017-08-14,Maryland,0
+2017-08-21,Maryland,0
+2017-08-28,Maryland,0
+2017-09-04,Maryland,0
+2017-09-11,Maryland,0
+2017-09-18,Maryland,0
+2017-09-25,Maryland,0
+2017-10-02,Maryland,0
+2017-10-09,Maryland,0
+2017-10-16,Maryland,0
+2017-10-23,Maryland,0
+2017-10-30,Maryland,1
+2017-11-06,Maryland,8
+2017-11-13,Maryland,0
+2017-11-20,Maryland,0
+2017-11-27,Maryland,2
+2017-12-04,Maryland,8
+2017-12-11,Maryland,0
+2017-12-18,Maryland,0
+2017-12-25,Maryland,0
+2018-01-01,Maryland,8
+2018-01-08,Maryland,0
+2018-01-15,Maryland,0
+2018-01-22,Maryland,0
+2018-01-29,Maryland,0
+2018-02-05,Maryland,3
+2018-02-12,Maryland,4
+2018-02-19,Maryland,1
+2018-02-26,Maryland,0
+2018-03-05,Maryland,1
+2018-03-12,Maryland,1
+2018-03-19,Maryland,2
+2018-03-26,Maryland,2
+2018-04-02,Maryland,0
+2018-04-09,Maryland,0
+2018-04-16,Maryland,0
+2018-04-23,Maryland,0
+2018-04-30,Maryland,0
+2018-05-07,Maryland,0
+2018-05-14,Maryland,0
+2018-05-21,Maryland,0
+2018-05-28,Maryland,0
+2018-06-04,Maryland,0
+2018-06-11,Maryland,0
+2018-06-18,Maryland,0
+2018-06-25,Maryland,0
+2018-07-02,Maryland,0
+2018-07-09,Maryland,0
+2018-07-16,Maryland,0
+2018-07-23,Maryland,0
+2018-07-30,Maryland,0
+2018-08-06,Maryland,0
+2018-08-13,Maryland,0
+2018-08-20,Maryland,0
+2018-08-27,Maryland,0
+2018-09-03,Maryland,0
+2018-09-10,Maryland,0
+2018-09-17,Maryland,0
+2018-09-24,Maryland,0
+2018-10-01,Maryland,0
+2018-10-08,Maryland,0
+2018-10-15,Maryland,0
+2018-10-22,Maryland,0
+2018-10-29,Maryland,3
+2018-11-05,Maryland,4
+2018-11-12,Maryland,1
+2018-11-19,Maryland,0
+2018-11-26,Maryland,2
+2018-12-03,Maryland,7
+2018-12-10,Maryland,1
+2018-12-17,Maryland,0
+2018-12-24,Maryland,0
+2018-12-31,Maryland,7
+2019-01-07,Maryland,1
+2019-01-14,Maryland,0
+2019-01-21,Maryland,0
+2019-01-28,Maryland,5
+2019-02-04,Maryland,6
+2019-02-11,Maryland,0
+2019-02-18,Maryland,0
+2019-02-25,Maryland,4
+2019-03-04,Maryland,1
+2019-03-11,Maryland,1
+2019-03-18,Maryland,0
+2019-03-25,Maryland,0
+2019-04-01,Maryland,0
+2019-04-08,Maryland,0
+2019-04-15,Maryland,0
+2019-04-22,Maryland,0
+2019-04-29,Maryland,0
+2019-05-06,Maryland,0
+2019-05-13,Maryland,0
+2019-05-20,Maryland,0
+2019-05-27,Maryland,0
+2019-06-03,Maryland,0
+2019-06-10,Maryland,0
+2019-06-17,Maryland,0
+2019-06-24,Maryland,0
+2019-07-01,Maryland,0
+2019-07-08,Maryland,0
+2019-07-15,Maryland,0
+2019-07-22,Maryland,0
+2019-07-29,Maryland,0
+2019-08-05,Maryland,0
+2019-08-12,Maryland,0
+2019-08-19,Maryland,0
+2019-08-26,Maryland,0
+2019-09-02,Maryland,0
+2019-09-09,Maryland,0
+2019-09-16,Maryland,0
+2019-09-23,Maryland,0
+2019-09-30,Maryland,0
+2019-10-07,Maryland,0
+2019-10-14,Maryland,0
+2019-10-21,Maryland,0
+2019-10-28,Maryland,0
+2019-11-04,Maryland,7
+2019-11-11,Maryland,1
+2019-11-18,Maryland,0
+2019-11-25,Maryland,3
+2019-12-02,Maryland,2
+2019-12-09,Maryland,0
+2019-12-16,Maryland,0
+2019-12-23,Maryland,0
+2019-12-30,Maryland,0
+2020-01-06,Maryland,2
+2020-01-13,Maryland,7
+2020-01-20,Maryland,0
+2020-01-27,Maryland,1
+2020-02-03,Maryland,3
+2020-02-10,Maryland,2
+2020-02-17,Maryland,1
+2020-02-24,Maryland,3
+2020-03-02,Maryland,0
+2020-03-09,Maryland,0
+2015-07-06,Massachusetts,0
+2015-07-13,Massachusetts,0
+2015-07-20,Massachusetts,0
+2015-07-27,Massachusetts,0
+2015-08-03,Massachusetts,0
+2015-08-10,Massachusetts,0
+2015-08-17,Massachusetts,0
+2015-08-24,Massachusetts,0
+2015-08-31,Massachusetts,0
+2015-09-07,Massachusetts,0
+2015-09-14,Massachusetts,0
+2015-09-21,Massachusetts,0
+2015-09-28,Massachusetts,0
+2015-10-05,Massachusetts,0
+2015-10-12,Massachusetts,0
+2015-10-19,Massachusetts,0
+2015-10-26,Massachusetts,0
+2015-11-02,Massachusetts,0
+2015-11-09,Massachusetts,0
+2015-11-16,Massachusetts,0
+2015-11-23,Massachusetts,0
+2015-11-30,Massachusetts,0
+2015-12-07,Massachusetts,0
+2015-12-14,Massachusetts,0
+2015-12-21,Massachusetts,0
+2015-12-28,Massachusetts,0
+2016-01-04,Massachusetts,0
+2016-01-11,Massachusetts,0
+2016-01-18,Massachusetts,0
+2016-01-25,Massachusetts,0
+2016-02-01,Massachusetts,0
+2016-02-08,Massachusetts,0
+2016-02-15,Massachusetts,0
+2016-02-22,Massachusetts,0
+2016-02-29,Massachusetts,0
+2016-03-07,Massachusetts,0
+2016-03-14,Massachusetts,0
+2016-03-21,Massachusetts,0
+2016-03-28,Massachusetts,0
+2016-04-04,Massachusetts,0
+2016-04-11,Massachusetts,0
+2016-04-18,Massachusetts,0
+2016-04-25,Massachusetts,0
+2016-05-02,Massachusetts,0
+2016-05-09,Massachusetts,0
+2016-05-16,Massachusetts,0
+2016-05-23,Massachusetts,0
+2016-05-30,Massachusetts,0
+2016-06-06,Massachusetts,0
+2016-06-13,Massachusetts,0
+2016-06-20,Massachusetts,0
+2016-06-27,Massachusetts,0
+2016-07-04,Massachusetts,0
+2016-07-11,Massachusetts,0
+2016-07-18,Massachusetts,0
+2016-07-25,Massachusetts,0
+2016-08-01,Massachusetts,0
+2016-08-08,Massachusetts,0
+2016-08-15,Massachusetts,0
+2016-08-22,Massachusetts,0
+2016-08-29,Massachusetts,0
+2016-09-05,Massachusetts,0
+2016-09-12,Massachusetts,0
+2016-09-19,Massachusetts,0
+2016-09-26,Massachusetts,0
+2016-10-03,Massachusetts,0
+2016-10-10,Massachusetts,0
+2016-10-17,Massachusetts,0
+2016-10-24,Massachusetts,0
+2016-10-31,Massachusetts,0
+2016-11-07,Massachusetts,0
+2016-11-14,Massachusetts,1
+2016-11-21,Massachusetts,1
+2016-11-28,Massachusetts,5
+2016-12-05,Massachusetts,1
+2016-12-12,Massachusetts,4
+2016-12-19,Massachusetts,1
+2016-12-26,Massachusetts,2
+2017-01-02,Massachusetts,2
+2017-01-09,Massachusetts,1
+2017-01-16,Massachusetts,0
+2017-01-23,Massachusetts,0
+2017-01-30,Massachusetts,2
+2017-02-06,Massachusetts,2
+2017-02-13,Massachusetts,0
+2017-02-20,Massachusetts,3
+2017-02-27,Massachusetts,3
+2017-03-06,Massachusetts,4
+2017-03-13,Massachusetts,2
+2017-03-20,Massachusetts,0
+2017-03-27,Massachusetts,0
+2017-04-03,Massachusetts,0
+2017-04-10,Massachusetts,0
+2017-04-17,Massachusetts,0
+2017-04-24,Massachusetts,0
+2017-05-01,Massachusetts,0
+2017-05-08,Massachusetts,0
+2017-05-15,Massachusetts,0
+2017-05-22,Massachusetts,0
+2017-05-29,Massachusetts,0
+2017-06-05,Massachusetts,0
+2017-06-12,Massachusetts,0
+2017-06-19,Massachusetts,0
+2017-06-26,Massachusetts,0
+2017-07-03,Massachusetts,0
+2017-07-10,Massachusetts,0
+2017-07-17,Massachusetts,0
+2017-07-24,Massachusetts,0
+2017-07-31,Massachusetts,0
+2017-08-07,Massachusetts,0
+2017-08-14,Massachusetts,0
+2017-08-21,Massachusetts,0
+2017-08-28,Massachusetts,0
+2017-09-04,Massachusetts,0
+2017-09-11,Massachusetts,0
+2017-09-18,Massachusetts,0
+2017-09-25,Massachusetts,0
+2017-10-02,Massachusetts,0
+2017-10-09,Massachusetts,0
+2017-10-16,Massachusetts,0
+2017-10-23,Massachusetts,0
+2017-10-30,Massachusetts,0
+2017-11-06,Massachusetts,1
+2017-11-13,Massachusetts,4
+2017-11-20,Massachusetts,4
+2017-11-27,Massachusetts,1
+2017-12-04,Massachusetts,2
+2017-12-11,Massachusetts,2
+2017-12-18,Massachusetts,1
+2017-12-25,Massachusetts,0
+2018-01-01,Massachusetts,0
+2018-01-08,Massachusetts,4
+2018-01-15,Massachusetts,3
+2018-01-22,Massachusetts,3
+2018-01-29,Massachusetts,0
+2018-02-05,Massachusetts,4
+2018-02-12,Massachusetts,1
+2018-02-19,Massachusetts,1
+2018-02-26,Massachusetts,0
+2018-03-05,Massachusetts,8
+2018-03-12,Massachusetts,0
+2018-03-19,Massachusetts,0
+2018-03-26,Massachusetts,0
+2018-04-02,Massachusetts,0
+2018-04-09,Massachusetts,0
+2018-04-16,Massachusetts,0
+2018-04-23,Massachusetts,0
+2018-04-30,Massachusetts,0
+2018-05-07,Massachusetts,0
+2018-05-14,Massachusetts,0
+2018-05-21,Massachusetts,0
+2018-05-28,Massachusetts,0
+2018-06-04,Massachusetts,0
+2018-06-11,Massachusetts,0
+2018-06-18,Massachusetts,0
+2018-06-25,Massachusetts,0
+2018-07-02,Massachusetts,0
+2018-07-09,Massachusetts,0
+2018-07-16,Massachusetts,0
+2018-07-23,Massachusetts,0
+2018-07-30,Massachusetts,0
+2018-08-06,Massachusetts,0
+2018-08-13,Massachusetts,0
+2018-08-20,Massachusetts,0
+2018-08-27,Massachusetts,0
+2018-09-03,Massachusetts,0
+2018-09-10,Massachusetts,0
+2018-09-17,Massachusetts,0
+2018-09-24,Massachusetts,0
+2018-10-01,Massachusetts,0
+2018-10-08,Massachusetts,0
+2018-10-15,Massachusetts,0
+2018-10-22,Massachusetts,0
+2018-10-29,Massachusetts,1
+2018-11-05,Massachusetts,3
+2018-11-12,Massachusetts,1
+2018-11-19,Massachusetts,2
+2018-11-26,Massachusetts,0
+2018-12-03,Massachusetts,3
+2018-12-10,Massachusetts,1
+2018-12-17,Massachusetts,3
+2018-12-24,Massachusetts,1
+2018-12-31,Massachusetts,4
+2019-01-07,Massachusetts,3
+2019-01-14,Massachusetts,3
+2019-01-21,Massachusetts,0
+2019-01-28,Massachusetts,1
+2019-02-04,Massachusetts,1
+2019-02-11,Massachusetts,1
+2019-02-18,Massachusetts,1
+2019-02-25,Massachusetts,4
+2019-03-04,Massachusetts,2
+2019-03-11,Massachusetts,0
+2019-03-18,Massachusetts,1
+2019-03-25,Massachusetts,0
+2019-04-01,Massachusetts,0
+2019-04-08,Massachusetts,0
+2019-04-15,Massachusetts,0
+2019-04-22,Massachusetts,0
+2019-04-29,Massachusetts,0
+2019-05-06,Massachusetts,0
+2019-05-13,Massachusetts,0
+2019-05-20,Massachusetts,0
+2019-05-27,Massachusetts,0
+2019-06-03,Massachusetts,0
+2019-06-10,Massachusetts,0
+2019-06-17,Massachusetts,0
+2019-06-24,Massachusetts,0
+2019-07-01,Massachusetts,0
+2019-07-08,Massachusetts,0
+2019-07-15,Massachusetts,0
+2019-07-22,Massachusetts,0
+2019-07-29,Massachusetts,0
+2019-08-05,Massachusetts,0
+2019-08-12,Massachusetts,0
+2019-08-19,Massachusetts,0
+2019-08-26,Massachusetts,0
+2019-09-02,Massachusetts,0
+2019-09-09,Massachusetts,0
+2019-09-16,Massachusetts,0
+2019-09-23,Massachusetts,0
+2019-09-30,Massachusetts,0
+2019-10-07,Massachusetts,0
+2019-10-14,Massachusetts,0
+2019-10-21,Massachusetts,0
+2019-10-28,Massachusetts,0
+2019-11-04,Massachusetts,0
+2019-11-11,Massachusetts,0
+2019-11-18,Massachusetts,3
+2019-11-25,Massachusetts,2
+2019-12-02,Massachusetts,3
+2019-12-09,Massachusetts,0
+2019-12-16,Massachusetts,1
+2019-12-23,Massachusetts,5
+2019-12-30,Massachusetts,1
+2020-01-06,Massachusetts,4
+2020-01-13,Massachusetts,2
+2020-01-20,Massachusetts,0
+2020-01-27,Massachusetts,1
+2020-02-03,Massachusetts,2
+2020-02-10,Massachusetts,3
+2020-02-17,Massachusetts,1
+2020-02-24,Massachusetts,0
+2020-03-02,Massachusetts,0
+2020-03-09,Massachusetts,1
+2015-07-06,Minnesota,1
+2015-07-13,Minnesota,0
+2015-07-20,Minnesota,0
+2015-07-27,Minnesota,0
+2015-08-03,Minnesota,0
+2015-08-10,Minnesota,0
+2015-08-17,Minnesota,0
+2015-08-24,Minnesota,0
+2015-08-31,Minnesota,0
+2015-09-07,Minnesota,0
+2015-09-14,Minnesota,0
+2015-09-21,Minnesota,0
+2015-09-28,Minnesota,0
+2015-10-05,Minnesota,0
+2015-10-12,Minnesota,0
+2015-10-19,Minnesota,0
+2015-10-26,Minnesota,0
+2015-11-02,Minnesota,0
+2015-11-09,Minnesota,0
+2015-11-16,Minnesota,0
+2015-11-23,Minnesota,0
+2015-11-30,Minnesota,1
+2015-12-07,Minnesota,0
+2015-12-14,Minnesota,0
+2015-12-21,Minnesota,0
+2015-12-28,Minnesota,0
+2016-01-04,Minnesota,0
+2016-01-11,Minnesota,0
+2016-01-18,Minnesota,0
+2016-01-25,Minnesota,0
+2016-02-01,Minnesota,0
+2016-02-08,Minnesota,0
+2016-02-15,Minnesota,0
+2016-02-22,Minnesota,0
+2016-02-29,Minnesota,0
+2016-03-07,Minnesota,0
+2016-03-14,Minnesota,0
+2016-03-21,Minnesota,0
+2016-03-28,Minnesota,0
+2016-04-04,Minnesota,0
+2016-04-11,Minnesota,0
+2016-04-18,Minnesota,0
+2016-04-25,Minnesota,0
+2016-05-02,Minnesota,0
+2016-05-09,Minnesota,0
+2016-05-16,Minnesota,0
+2016-05-23,Minnesota,0
+2016-05-30,Minnesota,0
+2016-06-06,Minnesota,0
+2016-06-13,Minnesota,0
+2016-06-20,Minnesota,0
+2016-06-27,Minnesota,0
+2016-07-04,Minnesota,0
+2016-07-11,Minnesota,0
+2016-07-18,Minnesota,0
+2016-07-25,Minnesota,0
+2016-08-01,Minnesota,0
+2016-08-08,Minnesota,0
+2016-08-15,Minnesota,0
+2016-08-22,Minnesota,0
+2016-08-29,Minnesota,0
+2016-09-05,Minnesota,0
+2016-09-12,Minnesota,0
+2016-09-19,Minnesota,0
+2016-09-26,Minnesota,0
+2016-10-03,Minnesota,0
+2016-10-10,Minnesota,0
+2016-10-17,Minnesota,0
+2016-10-24,Minnesota,0
+2016-10-31,Minnesota,0
+2016-11-07,Minnesota,0
+2016-11-14,Minnesota,0
+2016-11-21,Minnesota,0
+2016-11-28,Minnesota,0
+2016-12-05,Minnesota,0
+2016-12-12,Minnesota,0
+2016-12-19,Minnesota,0
+2016-12-26,Minnesota,0
+2017-01-02,Minnesota,0
+2017-01-09,Minnesota,0
+2017-01-16,Minnesota,0
+2017-01-23,Minnesota,0
+2017-01-30,Minnesota,0
+2017-02-06,Minnesota,0
+2017-02-13,Minnesota,0
+2017-02-20,Minnesota,0
+2017-02-27,Minnesota,0
+2017-03-06,Minnesota,0
+2017-03-13,Minnesota,0
+2017-03-20,Minnesota,0
+2017-03-27,Minnesota,0
+2017-04-03,Minnesota,0
+2017-04-10,Minnesota,0
+2017-04-17,Minnesota,0
+2017-04-24,Minnesota,0
+2017-05-01,Minnesota,0
+2017-05-08,Minnesota,0
+2017-05-15,Minnesota,0
+2017-05-22,Minnesota,0
+2017-05-29,Minnesota,0
+2017-06-05,Minnesota,0
+2017-06-12,Minnesota,0
+2017-06-19,Minnesota,0
+2017-06-26,Minnesota,0
+2017-07-03,Minnesota,0
+2017-07-10,Minnesota,0
+2017-07-17,Minnesota,0
+2017-07-24,Minnesota,0
+2017-07-31,Minnesota,0
+2017-08-07,Minnesota,0
+2017-08-14,Minnesota,0
+2017-08-21,Minnesota,0
+2017-08-28,Minnesota,0
+2017-09-04,Minnesota,0
+2017-09-11,Minnesota,0
+2017-09-18,Minnesota,0
+2017-09-25,Minnesota,0
+2017-10-02,Minnesota,0
+2017-10-09,Minnesota,0
+2017-10-16,Minnesota,0
+2017-10-23,Minnesota,0
+2017-10-30,Minnesota,0
+2017-11-06,Minnesota,0
+2017-11-13,Minnesota,0
+2017-11-20,Minnesota,0
+2017-11-27,Minnesota,0
+2017-12-04,Minnesota,0
+2017-12-11,Minnesota,0
+2017-12-18,Minnesota,0
+2017-12-25,Minnesota,0
+2018-01-01,Minnesota,0
+2018-01-08,Minnesota,0
+2018-01-15,Minnesota,0
+2018-01-22,Minnesota,0
+2018-01-29,Minnesota,0
+2018-02-05,Minnesota,0
+2018-02-12,Minnesota,0
+2018-02-19,Minnesota,0
+2018-02-26,Minnesota,0
+2018-03-05,Minnesota,0
+2018-03-12,Minnesota,0
+2018-03-19,Minnesota,0
+2018-03-26,Minnesota,0
+2018-04-02,Minnesota,0
+2018-04-09,Minnesota,0
+2018-04-16,Minnesota,0
+2018-04-23,Minnesota,0
+2018-04-30,Minnesota,0
+2018-05-07,Minnesota,0
+2018-05-14,Minnesota,0
+2018-05-21,Minnesota,0
+2018-05-28,Minnesota,0
+2018-06-04,Minnesota,0
+2018-06-11,Minnesota,0
+2018-06-18,Minnesota,0
+2018-06-25,Minnesota,0
+2018-07-02,Minnesota,0
+2018-07-09,Minnesota,0
+2018-07-16,Minnesota,0
+2018-07-23,Minnesota,0
+2018-07-30,Minnesota,0
+2018-08-06,Minnesota,0
+2018-08-13,Minnesota,0
+2018-08-20,Minnesota,0
+2018-08-27,Minnesota,0
+2018-09-03,Minnesota,0
+2018-09-10,Minnesota,0
+2018-09-17,Minnesota,0
+2018-09-24,Minnesota,0
+2018-10-01,Minnesota,0
+2018-10-08,Minnesota,0
+2018-10-15,Minnesota,0
+2018-10-22,Minnesota,0
+2018-10-29,Minnesota,0
+2018-11-05,Minnesota,0
+2018-11-12,Minnesota,0
+2018-11-19,Minnesota,0
+2018-11-26,Minnesota,0
+2018-12-03,Minnesota,0
+2018-12-10,Minnesota,0
+2018-12-17,Minnesota,0
+2018-12-24,Minnesota,0
+2018-12-31,Minnesota,0
+2019-01-07,Minnesota,0
+2019-01-14,Minnesota,0
+2019-01-21,Minnesota,0
+2019-01-28,Minnesota,0
+2019-02-04,Minnesota,0
+2019-02-11,Minnesota,0
+2019-02-18,Minnesota,0
+2019-02-25,Minnesota,0
+2019-03-04,Minnesota,0
+2019-03-11,Minnesota,0
+2019-03-18,Minnesota,0
+2019-03-25,Minnesota,0
+2019-04-01,Minnesota,0
+2019-04-08,Minnesota,0
+2019-04-15,Minnesota,0
+2019-04-22,Minnesota,0
+2019-04-29,Minnesota,0
+2019-05-06,Minnesota,0
+2019-05-13,Minnesota,0
+2019-05-20,Minnesota,0
+2019-05-27,Minnesota,0
+2019-06-03,Minnesota,0
+2019-06-10,Minnesota,0
+2019-06-17,Minnesota,0
+2019-06-24,Minnesota,0
+2019-07-01,Minnesota,0
+2019-07-08,Minnesota,0
+2019-07-15,Minnesota,0
+2019-07-22,Minnesota,0
+2019-07-29,Minnesota,0
+2019-08-05,Minnesota,0
+2019-08-12,Minnesota,0
+2019-08-19,Minnesota,0
+2019-08-26,Minnesota,0
+2019-09-02,Minnesota,0
+2019-09-09,Minnesota,1
+2019-09-16,Minnesota,0
+2019-09-23,Minnesota,0
+2019-09-30,Minnesota,0
+2019-10-07,Minnesota,0
+2019-10-14,Minnesota,0
+2019-10-21,Minnesota,0
+2019-10-28,Minnesota,0
+2019-11-04,Minnesota,0
+2019-11-11,Minnesota,0
+2019-11-18,Minnesota,0
+2019-11-25,Minnesota,1
+2019-12-02,Minnesota,0
+2019-12-09,Minnesota,0
+2019-12-16,Minnesota,0
+2019-12-23,Minnesota,0
+2019-12-30,Minnesota,0
+2020-01-06,Minnesota,0
+2020-01-13,Minnesota,0
+2020-01-20,Minnesota,0
+2020-01-27,Minnesota,0
+2020-02-03,Minnesota,0
+2020-02-10,Minnesota,0
+2020-02-17,Minnesota,0
+2020-02-24,Minnesota,0
+2020-03-02,Minnesota,0
+2020-03-09,Minnesota,0
+2015-07-06,Missouri,0
+2015-07-13,Missouri,0
+2015-07-20,Missouri,0
+2015-07-27,Missouri,0
+2015-08-03,Missouri,0
+2015-08-10,Missouri,0
+2015-08-17,Missouri,0
+2015-08-24,Missouri,0
+2015-08-31,Missouri,0
+2015-09-07,Missouri,0
+2015-09-14,Missouri,0
+2015-09-21,Missouri,0
+2015-09-28,Missouri,0
+2015-10-05,Missouri,0
+2015-10-12,Missouri,0
+2015-10-19,Missouri,0
+2015-10-26,Missouri,0
+2015-11-02,Missouri,0
+2015-11-09,Missouri,0
+2015-11-16,Missouri,0
+2015-11-23,Missouri,0
+2015-11-30,Missouri,0
+2015-12-07,Missouri,0
+2015-12-14,Missouri,0
+2015-12-21,Missouri,0
+2015-12-28,Missouri,0
+2016-01-04,Missouri,0
+2016-01-11,Missouri,0
+2016-01-18,Missouri,1
+2016-01-25,Missouri,2
+2016-02-01,Missouri,1
+2016-02-08,Missouri,1
+2016-02-15,Missouri,7
+2016-02-22,Missouri,6
+2016-02-29,Missouri,0
+2016-03-07,Missouri,0
+2016-03-14,Missouri,0
+2016-03-21,Missouri,2
+2016-03-28,Missouri,0
+2016-04-04,Missouri,0
+2016-04-11,Missouri,0
+2016-04-18,Missouri,0
+2016-04-25,Missouri,0
+2016-05-02,Missouri,0
+2016-05-09,Missouri,0
+2016-05-16,Missouri,0
+2016-05-23,Missouri,0
+2016-05-30,Missouri,0
+2016-06-06,Missouri,0
+2016-06-13,Missouri,0
+2016-06-20,Missouri,0
+2016-06-27,Missouri,0
+2016-07-04,Missouri,0
+2016-07-11,Missouri,0
+2016-07-18,Missouri,0
+2016-07-25,Missouri,0
+2016-08-01,Missouri,0
+2016-08-08,Missouri,0
+2016-08-15,Missouri,0
+2016-08-22,Missouri,0
+2016-08-29,Missouri,0
+2016-09-05,Missouri,0
+2016-09-12,Missouri,0
+2016-09-19,Missouri,0
+2016-09-26,Missouri,0
+2016-10-03,Missouri,0
+2016-10-10,Missouri,0
+2016-10-17,Missouri,0
+2016-10-24,Missouri,0
+2016-10-31,Missouri,0
+2016-11-07,Missouri,0
+2016-11-14,Missouri,3
+2016-11-21,Missouri,7
+2016-11-28,Missouri,0
+2016-12-05,Missouri,0
+2016-12-12,Missouri,1
+2016-12-19,Missouri,6
+2016-12-26,Missouri,1
+2017-01-02,Missouri,0
+2017-01-09,Missouri,3
+2017-01-16,Missouri,2
+2017-01-23,Missouri,4
+2017-01-30,Missouri,4
+2017-02-06,Missouri,3
+2017-02-13,Missouri,2
+2017-02-20,Missouri,2
+2017-02-27,Missouri,3
+2017-03-06,Missouri,3
+2017-03-13,Missouri,2
+2017-03-20,Missouri,1
+2017-03-27,Missouri,0
+2017-04-03,Missouri,0
+2017-04-10,Missouri,0
+2017-04-17,Missouri,0
+2017-04-24,Missouri,0
+2017-05-01,Missouri,0
+2017-05-08,Missouri,0
+2017-05-15,Missouri,0
+2017-05-22,Missouri,0
+2017-05-29,Missouri,0
+2017-06-05,Missouri,0
+2017-06-12,Missouri,0
+2017-06-19,Missouri,0
+2017-06-26,Missouri,0
+2017-07-03,Missouri,0
+2017-07-10,Missouri,0
+2017-07-17,Missouri,0
+2017-07-24,Missouri,0
+2017-07-31,Missouri,0
+2017-08-07,Missouri,0
+2017-08-14,Missouri,0
+2017-08-21,Missouri,0
+2017-08-28,Missouri,0
+2017-09-04,Missouri,0
+2017-09-11,Missouri,0
+2017-09-18,Missouri,0
+2017-09-25,Missouri,0
+2017-10-02,Missouri,0
+2017-10-09,Missouri,0
+2017-10-16,Missouri,0
+2017-10-23,Missouri,0
+2017-10-30,Missouri,0
+2017-11-06,Missouri,4
+2017-11-13,Missouri,1
+2017-11-20,Missouri,2
+2017-11-27,Missouri,2
+2017-12-04,Missouri,1
+2017-12-11,Missouri,3
+2017-12-18,Missouri,3
+2017-12-25,Missouri,2
+2018-01-01,Missouri,1
+2018-01-08,Missouri,0
+2018-01-15,Missouri,1
+2018-01-22,Missouri,3
+2018-01-29,Missouri,7
+2018-02-05,Missouri,4
+2018-02-12,Missouri,0
+2018-02-19,Missouri,0
+2018-02-26,Missouri,1
+2018-03-05,Missouri,1
+2018-03-12,Missouri,2
+2018-03-19,Missouri,2
+2018-03-26,Missouri,0
+2018-04-02,Missouri,0
+2018-04-09,Missouri,0
+2018-04-16,Missouri,0
+2018-04-23,Missouri,0
+2018-04-30,Missouri,0
+2018-05-07,Missouri,0
+2018-05-14,Missouri,0
+2018-05-21,Missouri,0
+2018-05-28,Missouri,0
+2018-06-04,Missouri,0
+2018-06-11,Missouri,0
+2018-06-18,Missouri,0
+2018-06-25,Missouri,0
+2018-07-02,Missouri,0
+2018-07-09,Missouri,0
+2018-07-16,Missouri,0
+2018-07-23,Missouri,0
+2018-07-30,Missouri,0
+2018-08-06,Missouri,0
+2018-08-13,Missouri,0
+2018-08-20,Missouri,0
+2018-08-27,Missouri,0
+2018-09-03,Missouri,0
+2018-09-10,Missouri,0
+2018-09-17,Missouri,0
+2018-09-24,Missouri,0
+2018-10-01,Missouri,0
+2018-10-08,Missouri,0
+2018-10-15,Missouri,0
+2018-10-22,Missouri,0
+2018-10-29,Missouri,0
+2018-11-05,Missouri,1
+2018-11-12,Missouri,3
+2018-11-19,Missouri,5
+2018-11-26,Missouri,1
+2018-12-03,Missouri,4
+2018-12-10,Missouri,5
+2018-12-17,Missouri,0
+2018-12-24,Missouri,0
+2018-12-31,Missouri,2
+2019-01-07,Missouri,3
+2019-01-14,Missouri,3
+2019-01-21,Missouri,0
+2019-01-28,Missouri,3
+2019-02-04,Missouri,5
+2019-02-11,Missouri,1
+2019-02-18,Missouri,1
+2019-02-25,Missouri,0
+2019-03-04,Missouri,4
+2019-03-11,Missouri,2
+2019-03-18,Missouri,0
+2019-03-25,Missouri,1
+2019-04-01,Missouri,0
+2019-04-08,Missouri,0
+2019-04-15,Missouri,0
+2019-04-22,Missouri,0
+2019-04-29,Missouri,0
+2019-05-06,Missouri,0
+2019-05-13,Missouri,0
+2019-05-20,Missouri,0
+2019-05-27,Missouri,0
+2019-06-03,Missouri,0
+2019-06-10,Missouri,0
+2019-06-17,Missouri,0
+2019-06-24,Missouri,0
+2019-07-01,Missouri,0
+2019-07-08,Missouri,0
+2019-07-15,Missouri,0
+2019-07-22,Missouri,0
+2019-07-29,Missouri,0
+2019-08-05,Missouri,0
+2019-08-12,Missouri,0
+2019-08-19,Missouri,0
+2019-08-26,Missouri,0
+2019-09-02,Missouri,0
+2019-09-09,Missouri,0
+2019-09-16,Missouri,0
+2019-09-23,Missouri,0
+2019-09-30,Missouri,0
+2019-10-07,Missouri,0
+2019-10-14,Missouri,0
+2019-10-21,Missouri,0
+2019-10-28,Missouri,0
+2019-11-04,Missouri,0
+2019-11-11,Missouri,0
+2019-11-18,Missouri,0
+2019-11-25,Missouri,0
+2019-12-02,Missouri,0
+2019-12-09,Missouri,2
+2019-12-16,Missouri,3
+2019-12-23,Missouri,4
+2019-12-30,Missouri,4
+2020-01-06,Missouri,2
+2020-01-13,Missouri,1
+2020-01-20,Missouri,2
+2020-01-27,Missouri,0
+2020-02-03,Missouri,1
+2020-02-10,Missouri,0
+2020-02-17,Missouri,0
+2020-02-24,Missouri,4
+2020-03-02,Missouri,2
+2020-03-09,Missouri,0
+2015-07-06,Nebraska,0
+2015-07-13,Nebraska,0
+2015-07-20,Nebraska,0
+2015-07-27,Nebraska,0
+2015-08-03,Nebraska,0
+2015-08-10,Nebraska,0
+2015-08-17,Nebraska,0
+2015-08-24,Nebraska,0
+2015-08-31,Nebraska,0
+2015-09-07,Nebraska,0
+2015-09-14,Nebraska,0
+2015-09-21,Nebraska,0
+2015-09-28,Nebraska,0
+2015-10-05,Nebraska,0
+2015-10-12,Nebraska,0
+2015-10-19,Nebraska,0
+2015-10-26,Nebraska,0
+2015-11-02,Nebraska,0
+2015-11-09,Nebraska,0
+2015-11-16,Nebraska,0
+2015-11-23,Nebraska,0
+2015-11-30,Nebraska,0
+2015-12-07,Nebraska,0
+2015-12-14,Nebraska,0
+2015-12-21,Nebraska,0
+2015-12-28,Nebraska,0
+2016-01-04,Nebraska,1
+2016-01-11,Nebraska,1
+2016-01-18,Nebraska,3
+2016-01-25,Nebraska,3
+2016-02-01,Nebraska,3
+2016-02-08,Nebraska,3
+2016-02-15,Nebraska,9
+2016-02-22,Nebraska,0
+2016-02-29,Nebraska,7
+2016-03-07,Nebraska,0
+2016-03-14,Nebraska,0
+2016-03-21,Nebraska,0
+2016-03-28,Nebraska,0
+2016-04-04,Nebraska,0
+2016-04-11,Nebraska,0
+2016-04-18,Nebraska,0
+2016-04-25,Nebraska,0
+2016-05-02,Nebraska,0
+2016-05-09,Nebraska,0
+2016-05-16,Nebraska,0
+2016-05-23,Nebraska,0
+2016-05-30,Nebraska,0
+2016-06-06,Nebraska,0
+2016-06-13,Nebraska,0
+2016-06-20,Nebraska,0
+2016-06-27,Nebraska,0
+2016-07-04,Nebraska,0
+2016-07-11,Nebraska,0
+2016-07-18,Nebraska,0
+2016-07-25,Nebraska,0
+2016-08-01,Nebraska,0
+2016-08-08,Nebraska,0
+2016-08-15,Nebraska,0
+2016-08-22,Nebraska,0
+2016-08-29,Nebraska,0
+2016-09-05,Nebraska,0
+2016-09-12,Nebraska,0
+2016-09-19,Nebraska,0
+2016-09-26,Nebraska,0
+2016-10-03,Nebraska,0
+2016-10-10,Nebraska,0
+2016-10-17,Nebraska,0
+2016-10-24,Nebraska,0
+2016-10-31,Nebraska,3
+2016-11-07,Nebraska,1
+2016-11-14,Nebraska,3
+2016-11-21,Nebraska,0
+2016-11-28,Nebraska,0
+2016-12-05,Nebraska,7
+2016-12-12,Nebraska,0
+2016-12-19,Nebraska,0
+2016-12-26,Nebraska,1
+2017-01-02,Nebraska,9
+2017-01-09,Nebraska,0
+2017-01-16,Nebraska,0
+2017-01-23,Nebraska,0
+2017-01-30,Nebraska,8
+2017-02-06,Nebraska,0
+2017-02-13,Nebraska,0
+2017-02-20,Nebraska,0
+2017-02-27,Nebraska,2
+2017-03-06,Nebraska,6
+2017-03-13,Nebraska,0
+2017-03-20,Nebraska,0
+2017-03-27,Nebraska,0
+2017-04-03,Nebraska,0
+2017-04-10,Nebraska,0
+2017-04-17,Nebraska,0
+2017-04-24,Nebraska,0
+2017-05-01,Nebraska,0
+2017-05-08,Nebraska,0
+2017-05-15,Nebraska,0
+2017-05-22,Nebraska,0
+2017-05-29,Nebraska,0
+2017-06-05,Nebraska,0
+2017-06-12,Nebraska,0
+2017-06-19,Nebraska,0
+2017-06-26,Nebraska,0
+2017-07-03,Nebraska,0
+2017-07-10,Nebraska,0
+2017-07-17,Nebraska,0
+2017-07-24,Nebraska,0
+2017-07-31,Nebraska,0
+2017-08-07,Nebraska,0
+2017-08-14,Nebraska,0
+2017-08-21,Nebraska,0
+2017-08-28,Nebraska,0
+2017-09-04,Nebraska,0
+2017-09-11,Nebraska,0
+2017-09-18,Nebraska,0
+2017-09-25,Nebraska,0
+2017-10-02,Nebraska,0
+2017-10-09,Nebraska,0
+2017-10-16,Nebraska,0
+2017-10-23,Nebraska,0
+2017-10-30,Nebraska,2
+2017-11-06,Nebraska,4
+2017-11-13,Nebraska,2
+2017-11-20,Nebraska,0
+2017-11-27,Nebraska,2
+2017-12-04,Nebraska,8
+2017-12-11,Nebraska,0
+2017-12-18,Nebraska,0
+2017-12-25,Nebraska,0
+2018-01-01,Nebraska,10
+2018-01-08,Nebraska,0
+2018-01-15,Nebraska,0
+2018-01-22,Nebraska,0
+2018-01-29,Nebraska,7
+2018-02-05,Nebraska,0
+2018-02-12,Nebraska,0
+2018-02-19,Nebraska,0
+2018-02-26,Nebraska,10
+2018-03-05,Nebraska,0
+2018-03-12,Nebraska,0
+2018-03-19,Nebraska,0
+2018-03-26,Nebraska,0
+2018-04-02,Nebraska,0
+2018-04-09,Nebraska,0
+2018-04-16,Nebraska,0
+2018-04-23,Nebraska,0
+2018-04-30,Nebraska,0
+2018-05-07,Nebraska,0
+2018-05-14,Nebraska,0
+2018-05-21,Nebraska,0
+2018-05-28,Nebraska,0
+2018-06-04,Nebraska,0
+2018-06-11,Nebraska,0
+2018-06-18,Nebraska,0
+2018-06-25,Nebraska,0
+2018-07-02,Nebraska,0
+2018-07-09,Nebraska,0
+2018-07-16,Nebraska,0
+2018-07-23,Nebraska,0
+2018-07-30,Nebraska,0
+2018-08-06,Nebraska,0
+2018-08-13,Nebraska,0
+2018-08-20,Nebraska,0
+2018-08-27,Nebraska,0
+2018-09-03,Nebraska,0
+2018-09-10,Nebraska,0
+2018-09-17,Nebraska,0
+2018-09-24,Nebraska,0
+2018-10-01,Nebraska,0
+2018-10-08,Nebraska,0
+2018-10-15,Nebraska,0
+2018-10-22,Nebraska,0
+2018-10-29,Nebraska,3
+2018-11-05,Nebraska,4
+2018-11-12,Nebraska,1
+2018-11-19,Nebraska,1
+2018-11-26,Nebraska,1
+2018-12-03,Nebraska,8
+2018-12-10,Nebraska,0
+2018-12-17,Nebraska,0
+2018-12-24,Nebraska,0
+2018-12-31,Nebraska,8
+2019-01-07,Nebraska,0
+2019-01-14,Nebraska,0
+2019-01-21,Nebraska,0
+2019-01-28,Nebraska,10
+2019-02-04,Nebraska,0
+2019-02-11,Nebraska,0
+2019-02-18,Nebraska,0
+2019-02-25,Nebraska,7
+2019-03-04,Nebraska,1
+2019-03-11,Nebraska,0
+2019-03-18,Nebraska,0
+2019-03-25,Nebraska,0
+2019-04-01,Nebraska,0
+2019-04-08,Nebraska,0
+2019-04-15,Nebraska,0
+2019-04-22,Nebraska,0
+2019-04-29,Nebraska,0
+2019-05-06,Nebraska,0
+2019-05-13,Nebraska,0
+2019-05-20,Nebraska,0
+2019-05-27,Nebraska,0
+2019-06-03,Nebraska,0
+2019-06-10,Nebraska,0
+2019-06-17,Nebraska,0
+2019-06-24,Nebraska,0
+2019-07-01,Nebraska,0
+2019-07-08,Nebraska,0
+2019-07-15,Nebraska,0
+2019-07-22,Nebraska,0
+2019-07-29,Nebraska,0
+2019-08-05,Nebraska,0
+2019-08-12,Nebraska,0
+2019-08-19,Nebraska,0
+2019-08-26,Nebraska,0
+2019-09-02,Nebraska,0
+2019-09-09,Nebraska,0
+2019-09-16,Nebraska,0
+2019-09-23,Nebraska,0
+2019-09-30,Nebraska,0
+2019-10-07,Nebraska,0
+2019-10-14,Nebraska,0
+2019-10-21,Nebraska,0
+2019-10-28,Nebraska,10
+2019-11-04,Nebraska,0
+2019-11-11,Nebraska,0
+2019-11-18,Nebraska,0
+2019-11-25,Nebraska,0
+2019-12-02,Nebraska,10
+2019-12-09,Nebraska,0
+2019-12-16,Nebraska,0
+2019-12-23,Nebraska,0
+2019-12-30,Nebraska,1
+2020-01-06,Nebraska,0
+2020-01-13,Nebraska,0
+2020-01-20,Nebraska,0
+2020-01-27,Nebraska,3
+2020-02-03,Nebraska,6
+2020-02-10,Nebraska,0
+2020-02-17,Nebraska,0
+2020-02-24,Nebraska,0
+2020-03-02,Nebraska,4
+2020-03-09,Nebraska,4
+2015-07-06,New Mexico,0
+2015-07-13,New Mexico,0
+2015-07-20,New Mexico,0
+2015-07-27,New Mexico,0
+2015-08-03,New Mexico,0
+2015-08-10,New Mexico,0
+2015-08-17,New Mexico,0
+2015-08-24,New Mexico,0
+2015-08-31,New Mexico,0
+2015-09-07,New Mexico,0
+2015-09-14,New Mexico,0
+2015-09-21,New Mexico,0
+2015-09-28,New Mexico,0
+2015-10-05,New Mexico,0
+2015-10-12,New Mexico,0
+2015-10-19,New Mexico,0
+2015-10-26,New Mexico,0
+2015-11-02,New Mexico,0
+2015-11-09,New Mexico,0
+2015-11-16,New Mexico,0
+2015-11-23,New Mexico,0
+2015-11-30,New Mexico,0
+2015-12-07,New Mexico,0
+2015-12-14,New Mexico,0
+2015-12-21,New Mexico,0
+2015-12-28,New Mexico,0
+2016-01-04,New Mexico,0
+2016-01-11,New Mexico,0
+2016-01-18,New Mexico,0
+2016-01-25,New Mexico,0
+2016-02-01,New Mexico,0
+2016-02-08,New Mexico,0
+2016-02-15,New Mexico,0
+2016-02-22,New Mexico,0
+2016-02-29,New Mexico,0
+2016-03-07,New Mexico,0
+2016-03-14,New Mexico,0
+2016-03-21,New Mexico,0
+2016-03-28,New Mexico,0
+2016-04-04,New Mexico,0
+2016-04-11,New Mexico,0
+2016-04-18,New Mexico,0
+2016-04-25,New Mexico,0
+2016-05-02,New Mexico,0
+2016-05-09,New Mexico,0
+2016-05-16,New Mexico,0
+2016-05-23,New Mexico,0
+2016-05-30,New Mexico,0
+2016-06-06,New Mexico,0
+2016-06-13,New Mexico,0
+2016-06-20,New Mexico,0
+2016-06-27,New Mexico,0
+2016-07-04,New Mexico,0
+2016-07-11,New Mexico,0
+2016-07-18,New Mexico,0
+2016-07-25,New Mexico,0
+2016-08-01,New Mexico,0
+2016-08-08,New Mexico,0
+2016-08-15,New Mexico,0
+2016-08-22,New Mexico,0
+2016-08-29,New Mexico,0
+2016-09-05,New Mexico,0
+2016-09-12,New Mexico,0
+2016-09-19,New Mexico,0
+2016-09-26,New Mexico,0
+2016-10-03,New Mexico,0
+2016-10-10,New Mexico,0
+2016-10-17,New Mexico,0
+2016-10-24,New Mexico,0
+2016-10-31,New Mexico,0
+2016-11-07,New Mexico,0
+2016-11-14,New Mexico,0
+2016-11-21,New Mexico,0
+2016-11-28,New Mexico,0
+2016-12-05,New Mexico,0
+2016-12-12,New Mexico,0
+2016-12-19,New Mexico,0
+2016-12-26,New Mexico,0
+2017-01-02,New Mexico,0
+2017-01-09,New Mexico,0
+2017-01-16,New Mexico,0
+2017-01-23,New Mexico,0
+2017-01-30,New Mexico,6
+2017-02-06,New Mexico,4
+2017-02-13,New Mexico,1
+2017-02-20,New Mexico,0
+2017-02-27,New Mexico,2
+2017-03-06,New Mexico,2
+2017-03-13,New Mexico,1
+2017-03-20,New Mexico,0
+2017-03-27,New Mexico,0
+2017-04-03,New Mexico,0
+2017-04-10,New Mexico,0
+2017-04-17,New Mexico,0
+2017-04-24,New Mexico,0
+2017-05-01,New Mexico,0
+2017-05-08,New Mexico,0
+2017-05-15,New Mexico,0
+2017-05-22,New Mexico,0
+2017-05-29,New Mexico,0
+2017-06-05,New Mexico,0
+2017-06-12,New Mexico,0
+2017-06-19,New Mexico,0
+2017-06-26,New Mexico,0
+2017-07-03,New Mexico,0
+2017-07-10,New Mexico,0
+2017-07-17,New Mexico,0
+2017-07-24,New Mexico,0
+2017-07-31,New Mexico,0
+2017-08-07,New Mexico,0
+2017-08-14,New Mexico,0
+2017-08-21,New Mexico,0
+2017-08-28,New Mexico,0
+2017-09-04,New Mexico,0
+2017-09-11,New Mexico,0
+2017-09-18,New Mexico,0
+2017-09-25,New Mexico,0
+2017-10-02,New Mexico,0
+2017-10-09,New Mexico,0
+2017-10-16,New Mexico,0
+2017-10-23,New Mexico,0
+2017-10-30,New Mexico,0
+2017-11-06,New Mexico,0
+2017-11-13,New Mexico,0
+2017-11-20,New Mexico,0
+2017-11-27,New Mexico,0
+2017-12-04,New Mexico,0
+2017-12-11,New Mexico,0
+2017-12-18,New Mexico,0
+2017-12-25,New Mexico,0
+2018-01-01,New Mexico,0
+2018-01-08,New Mexico,0
+2018-01-15,New Mexico,0
+2018-01-22,New Mexico,0
+2018-01-29,New Mexico,0
+2018-02-05,New Mexico,0
+2018-02-12,New Mexico,0
+2018-02-19,New Mexico,0
+2018-02-26,New Mexico,0
+2018-03-05,New Mexico,0
+2018-03-12,New Mexico,0
+2018-03-19,New Mexico,0
+2018-03-26,New Mexico,0
+2018-04-02,New Mexico,0
+2018-04-09,New Mexico,0
+2018-04-16,New Mexico,0
+2018-04-23,New Mexico,0
+2018-04-30,New Mexico,0
+2018-05-07,New Mexico,0
+2018-05-14,New Mexico,0
+2018-05-21,New Mexico,0
+2018-05-28,New Mexico,0
+2018-06-04,New Mexico,0
+2018-06-11,New Mexico,0
+2018-06-18,New Mexico,0
+2018-06-25,New Mexico,0
+2018-07-02,New Mexico,0
+2018-07-09,New Mexico,0
+2018-07-16,New Mexico,0
+2018-07-23,New Mexico,0
+2018-07-30,New Mexico,0
+2018-08-06,New Mexico,0
+2018-08-13,New Mexico,0
+2018-08-20,New Mexico,0
+2018-08-27,New Mexico,0
+2018-09-03,New Mexico,0
+2018-09-10,New Mexico,0
+2018-09-17,New Mexico,0
+2018-09-24,New Mexico,0
+2018-10-01,New Mexico,0
+2018-10-08,New Mexico,0
+2018-10-15,New Mexico,0
+2018-10-22,New Mexico,0
+2018-10-29,New Mexico,0
+2018-11-05,New Mexico,0
+2018-11-12,New Mexico,0
+2018-11-19,New Mexico,0
+2018-11-26,New Mexico,0
+2018-12-03,New Mexico,0
+2018-12-10,New Mexico,0
+2018-12-17,New Mexico,0
+2018-12-24,New Mexico,0
+2018-12-31,New Mexico,0
+2019-01-07,New Mexico,0
+2019-01-14,New Mexico,0
+2019-01-21,New Mexico,0
+2019-01-28,New Mexico,0
+2019-02-04,New Mexico,0
+2019-02-11,New Mexico,0
+2019-02-18,New Mexico,0
+2019-02-25,New Mexico,0
+2019-03-04,New Mexico,0
+2019-03-11,New Mexico,0
+2019-03-18,New Mexico,0
+2019-03-25,New Mexico,0
+2019-04-01,New Mexico,0
+2019-04-08,New Mexico,0
+2019-04-15,New Mexico,0
+2019-04-22,New Mexico,0
+2019-04-29,New Mexico,0
+2019-05-06,New Mexico,0
+2019-05-13,New Mexico,0
+2019-05-20,New Mexico,0
+2019-05-27,New Mexico,0
+2019-06-03,New Mexico,0
+2019-06-10,New Mexico,0
+2019-06-17,New Mexico,0
+2019-06-24,New Mexico,0
+2019-07-01,New Mexico,0
+2019-07-08,New Mexico,0
+2019-07-15,New Mexico,0
+2019-07-22,New Mexico,0
+2019-07-29,New Mexico,0
+2019-08-05,New Mexico,0
+2019-08-12,New Mexico,0
+2019-08-19,New Mexico,0
+2019-08-26,New Mexico,0
+2019-09-02,New Mexico,0
+2019-09-09,New Mexico,0
+2019-09-16,New Mexico,0
+2019-09-23,New Mexico,0
+2019-09-30,New Mexico,0
+2019-10-07,New Mexico,0
+2019-10-14,New Mexico,0
+2019-10-21,New Mexico,0
+2019-10-28,New Mexico,0
+2019-11-04,New Mexico,0
+2019-11-11,New Mexico,0
+2019-11-18,New Mexico,0
+2019-11-25,New Mexico,0
+2019-12-02,New Mexico,0
+2019-12-09,New Mexico,0
+2019-12-16,New Mexico,0
+2019-12-23,New Mexico,0
+2019-12-30,New Mexico,0
+2020-01-06,New Mexico,0
+2020-01-13,New Mexico,0
+2020-01-20,New Mexico,0
+2020-01-27,New Mexico,0
+2020-02-03,New Mexico,0
+2020-02-10,New Mexico,0
+2020-02-17,New Mexico,0
+2020-02-24,New Mexico,0
+2020-03-02,New Mexico,0
+2020-03-09,New Mexico,0
+2015-07-06,New York,0
+2015-07-13,New York,0
+2015-07-20,New York,0
+2015-07-27,New York,0
+2015-08-03,New York,0
+2015-08-10,New York,0
+2015-08-17,New York,0
+2015-08-24,New York,0
+2015-08-31,New York,0
+2015-09-07,New York,0
+2015-09-14,New York,0
+2015-09-21,New York,0
+2015-09-28,New York,0
+2015-10-05,New York,0
+2015-10-12,New York,0
+2015-10-19,New York,0
+2015-10-26,New York,0
+2015-11-02,New York,0
+2015-11-09,New York,0
+2015-11-16,New York,0
+2015-11-23,New York,0
+2015-11-30,New York,1
+2015-12-07,New York,2
+2015-12-14,New York,2
+2015-12-21,New York,3
+2015-12-28,New York,2
+2016-01-04,New York,1
+2016-01-11,New York,1
+2016-01-18,New York,3
+2016-01-25,New York,1
+2016-02-01,New York,3
+2016-02-08,New York,2
+2016-02-15,New York,0
+2016-02-22,New York,0
+2016-02-29,New York,1
+2016-03-07,New York,0
+2016-03-14,New York,0
+2016-03-21,New York,1
+2016-03-28,New York,1
+2016-04-04,New York,0
+2016-04-11,New York,0
+2016-04-18,New York,0
+2016-04-25,New York,0
+2016-05-02,New York,0
+2016-05-09,New York,0
+2016-05-16,New York,0
+2016-05-23,New York,0
+2016-05-30,New York,0
+2016-06-06,New York,0
+2016-06-13,New York,0
+2016-06-20,New York,0
+2016-06-27,New York,0
+2016-07-04,New York,0
+2016-07-11,New York,0
+2016-07-18,New York,0
+2016-07-25,New York,0
+2016-08-01,New York,0
+2016-08-08,New York,0
+2016-08-15,New York,0
+2016-08-22,New York,0
+2016-08-29,New York,0
+2016-09-05,New York,0
+2016-09-12,New York,0
+2016-09-19,New York,0
+2016-09-26,New York,0
+2016-10-03,New York,0
+2016-10-10,New York,0
+2016-10-17,New York,0
+2016-10-24,New York,0
+2016-10-31,New York,0
+2016-11-07,New York,2
+2016-11-14,New York,2
+2016-11-21,New York,1
+2016-11-28,New York,5
+2016-12-05,New York,2
+2016-12-12,New York,4
+2016-12-19,New York,5
+2016-12-26,New York,2
+2017-01-02,New York,8
+2017-01-09,New York,2
+2017-01-16,New York,1
+2017-01-23,New York,2
+2017-01-30,New York,5
+2017-02-06,New York,3
+2017-02-13,New York,0
+2017-02-20,New York,2
+2017-02-27,New York,5
+2017-03-06,New York,2
+2017-03-13,New York,1
+2017-03-20,New York,0
+2017-03-27,New York,0
+2017-04-03,New York,0
+2017-04-10,New York,0
+2017-04-17,New York,0
+2017-04-24,New York,0
+2017-05-01,New York,0
+2017-05-08,New York,0
+2017-05-15,New York,0
+2017-05-22,New York,0
+2017-05-29,New York,0
+2017-06-05,New York,0
+2017-06-12,New York,0
+2017-06-19,New York,0
+2017-06-26,New York,0
+2017-07-03,New York,0
+2017-07-10,New York,0
+2017-07-17,New York,0
+2017-07-24,New York,0
+2017-07-31,New York,0
+2017-08-07,New York,0
+2017-08-14,New York,0
+2017-08-21,New York,0
+2017-08-28,New York,0
+2017-09-04,New York,0
+2017-09-11,New York,0
+2017-09-18,New York,0
+2017-09-25,New York,0
+2017-10-02,New York,0
+2017-10-09,New York,0
+2017-10-16,New York,0
+2017-10-23,New York,0
+2017-10-30,New York,7
+2017-11-06,New York,9
+2017-11-13,New York,5
+2017-11-20,New York,1
+2017-11-27,New York,11
+2017-12-04,New York,7
+2017-12-11,New York,6
+2017-12-18,New York,0
+2017-12-25,New York,0
+2018-01-01,New York,14
+2018-01-08,New York,4
+2018-01-15,New York,6
+2018-01-22,New York,0
+2018-01-29,New York,9
+2018-02-05,New York,4
+2018-02-12,New York,4
+2018-02-19,New York,4
+2018-02-26,New York,2
+2018-03-05,New York,12
+2018-03-12,New York,5
+2018-03-19,New York,1
+2018-03-26,New York,2
+2018-04-02,New York,0
+2018-04-09,New York,0
+2018-04-16,New York,0
+2018-04-23,New York,0
+2018-04-30,New York,0
+2018-05-07,New York,0
+2018-05-14,New York,0
+2018-05-21,New York,0
+2018-05-28,New York,0
+2018-06-04,New York,0
+2018-06-11,New York,0
+2018-06-18,New York,0
+2018-06-25,New York,0
+2018-07-02,New York,0
+2018-07-09,New York,0
+2018-07-16,New York,0
+2018-07-23,New York,0
+2018-07-30,New York,0
+2018-08-06,New York,0
+2018-08-13,New York,0
+2018-08-20,New York,0
+2018-08-27,New York,0
+2018-09-03,New York,0
+2018-09-10,New York,0
+2018-09-17,New York,0
+2018-09-24,New York,0
+2018-10-01,New York,0
+2018-10-08,New York,0
+2018-10-15,New York,0
+2018-10-22,New York,0
+2018-10-29,New York,1
+2018-11-05,New York,3
+2018-11-12,New York,5
+2018-11-19,New York,4
+2018-11-26,New York,9
+2018-12-03,New York,9
+2018-12-10,New York,9
+2018-12-17,New York,0
+2018-12-24,New York,0
+2018-12-31,New York,18
+2019-01-07,New York,6
+2019-01-14,New York,0
+2019-01-21,New York,0
+2019-01-28,New York,11
+2019-02-04,New York,11
+2019-02-11,New York,2
+2019-02-18,New York,1
+2019-02-25,New York,3
+2019-03-04,New York,7
+2019-03-11,New York,1
+2019-03-18,New York,1
+2019-03-25,New York,0
+2019-04-01,New York,0
+2019-04-08,New York,0
+2019-04-15,New York,0
+2019-04-22,New York,0
+2019-04-29,New York,0
+2019-05-06,New York,0
+2019-05-13,New York,0
+2019-05-20,New York,0
+2019-05-27,New York,0
+2019-06-03,New York,0
+2019-06-10,New York,0
+2019-06-17,New York,0
+2019-06-24,New York,0
+2019-07-01,New York,0
+2019-07-08,New York,0
+2019-07-15,New York,0
+2019-07-22,New York,0
+2019-07-29,New York,0
+2019-08-05,New York,0
+2019-08-12,New York,0
+2019-08-19,New York,0
+2019-08-26,New York,0
+2019-09-02,New York,0
+2019-09-09,New York,0
+2019-09-16,New York,0
+2019-09-23,New York,0
+2019-09-30,New York,0
+2019-10-07,New York,0
+2019-10-14,New York,0
+2019-10-21,New York,0
+2019-10-28,New York,8
+2019-11-04,New York,6
+2019-11-11,New York,5
+2019-11-18,New York,1
+2019-11-25,New York,4
+2019-12-02,New York,19
+2019-12-09,New York,7
+2019-12-16,New York,1
+2019-12-23,New York,0
+2019-12-30,New York,10
+2020-01-06,New York,5
+2020-01-13,New York,6
+2020-01-20,New York,0
+2020-01-27,New York,3
+2020-02-03,New York,10
+2020-02-10,New York,3
+2020-02-17,New York,1
+2020-02-24,New York,4
+2020-03-02,New York,14
+2020-03-09,New York,5
+2015-07-06,North Carolina,0
+2015-07-13,North Carolina,0
+2015-07-20,North Carolina,0
+2015-07-27,North Carolina,0
+2015-08-03,North Carolina,0
+2015-08-10,North Carolina,0
+2015-08-17,North Carolina,0
+2015-08-24,North Carolina,0
+2015-08-31,North Carolina,0
+2015-09-07,North Carolina,0
+2015-09-14,North Carolina,0
+2015-09-21,North Carolina,0
+2015-09-28,North Carolina,0
+2015-10-05,North Carolina,0
+2015-10-12,North Carolina,0
+2015-10-19,North Carolina,0
+2015-10-26,North Carolina,0
+2015-11-02,North Carolina,0
+2015-11-09,North Carolina,0
+2015-11-16,North Carolina,0
+2015-11-23,North Carolina,0
+2015-11-30,North Carolina,0
+2015-12-07,North Carolina,0
+2015-12-14,North Carolina,0
+2015-12-21,North Carolina,0
+2015-12-28,North Carolina,0
+2016-01-04,North Carolina,0
+2016-01-11,North Carolina,0
+2016-01-18,North Carolina,0
+2016-01-25,North Carolina,0
+2016-02-01,North Carolina,0
+2016-02-08,North Carolina,0
+2016-02-15,North Carolina,0
+2016-02-22,North Carolina,0
+2016-02-29,North Carolina,0
+2016-03-07,North Carolina,0
+2016-03-14,North Carolina,0
+2016-03-21,North Carolina,0
+2016-03-28,North Carolina,0
+2016-04-04,North Carolina,0
+2016-04-11,North Carolina,0
+2016-04-18,North Carolina,0
+2016-04-25,North Carolina,0
+2016-05-02,North Carolina,0
+2016-05-09,North Carolina,0
+2016-05-16,North Carolina,0
+2016-05-23,North Carolina,0
+2016-05-30,North Carolina,0
+2016-06-06,North Carolina,0
+2016-06-13,North Carolina,0
+2016-06-20,North Carolina,0
+2016-06-27,North Carolina,0
+2016-07-04,North Carolina,0
+2016-07-11,North Carolina,0
+2016-07-18,North Carolina,0
+2016-07-25,North Carolina,0
+2016-08-01,North Carolina,0
+2016-08-08,North Carolina,0
+2016-08-15,North Carolina,0
+2016-08-22,North Carolina,0
+2016-08-29,North Carolina,0
+2016-09-05,North Carolina,0
+2016-09-12,North Carolina,0
+2016-09-19,North Carolina,0
+2016-09-26,North Carolina,0
+2016-10-03,North Carolina,0
+2016-10-10,North Carolina,0
+2016-10-17,North Carolina,0
+2016-10-24,North Carolina,0
+2016-10-31,North Carolina,0
+2016-11-07,North Carolina,1
+2016-11-14,North Carolina,0
+2016-11-21,North Carolina,1
+2016-11-28,North Carolina,0
+2016-12-05,North Carolina,2
+2016-12-12,North Carolina,4
+2016-12-19,North Carolina,5
+2016-12-26,North Carolina,2
+2017-01-02,North Carolina,3
+2017-01-09,North Carolina,4
+2017-01-16,North Carolina,2
+2017-01-23,North Carolina,0
+2017-01-30,North Carolina,1
+2017-02-06,North Carolina,3
+2017-02-13,North Carolina,1
+2017-02-20,North Carolina,0
+2017-02-27,North Carolina,0
+2017-03-06,North Carolina,0
+2017-03-13,North Carolina,0
+2017-03-20,North Carolina,0
+2017-03-27,North Carolina,0
+2017-04-03,North Carolina,0
+2017-04-10,North Carolina,0
+2017-04-17,North Carolina,0
+2017-04-24,North Carolina,0
+2017-05-01,North Carolina,0
+2017-05-08,North Carolina,0
+2017-05-15,North Carolina,0
+2017-05-22,North Carolina,0
+2017-05-29,North Carolina,0
+2017-06-05,North Carolina,0
+2017-06-12,North Carolina,0
+2017-06-19,North Carolina,0
+2017-06-26,North Carolina,0
+2017-07-03,North Carolina,0
+2017-07-10,North Carolina,0
+2017-07-17,North Carolina,0
+2017-07-24,North Carolina,0
+2017-07-31,North Carolina,0
+2017-08-07,North Carolina,0
+2017-08-14,North Carolina,0
+2017-08-21,North Carolina,0
+2017-08-28,North Carolina,0
+2017-09-04,North Carolina,0
+2017-09-11,North Carolina,0
+2017-09-18,North Carolina,0
+2017-09-25,North Carolina,0
+2017-10-02,North Carolina,0
+2017-10-09,North Carolina,0
+2017-10-16,North Carolina,0
+2017-10-23,North Carolina,0
+2017-10-30,North Carolina,0
+2017-11-06,North Carolina,0
+2017-11-13,North Carolina,0
+2017-11-20,North Carolina,0
+2017-11-27,North Carolina,0
+2017-12-04,North Carolina,0
+2017-12-11,North Carolina,0
+2017-12-18,North Carolina,0
+2017-12-25,North Carolina,0
+2018-01-01,North Carolina,0
+2018-01-08,North Carolina,0
+2018-01-15,North Carolina,0
+2018-01-22,North Carolina,0
+2018-01-29,North Carolina,0
+2018-02-05,North Carolina,0
+2018-02-12,North Carolina,0
+2018-02-19,North Carolina,0
+2018-02-26,North Carolina,0
+2018-03-05,North Carolina,0
+2018-03-12,North Carolina,0
+2018-03-19,North Carolina,0
+2018-03-26,North Carolina,0
+2018-04-02,North Carolina,0
+2018-04-09,North Carolina,0
+2018-04-16,North Carolina,0
+2018-04-23,North Carolina,0
+2018-04-30,North Carolina,0
+2018-05-07,North Carolina,0
+2018-05-14,North Carolina,0
+2018-05-21,North Carolina,0
+2018-05-28,North Carolina,0
+2018-06-04,North Carolina,0
+2018-06-11,North Carolina,0
+2018-06-18,North Carolina,0
+2018-06-25,North Carolina,0
+2018-07-02,North Carolina,0
+2018-07-09,North Carolina,0
+2018-07-16,North Carolina,0
+2018-07-23,North Carolina,0
+2018-07-30,North Carolina,0
+2018-08-06,North Carolina,0
+2018-08-13,North Carolina,0
+2018-08-20,North Carolina,0
+2018-08-27,North Carolina,0
+2018-09-03,North Carolina,0
+2018-09-10,North Carolina,0
+2018-09-17,North Carolina,0
+2018-09-24,North Carolina,0
+2018-10-01,North Carolina,0
+2018-10-08,North Carolina,0
+2018-10-15,North Carolina,0
+2018-10-22,North Carolina,0
+2018-10-29,North Carolina,0
+2018-11-05,North Carolina,0
+2018-11-12,North Carolina,0
+2018-11-19,North Carolina,0
+2018-11-26,North Carolina,0
+2018-12-03,North Carolina,0
+2018-12-10,North Carolina,0
+2018-12-17,North Carolina,0
+2018-12-24,North Carolina,0
+2018-12-31,North Carolina,0
+2019-01-07,North Carolina,0
+2019-01-14,North Carolina,0
+2019-01-21,North Carolina,0
+2019-01-28,North Carolina,0
+2019-02-04,North Carolina,0
+2019-02-11,North Carolina,0
+2019-02-18,North Carolina,0
+2019-02-25,North Carolina,0
+2019-03-04,North Carolina,0
+2019-03-11,North Carolina,0
+2019-03-18,North Carolina,0
+2019-03-25,North Carolina,0
+2019-04-01,North Carolina,0
+2019-04-08,North Carolina,0
+2019-04-15,North Carolina,0
+2019-04-22,North Carolina,0
+2019-04-29,North Carolina,0
+2019-05-06,North Carolina,0
+2019-05-13,North Carolina,0
+2019-05-20,North Carolina,0
+2019-05-27,North Carolina,0
+2019-06-03,North Carolina,0
+2019-06-10,North Carolina,0
+2019-06-17,North Carolina,0
+2019-06-24,North Carolina,0
+2019-07-01,North Carolina,0
+2019-07-08,North Carolina,0
+2019-07-15,North Carolina,0
+2019-07-22,North Carolina,0
+2019-07-29,North Carolina,0
+2019-08-05,North Carolina,0
+2019-08-12,North Carolina,0
+2019-08-19,North Carolina,0
+2019-08-26,North Carolina,0
+2019-09-02,North Carolina,0
+2019-09-09,North Carolina,0
+2019-09-16,North Carolina,0
+2019-09-23,North Carolina,0
+2019-09-30,North Carolina,0
+2019-10-07,North Carolina,0
+2019-10-14,North Carolina,0
+2019-10-21,North Carolina,0
+2019-10-28,North Carolina,0
+2019-11-04,North Carolina,0
+2019-11-11,North Carolina,0
+2019-11-18,North Carolina,0
+2019-11-25,North Carolina,0
+2019-12-02,North Carolina,0
+2019-12-09,North Carolina,0
+2019-12-16,North Carolina,0
+2019-12-23,North Carolina,0
+2019-12-30,North Carolina,0
+2020-01-06,North Carolina,0
+2020-01-13,North Carolina,0
+2020-01-20,North Carolina,0
+2020-01-27,North Carolina,0
+2020-02-03,North Carolina,0
+2020-02-10,North Carolina,0
+2020-02-17,North Carolina,0
+2020-02-24,North Carolina,0
+2020-03-02,North Carolina,0
+2020-03-09,North Carolina,0
+2015-07-06,Ohio,0
+2015-07-13,Ohio,0
+2015-07-20,Ohio,0
+2015-07-27,Ohio,0
+2015-08-03,Ohio,0
+2015-08-10,Ohio,0
+2015-08-17,Ohio,0
+2015-08-24,Ohio,0
+2015-08-31,Ohio,0
+2015-09-07,Ohio,0
+2015-09-14,Ohio,0
+2015-09-21,Ohio,0
+2015-09-28,Ohio,0
+2015-10-05,Ohio,0
+2015-10-12,Ohio,0
+2015-10-19,Ohio,0
+2015-10-26,Ohio,0
+2015-11-02,Ohio,0
+2015-11-09,Ohio,0
+2015-11-16,Ohio,0
+2015-11-23,Ohio,0
+2015-11-30,Ohio,0
+2015-12-07,Ohio,0
+2015-12-14,Ohio,0
+2015-12-21,Ohio,0
+2015-12-28,Ohio,0
+2016-01-04,Ohio,0
+2016-01-11,Ohio,0
+2016-01-18,Ohio,0
+2016-01-25,Ohio,0
+2016-02-01,Ohio,0
+2016-02-08,Ohio,0
+2016-02-15,Ohio,0
+2016-02-22,Ohio,0
+2016-02-29,Ohio,0
+2016-03-07,Ohio,0
+2016-03-14,Ohio,0
+2016-03-21,Ohio,0
+2016-03-28,Ohio,0
+2016-04-04,Ohio,0
+2016-04-11,Ohio,0
+2016-04-18,Ohio,0
+2016-04-25,Ohio,0
+2016-05-02,Ohio,0
+2016-05-09,Ohio,0
+2016-05-16,Ohio,0
+2016-05-23,Ohio,0
+2016-05-30,Ohio,0
+2016-06-06,Ohio,0
+2016-06-13,Ohio,0
+2016-06-20,Ohio,0
+2016-06-27,Ohio,0
+2016-07-04,Ohio,0
+2016-07-11,Ohio,0
+2016-07-18,Ohio,0
+2016-07-25,Ohio,0
+2016-08-01,Ohio,0
+2016-08-08,Ohio,0
+2016-08-15,Ohio,0
+2016-08-22,Ohio,0
+2016-08-29,Ohio,0
+2016-09-05,Ohio,0
+2016-09-12,Ohio,0
+2016-09-19,Ohio,0
+2016-09-26,Ohio,0
+2016-10-03,Ohio,0
+2016-10-10,Ohio,0
+2016-10-17,Ohio,0
+2016-10-24,Ohio,0
+2016-10-31,Ohio,0
+2016-11-07,Ohio,0
+2016-11-14,Ohio,0
+2016-11-21,Ohio,4
+2016-11-28,Ohio,4
+2016-12-05,Ohio,2
+2016-12-12,Ohio,0
+2016-12-19,Ohio,0
+2016-12-26,Ohio,4
+2017-01-02,Ohio,3
+2017-01-09,Ohio,0
+2017-01-16,Ohio,0
+2017-01-23,Ohio,0
+2017-01-30,Ohio,6
+2017-02-06,Ohio,2
+2017-02-13,Ohio,1
+2017-02-20,Ohio,0
+2017-02-27,Ohio,0
+2017-03-06,Ohio,3
+2017-03-13,Ohio,2
+2017-03-20,Ohio,3
+2017-03-27,Ohio,0
+2017-04-03,Ohio,0
+2017-04-10,Ohio,0
+2017-04-17,Ohio,0
+2017-04-24,Ohio,0
+2017-05-01,Ohio,0
+2017-05-08,Ohio,0
+2017-05-15,Ohio,0
+2017-05-22,Ohio,0
+2017-05-29,Ohio,0
+2017-06-05,Ohio,0
+2017-06-12,Ohio,0
+2017-06-19,Ohio,0
+2017-06-26,Ohio,0
+2017-07-03,Ohio,0
+2017-07-10,Ohio,0
+2017-07-17,Ohio,0
+2017-07-24,Ohio,0
+2017-07-31,Ohio,0
+2017-08-07,Ohio,0
+2017-08-14,Ohio,0
+2017-08-21,Ohio,0
+2017-08-28,Ohio,0
+2017-09-04,Ohio,0
+2017-09-11,Ohio,0
+2017-09-18,Ohio,0
+2017-09-25,Ohio,0
+2017-10-02,Ohio,0
+2017-10-09,Ohio,0
+2017-10-16,Ohio,0
+2017-10-23,Ohio,0
+2017-10-30,Ohio,3
+2017-11-06,Ohio,3
+2017-11-13,Ohio,6
+2017-11-20,Ohio,0
+2017-11-27,Ohio,5
+2017-12-04,Ohio,10
+2017-12-11,Ohio,0
+2017-12-18,Ohio,0
+2017-12-25,Ohio,0
+2018-01-01,Ohio,16
+2018-01-08,Ohio,0
+2018-01-15,Ohio,0
+2018-01-22,Ohio,0
+2018-01-29,Ohio,8
+2018-02-05,Ohio,6
+2018-02-12,Ohio,0
+2018-02-19,Ohio,0
+2018-02-26,Ohio,5
+2018-03-05,Ohio,8
+2018-03-12,Ohio,2
+2018-03-19,Ohio,0
+2018-03-26,Ohio,0
+2018-04-02,Ohio,0
+2018-04-09,Ohio,0
+2018-04-16,Ohio,0
+2018-04-23,Ohio,0
+2018-04-30,Ohio,0
+2018-05-07,Ohio,0
+2018-05-14,Ohio,0
+2018-05-21,Ohio,0
+2018-05-28,Ohio,0
+2018-06-04,Ohio,0
+2018-06-11,Ohio,0
+2018-06-18,Ohio,0
+2018-06-25,Ohio,0
+2018-07-02,Ohio,0
+2018-07-09,Ohio,0
+2018-07-16,Ohio,0
+2018-07-23,Ohio,0
+2018-07-30,Ohio,0
+2018-08-06,Ohio,0
+2018-08-13,Ohio,0
+2018-08-20,Ohio,0
+2018-08-27,Ohio,0
+2018-09-03,Ohio,0
+2018-09-10,Ohio,0
+2018-09-17,Ohio,0
+2018-09-24,Ohio,0
+2018-10-01,Ohio,0
+2018-10-08,Ohio,0
+2018-10-15,Ohio,0
+2018-10-22,Ohio,0
+2018-10-29,Ohio,2
+2018-11-05,Ohio,6
+2018-11-12,Ohio,7
+2018-11-19,Ohio,1
+2018-11-26,Ohio,2
+2018-12-03,Ohio,15
+2018-12-10,Ohio,2
+2018-12-17,Ohio,0
+2018-12-24,Ohio,0
+2018-12-31,Ohio,17
+2019-01-07,Ohio,0
+2019-01-14,Ohio,0
+2019-01-21,Ohio,0
+2019-01-28,Ohio,2
+2019-02-04,Ohio,10
+2019-02-11,Ohio,2
+2019-02-18,Ohio,0
+2019-02-25,Ohio,2
+2019-03-04,Ohio,4
+2019-03-11,Ohio,7
+2019-03-18,Ohio,1
+2019-03-25,Ohio,2
+2019-04-01,Ohio,0
+2019-04-08,Ohio,0
+2019-04-15,Ohio,0
+2019-04-22,Ohio,0
+2019-04-29,Ohio,0
+2019-05-06,Ohio,0
+2019-05-13,Ohio,0
+2019-05-20,Ohio,0
+2019-05-27,Ohio,0
+2019-06-03,Ohio,0
+2019-06-10,Ohio,0
+2019-06-17,Ohio,0
+2019-06-24,Ohio,0
+2019-07-01,Ohio,0
+2019-07-08,Ohio,0
+2019-07-15,Ohio,0
+2019-07-22,Ohio,0
+2019-07-29,Ohio,0
+2019-08-05,Ohio,0
+2019-08-12,Ohio,0
+2019-08-19,Ohio,0
+2019-08-26,Ohio,0
+2019-09-02,Ohio,0
+2019-09-09,Ohio,0
+2019-09-16,Ohio,0
+2019-09-23,Ohio,0
+2019-09-30,Ohio,0
+2019-10-07,Ohio,0
+2019-10-14,Ohio,0
+2019-10-21,Ohio,0
+2019-10-28,Ohio,8
+2019-11-04,Ohio,4
+2019-11-11,Ohio,3
+2019-11-18,Ohio,2
+2019-11-25,Ohio,4
+2019-12-02,Ohio,12
+2019-12-09,Ohio,0
+2019-12-16,Ohio,0
+2019-12-23,Ohio,0
+2019-12-30,Ohio,8
+2020-01-06,Ohio,5
+2020-01-13,Ohio,0
+2020-01-20,Ohio,0
+2020-01-27,Ohio,4
+2020-02-03,Ohio,9
+2020-02-10,Ohio,0
+2020-02-17,Ohio,0
+2020-02-24,Ohio,0
+2020-03-02,Ohio,7
+2020-03-09,Ohio,4
+2015-07-06,Oregon,0
+2015-07-13,Oregon,0
+2015-07-20,Oregon,0
+2015-07-27,Oregon,0
+2015-08-03,Oregon,0
+2015-08-10,Oregon,0
+2015-08-17,Oregon,0
+2015-08-24,Oregon,0
+2015-08-31,Oregon,0
+2015-09-07,Oregon,0
+2015-09-14,Oregon,0
+2015-09-21,Oregon,0
+2015-09-28,Oregon,0
+2015-10-05,Oregon,0
+2015-10-12,Oregon,0
+2015-10-19,Oregon,0
+2015-10-26,Oregon,0
+2015-11-02,Oregon,0
+2015-11-09,Oregon,0
+2015-11-16,Oregon,0
+2015-11-23,Oregon,0
+2015-11-30,Oregon,0
+2015-12-07,Oregon,0
+2015-12-14,Oregon,0
+2015-12-21,Oregon,0
+2015-12-28,Oregon,0
+2016-01-04,Oregon,0
+2016-01-11,Oregon,0
+2016-01-18,Oregon,0
+2016-01-25,Oregon,0
+2016-02-01,Oregon,0
+2016-02-08,Oregon,0
+2016-02-15,Oregon,0
+2016-02-22,Oregon,0
+2016-02-29,Oregon,0
+2016-03-07,Oregon,0
+2016-03-14,Oregon,0
+2016-03-21,Oregon,0
+2016-03-28,Oregon,0
+2016-04-04,Oregon,0
+2016-04-11,Oregon,0
+2016-04-18,Oregon,0
+2016-04-25,Oregon,0
+2016-05-02,Oregon,0
+2016-05-09,Oregon,0
+2016-05-16,Oregon,0
+2016-05-23,Oregon,0
+2016-05-30,Oregon,0
+2016-06-06,Oregon,0
+2016-06-13,Oregon,0
+2016-06-20,Oregon,0
+2016-06-27,Oregon,0
+2016-07-04,Oregon,0
+2016-07-11,Oregon,0
+2016-07-18,Oregon,0
+2016-07-25,Oregon,0
+2016-08-01,Oregon,0
+2016-08-08,Oregon,0
+2016-08-15,Oregon,0
+2016-08-22,Oregon,0
+2016-08-29,Oregon,0
+2016-09-05,Oregon,0
+2016-09-12,Oregon,0
+2016-09-19,Oregon,0
+2016-09-26,Oregon,0
+2016-10-03,Oregon,0
+2016-10-10,Oregon,0
+2016-10-17,Oregon,0
+2016-10-24,Oregon,0
+2016-10-31,Oregon,0
+2016-11-07,Oregon,0
+2016-11-14,Oregon,0
+2016-11-21,Oregon,0
+2016-11-28,Oregon,0
+2016-12-05,Oregon,0
+2016-12-12,Oregon,0
+2016-12-19,Oregon,0
+2016-12-26,Oregon,0
+2017-01-02,Oregon,0
+2017-01-09,Oregon,0
+2017-01-16,Oregon,0
+2017-01-23,Oregon,0
+2017-01-30,Oregon,0
+2017-02-06,Oregon,0
+2017-02-13,Oregon,0
+2017-02-20,Oregon,0
+2017-02-27,Oregon,0
+2017-03-06,Oregon,0
+2017-03-13,Oregon,0
+2017-03-20,Oregon,0
+2017-03-27,Oregon,0
+2017-04-03,Oregon,0
+2017-04-10,Oregon,0
+2017-04-17,Oregon,0
+2017-04-24,Oregon,0
+2017-05-01,Oregon,0
+2017-05-08,Oregon,0
+2017-05-15,Oregon,0
+2017-05-22,Oregon,0
+2017-05-29,Oregon,0
+2017-06-05,Oregon,0
+2017-06-12,Oregon,0
+2017-06-19,Oregon,0
+2017-06-26,Oregon,0
+2017-07-03,Oregon,0
+2017-07-10,Oregon,0
+2017-07-17,Oregon,0
+2017-07-24,Oregon,0
+2017-07-31,Oregon,0
+2017-08-07,Oregon,0
+2017-08-14,Oregon,0
+2017-08-21,Oregon,0
+2017-08-28,Oregon,0
+2017-09-04,Oregon,0
+2017-09-11,Oregon,0
+2017-09-18,Oregon,0
+2017-09-25,Oregon,0
+2017-10-02,Oregon,0
+2017-10-09,Oregon,0
+2017-10-16,Oregon,0
+2017-10-23,Oregon,0
+2017-10-30,Oregon,0
+2017-11-06,Oregon,0
+2017-11-13,Oregon,0
+2017-11-20,Oregon,0
+2017-11-27,Oregon,0
+2017-12-04,Oregon,0
+2017-12-11,Oregon,0
+2017-12-18,Oregon,0
+2017-12-25,Oregon,0
+2018-01-01,Oregon,0
+2018-01-08,Oregon,0
+2018-01-15,Oregon,0
+2018-01-22,Oregon,0
+2018-01-29,Oregon,0
+2018-02-05,Oregon,0
+2018-02-12,Oregon,0
+2018-02-19,Oregon,0
+2018-02-26,Oregon,0
+2018-03-05,Oregon,0
+2018-03-12,Oregon,0
+2018-03-19,Oregon,0
+2018-03-26,Oregon,0
+2018-04-02,Oregon,0
+2018-04-09,Oregon,0
+2018-04-16,Oregon,0
+2018-04-23,Oregon,0
+2018-04-30,Oregon,0
+2018-05-07,Oregon,0
+2018-05-14,Oregon,0
+2018-05-21,Oregon,0
+2018-05-28,Oregon,0
+2018-06-04,Oregon,0
+2018-06-11,Oregon,0
+2018-06-18,Oregon,0
+2018-06-25,Oregon,0
+2018-07-02,Oregon,0
+2018-07-09,Oregon,0
+2018-07-16,Oregon,0
+2018-07-23,Oregon,0
+2018-07-30,Oregon,0
+2018-08-06,Oregon,0
+2018-08-13,Oregon,0
+2018-08-20,Oregon,0
+2018-08-27,Oregon,0
+2018-09-03,Oregon,0
+2018-09-10,Oregon,0
+2018-09-17,Oregon,0
+2018-09-24,Oregon,0
+2018-10-01,Oregon,0
+2018-10-08,Oregon,0
+2018-10-15,Oregon,0
+2018-10-22,Oregon,0
+2018-10-29,Oregon,0
+2018-11-05,Oregon,0
+2018-11-12,Oregon,0
+2018-11-19,Oregon,0
+2018-11-26,Oregon,0
+2018-12-03,Oregon,0
+2018-12-10,Oregon,0
+2018-12-17,Oregon,0
+2018-12-24,Oregon,0
+2018-12-31,Oregon,0
+2019-01-07,Oregon,0
+2019-01-14,Oregon,0
+2019-01-21,Oregon,0
+2019-01-28,Oregon,0
+2019-02-04,Oregon,0
+2019-02-11,Oregon,0
+2019-02-18,Oregon,0
+2019-02-25,Oregon,0
+2019-03-04,Oregon,0
+2019-03-11,Oregon,0
+2019-03-18,Oregon,0
+2019-03-25,Oregon,0
+2019-04-01,Oregon,0
+2019-04-08,Oregon,0
+2019-04-15,Oregon,0
+2019-04-22,Oregon,0
+2019-04-29,Oregon,0
+2019-05-06,Oregon,0
+2019-05-13,Oregon,0
+2019-05-20,Oregon,0
+2019-05-27,Oregon,0
+2019-06-03,Oregon,0
+2019-06-10,Oregon,0
+2019-06-17,Oregon,0
+2019-06-24,Oregon,0
+2019-07-01,Oregon,0
+2019-07-08,Oregon,0
+2019-07-15,Oregon,0
+2019-07-22,Oregon,0
+2019-07-29,Oregon,0
+2019-08-05,Oregon,0
+2019-08-12,Oregon,0
+2019-08-19,Oregon,0
+2019-08-26,Oregon,0
+2019-09-02,Oregon,0
+2019-09-09,Oregon,0
+2019-09-16,Oregon,0
+2019-09-23,Oregon,0
+2019-09-30,Oregon,0
+2019-10-07,Oregon,0
+2019-10-14,Oregon,0
+2019-10-21,Oregon,0
+2019-10-28,Oregon,0
+2019-11-04,Oregon,0
+2019-11-11,Oregon,0
+2019-11-18,Oregon,0
+2019-11-25,Oregon,0
+2019-12-02,Oregon,1
+2019-12-09,Oregon,1
+2019-12-16,Oregon,0
+2019-12-23,Oregon,3
+2019-12-30,Oregon,3
+2020-01-06,Oregon,2
+2020-01-13,Oregon,4
+2020-01-20,Oregon,3
+2020-01-27,Oregon,3
+2020-02-03,Oregon,6
+2020-02-10,Oregon,10
+2020-02-17,Oregon,5
+2020-02-24,Oregon,0
+2020-03-02,Oregon,0
+2020-03-09,Oregon,0
+2015-07-06,Pennsylvania,0
+2015-07-13,Pennsylvania,0
+2015-07-20,Pennsylvania,0
+2015-07-27,Pennsylvania,0
+2015-08-03,Pennsylvania,0
+2015-08-10,Pennsylvania,0
+2015-08-17,Pennsylvania,0
+2015-08-24,Pennsylvania,0
+2015-08-31,Pennsylvania,0
+2015-09-07,Pennsylvania,0
+2015-09-14,Pennsylvania,0
+2015-09-21,Pennsylvania,0
+2015-09-28,Pennsylvania,0
+2015-10-05,Pennsylvania,0
+2015-10-12,Pennsylvania,0
+2015-10-19,Pennsylvania,0
+2015-10-26,Pennsylvania,0
+2015-11-02,Pennsylvania,0
+2015-11-09,Pennsylvania,0
+2015-11-16,Pennsylvania,0
+2015-11-23,Pennsylvania,0
+2015-11-30,Pennsylvania,0
+2015-12-07,Pennsylvania,0
+2015-12-14,Pennsylvania,0
+2015-12-21,Pennsylvania,0
+2015-12-28,Pennsylvania,0
+2016-01-04,Pennsylvania,0
+2016-01-11,Pennsylvania,0
+2016-01-18,Pennsylvania,0
+2016-01-25,Pennsylvania,0
+2016-02-01,Pennsylvania,0
+2016-02-08,Pennsylvania,0
+2016-02-15,Pennsylvania,0
+2016-02-22,Pennsylvania,0
+2016-02-29,Pennsylvania,0
+2016-03-07,Pennsylvania,0
+2016-03-14,Pennsylvania,0
+2016-03-21,Pennsylvania,0
+2016-03-28,Pennsylvania,0
+2016-04-04,Pennsylvania,0
+2016-04-11,Pennsylvania,0
+2016-04-18,Pennsylvania,0
+2016-04-25,Pennsylvania,0
+2016-05-02,Pennsylvania,0
+2016-05-09,Pennsylvania,0
+2016-05-16,Pennsylvania,0
+2016-05-23,Pennsylvania,0
+2016-05-30,Pennsylvania,0
+2016-06-06,Pennsylvania,0
+2016-06-13,Pennsylvania,0
+2016-06-20,Pennsylvania,0
+2016-06-27,Pennsylvania,0
+2016-07-04,Pennsylvania,0
+2016-07-11,Pennsylvania,0
+2016-07-18,Pennsylvania,0
+2016-07-25,Pennsylvania,0
+2016-08-01,Pennsylvania,0
+2016-08-08,Pennsylvania,0
+2016-08-15,Pennsylvania,0
+2016-08-22,Pennsylvania,0
+2016-08-29,Pennsylvania,0
+2016-09-05,Pennsylvania,0
+2016-09-12,Pennsylvania,0
+2016-09-19,Pennsylvania,0
+2016-09-26,Pennsylvania,0
+2016-10-03,Pennsylvania,0
+2016-10-10,Pennsylvania,0
+2016-10-17,Pennsylvania,0
+2016-10-24,Pennsylvania,0
+2016-10-31,Pennsylvania,0
+2016-11-07,Pennsylvania,1
+2016-11-14,Pennsylvania,6
+2016-11-21,Pennsylvania,3
+2016-11-28,Pennsylvania,6
+2016-12-05,Pennsylvania,6
+2016-12-12,Pennsylvania,2
+2016-12-19,Pennsylvania,0
+2016-12-26,Pennsylvania,4
+2017-01-02,Pennsylvania,5
+2017-01-09,Pennsylvania,0
+2017-01-16,Pennsylvania,0
+2017-01-23,Pennsylvania,0
+2017-01-30,Pennsylvania,5
+2017-02-06,Pennsylvania,4
+2017-02-13,Pennsylvania,0
+2017-02-20,Pennsylvania,0
+2017-02-27,Pennsylvania,8
+2017-03-06,Pennsylvania,0
+2017-03-13,Pennsylvania,0
+2017-03-20,Pennsylvania,0
+2017-03-27,Pennsylvania,0
+2017-04-03,Pennsylvania,0
+2017-04-10,Pennsylvania,0
+2017-04-17,Pennsylvania,0
+2017-04-24,Pennsylvania,0
+2017-05-01,Pennsylvania,0
+2017-05-08,Pennsylvania,0
+2017-05-15,Pennsylvania,0
+2017-05-22,Pennsylvania,0
+2017-05-29,Pennsylvania,0
+2017-06-05,Pennsylvania,0
+2017-06-12,Pennsylvania,0
+2017-06-19,Pennsylvania,0
+2017-06-26,Pennsylvania,0
+2017-07-03,Pennsylvania,0
+2017-07-10,Pennsylvania,0
+2017-07-17,Pennsylvania,0
+2017-07-24,Pennsylvania,0
+2017-07-31,Pennsylvania,0
+2017-08-07,Pennsylvania,0
+2017-08-14,Pennsylvania,0
+2017-08-21,Pennsylvania,0
+2017-08-28,Pennsylvania,0
+2017-09-04,Pennsylvania,0
+2017-09-11,Pennsylvania,0
+2017-09-18,Pennsylvania,0
+2017-09-25,Pennsylvania,0
+2017-10-02,Pennsylvania,0
+2017-10-09,Pennsylvania,0
+2017-10-16,Pennsylvania,0
+2017-10-23,Pennsylvania,0
+2017-10-30,Pennsylvania,1
+2017-11-06,Pennsylvania,1
+2017-11-13,Pennsylvania,1
+2017-11-20,Pennsylvania,2
+2017-11-27,Pennsylvania,6
+2017-12-04,Pennsylvania,6
+2017-12-11,Pennsylvania,3
+2017-12-18,Pennsylvania,0
+2017-12-25,Pennsylvania,0
+2018-01-01,Pennsylvania,4
+2018-01-08,Pennsylvania,0
+2018-01-15,Pennsylvania,0
+2018-01-22,Pennsylvania,0
+2018-01-29,Pennsylvania,1
+2018-02-05,Pennsylvania,8
+2018-02-12,Pennsylvania,0
+2018-02-19,Pennsylvania,0
+2018-02-26,Pennsylvania,3
+2018-03-05,Pennsylvania,5
+2018-03-12,Pennsylvania,0
+2018-03-19,Pennsylvania,1
+2018-03-26,Pennsylvania,0
+2018-04-02,Pennsylvania,0
+2018-04-09,Pennsylvania,0
+2018-04-16,Pennsylvania,0
+2018-04-23,Pennsylvania,0
+2018-04-30,Pennsylvania,0
+2018-05-07,Pennsylvania,0
+2018-05-14,Pennsylvania,0
+2018-05-21,Pennsylvania,0
+2018-05-28,Pennsylvania,0
+2018-06-04,Pennsylvania,0
+2018-06-11,Pennsylvania,0
+2018-06-18,Pennsylvania,0
+2018-06-25,Pennsylvania,0
+2018-07-02,Pennsylvania,0
+2018-07-09,Pennsylvania,0
+2018-07-16,Pennsylvania,0
+2018-07-23,Pennsylvania,0
+2018-07-30,Pennsylvania,0
+2018-08-06,Pennsylvania,0
+2018-08-13,Pennsylvania,0
+2018-08-20,Pennsylvania,0
+2018-08-27,Pennsylvania,0
+2018-09-03,Pennsylvania,0
+2018-09-10,Pennsylvania,0
+2018-09-17,Pennsylvania,0
+2018-09-24,Pennsylvania,0
+2018-10-01,Pennsylvania,0
+2018-10-08,Pennsylvania,0
+2018-10-15,Pennsylvania,0
+2018-10-22,Pennsylvania,0
+2018-10-29,Pennsylvania,2
+2018-11-05,Pennsylvania,4
+2018-11-12,Pennsylvania,2
+2018-11-19,Pennsylvania,1
+2018-11-26,Pennsylvania,1
+2018-12-03,Pennsylvania,7
+2018-12-10,Pennsylvania,1
+2018-12-17,Pennsylvania,0
+2018-12-24,Pennsylvania,0
+2018-12-31,Pennsylvania,3
+2019-01-07,Pennsylvania,7
+2019-01-14,Pennsylvania,0
+2019-01-21,Pennsylvania,0
+2019-01-28,Pennsylvania,1
+2019-02-04,Pennsylvania,5
+2019-02-11,Pennsylvania,4
+2019-02-18,Pennsylvania,0
+2019-02-25,Pennsylvania,0
+2019-03-04,Pennsylvania,3
+2019-03-11,Pennsylvania,1
+2019-03-18,Pennsylvania,0
+2019-03-25,Pennsylvania,0
+2019-04-01,Pennsylvania,0
+2019-04-08,Pennsylvania,0
+2019-04-15,Pennsylvania,0
+2019-04-22,Pennsylvania,0
+2019-04-29,Pennsylvania,0
+2019-05-06,Pennsylvania,0
+2019-05-13,Pennsylvania,0
+2019-05-20,Pennsylvania,0
+2019-05-27,Pennsylvania,0
+2019-06-03,Pennsylvania,0
+2019-06-10,Pennsylvania,0
+2019-06-17,Pennsylvania,0
+2019-06-24,Pennsylvania,0
+2019-07-01,Pennsylvania,0
+2019-07-08,Pennsylvania,0
+2019-07-15,Pennsylvania,0
+2019-07-22,Pennsylvania,0
+2019-07-29,Pennsylvania,0
+2019-08-05,Pennsylvania,0
+2019-08-12,Pennsylvania,0
+2019-08-19,Pennsylvania,0
+2019-08-26,Pennsylvania,0
+2019-09-02,Pennsylvania,0
+2019-09-09,Pennsylvania,0
+2019-09-16,Pennsylvania,0
+2019-09-23,Pennsylvania,0
+2019-09-30,Pennsylvania,0
+2019-10-07,Pennsylvania,0
+2019-10-14,Pennsylvania,0
+2019-10-21,Pennsylvania,0
+2019-10-28,Pennsylvania,1
+2019-11-04,Pennsylvania,4
+2019-11-11,Pennsylvania,4
+2019-11-18,Pennsylvania,0
+2019-11-25,Pennsylvania,0
+2019-12-02,Pennsylvania,4
+2019-12-09,Pennsylvania,4
+2019-12-16,Pennsylvania,0
+2019-12-23,Pennsylvania,0
+2019-12-30,Pennsylvania,1
+2020-01-06,Pennsylvania,4
+2020-01-13,Pennsylvania,3
+2020-01-20,Pennsylvania,1
+2020-01-27,Pennsylvania,0
+2020-02-03,Pennsylvania,4
+2020-02-10,Pennsylvania,4
+2020-02-17,Pennsylvania,2
+2020-02-24,Pennsylvania,0
+2020-03-02,Pennsylvania,3
+2020-03-09,Pennsylvania,4
+2015-07-06,Puerto Rico,0
+2015-07-13,Puerto Rico,0
+2015-07-20,Puerto Rico,0
+2015-07-27,Puerto Rico,0
+2015-08-03,Puerto Rico,0
+2015-08-10,Puerto Rico,0
+2015-08-17,Puerto Rico,0
+2015-08-24,Puerto Rico,0
+2015-08-31,Puerto Rico,0
+2015-09-07,Puerto Rico,0
+2015-09-14,Puerto Rico,0
+2015-09-21,Puerto Rico,0
+2015-09-28,Puerto Rico,0
+2015-10-05,Puerto Rico,0
+2015-10-12,Puerto Rico,0
+2015-10-19,Puerto Rico,0
+2015-10-26,Puerto Rico,0
+2015-11-02,Puerto Rico,0
+2015-11-09,Puerto Rico,0
+2015-11-16,Puerto Rico,0
+2015-11-23,Puerto Rico,0
+2015-11-30,Puerto Rico,0
+2015-12-07,Puerto Rico,0
+2015-12-14,Puerto Rico,0
+2015-12-21,Puerto Rico,0
+2015-12-28,Puerto Rico,0
+2016-01-04,Puerto Rico,0
+2016-01-11,Puerto Rico,0
+2016-01-18,Puerto Rico,0
+2016-01-25,Puerto Rico,0
+2016-02-01,Puerto Rico,0
+2016-02-08,Puerto Rico,0
+2016-02-15,Puerto Rico,0
+2016-02-22,Puerto Rico,0
+2016-02-29,Puerto Rico,2
+2016-03-07,Puerto Rico,0
+2016-03-14,Puerto Rico,1
+2016-03-21,Puerto Rico,0
+2016-03-28,Puerto Rico,0
+2016-04-04,Puerto Rico,0
+2016-04-11,Puerto Rico,0
+2016-04-18,Puerto Rico,0
+2016-04-25,Puerto Rico,0
+2016-05-02,Puerto Rico,1
+2016-05-09,Puerto Rico,0
+2016-05-16,Puerto Rico,0
+2016-05-23,Puerto Rico,1
+2016-05-30,Puerto Rico,0
+2016-06-06,Puerto Rico,0
+2016-06-13,Puerto Rico,0
+2016-06-20,Puerto Rico,0
+2016-06-27,Puerto Rico,0
+2016-07-04,Puerto Rico,0
+2016-07-11,Puerto Rico,0
+2016-07-18,Puerto Rico,0
+2016-07-25,Puerto Rico,0
+2016-08-01,Puerto Rico,0
+2016-08-08,Puerto Rico,0
+2016-08-15,Puerto Rico,0
+2016-08-22,Puerto Rico,0
+2016-08-29,Puerto Rico,0
+2016-09-05,Puerto Rico,0
+2016-09-12,Puerto Rico,0
+2016-09-19,Puerto Rico,0
+2016-09-26,Puerto Rico,0
+2016-10-03,Puerto Rico,0
+2016-10-10,Puerto Rico,0
+2016-10-17,Puerto Rico,0
+2016-10-24,Puerto Rico,0
+2016-10-31,Puerto Rico,0
+2016-11-07,Puerto Rico,0
+2016-11-14,Puerto Rico,6
+2016-11-21,Puerto Rico,2
+2016-11-28,Puerto Rico,5
+2016-12-05,Puerto Rico,6
+2016-12-12,Puerto Rico,0
+2016-12-19,Puerto Rico,0
+2016-12-26,Puerto Rico,0
+2017-01-02,Puerto Rico,2
+2017-01-09,Puerto Rico,3
+2017-01-16,Puerto Rico,3
+2017-01-23,Puerto Rico,2
+2017-01-30,Puerto Rico,1
+2017-02-06,Puerto Rico,1
+2017-02-13,Puerto Rico,1
+2017-02-20,Puerto Rico,0
+2017-02-27,Puerto Rico,1
+2017-03-06,Puerto Rico,0
+2017-03-13,Puerto Rico,0
+2017-03-20,Puerto Rico,0
+2017-03-27,Puerto Rico,0
+2017-04-03,Puerto Rico,0
+2017-04-10,Puerto Rico,0
+2017-04-17,Puerto Rico,0
+2017-04-24,Puerto Rico,0
+2017-05-01,Puerto Rico,0
+2017-05-08,Puerto Rico,0
+2017-05-15,Puerto Rico,0
+2017-05-22,Puerto Rico,0
+2017-05-29,Puerto Rico,0
+2017-06-05,Puerto Rico,0
+2017-06-12,Puerto Rico,0
+2017-06-19,Puerto Rico,0
+2017-06-26,Puerto Rico,0
+2017-07-03,Puerto Rico,0
+2017-07-10,Puerto Rico,0
+2017-07-17,Puerto Rico,0
+2017-07-24,Puerto Rico,0
+2017-07-31,Puerto Rico,0
+2017-08-07,Puerto Rico,0
+2017-08-14,Puerto Rico,0
+2017-08-21,Puerto Rico,0
+2017-08-28,Puerto Rico,0
+2017-09-04,Puerto Rico,0
+2017-09-11,Puerto Rico,0
+2017-09-18,Puerto Rico,0
+2017-09-25,Puerto Rico,0
+2017-10-02,Puerto Rico,0
+2017-10-09,Puerto Rico,0
+2017-10-16,Puerto Rico,0
+2017-10-23,Puerto Rico,0
+2017-10-30,Puerto Rico,0
+2017-11-06,Puerto Rico,0
+2017-11-13,Puerto Rico,0
+2017-11-20,Puerto Rico,1
+2017-11-27,Puerto Rico,2
+2017-12-04,Puerto Rico,1
+2017-12-11,Puerto Rico,1
+2017-12-18,Puerto Rico,1
+2017-12-25,Puerto Rico,0
+2018-01-01,Puerto Rico,0
+2018-01-08,Puerto Rico,2
+2018-01-15,Puerto Rico,1
+2018-01-22,Puerto Rico,1
+2018-01-29,Puerto Rico,0
+2018-02-05,Puerto Rico,0
+2018-02-12,Puerto Rico,0
+2018-02-19,Puerto Rico,0
+2018-02-26,Puerto Rico,0
+2018-03-05,Puerto Rico,0
+2018-03-12,Puerto Rico,0
+2018-03-19,Puerto Rico,0
+2018-03-26,Puerto Rico,0
+2018-04-02,Puerto Rico,0
+2018-04-09,Puerto Rico,0
+2018-04-16,Puerto Rico,0
+2018-04-23,Puerto Rico,0
+2018-04-30,Puerto Rico,0
+2018-05-07,Puerto Rico,0
+2018-05-14,Puerto Rico,0
+2018-05-21,Puerto Rico,0
+2018-05-28,Puerto Rico,0
+2018-06-04,Puerto Rico,0
+2018-06-11,Puerto Rico,0
+2018-06-18,Puerto Rico,0
+2018-06-25,Puerto Rico,0
+2018-07-02,Puerto Rico,0
+2018-07-09,Puerto Rico,0
+2018-07-16,Puerto Rico,0
+2018-07-23,Puerto Rico,0
+2018-07-30,Puerto Rico,0
+2018-08-06,Puerto Rico,0
+2018-08-13,Puerto Rico,0
+2018-08-20,Puerto Rico,0
+2018-08-27,Puerto Rico,0
+2018-09-03,Puerto Rico,0
+2018-09-10,Puerto Rico,0
+2018-09-17,Puerto Rico,0
+2018-09-24,Puerto Rico,0
+2018-10-01,Puerto Rico,0
+2018-10-08,Puerto Rico,0
+2018-10-15,Puerto Rico,0
+2018-10-22,Puerto Rico,0
+2018-10-29,Puerto Rico,0
+2018-11-05,Puerto Rico,0
+2018-11-12,Puerto Rico,0
+2018-11-19,Puerto Rico,0
+2018-11-26,Puerto Rico,0
+2018-12-03,Puerto Rico,0
+2018-12-10,Puerto Rico,0
+2018-12-17,Puerto Rico,0
+2018-12-24,Puerto Rico,0
+2018-12-31,Puerto Rico,0
+2019-01-07,Puerto Rico,0
+2019-01-14,Puerto Rico,0
+2019-01-21,Puerto Rico,0
+2019-01-28,Puerto Rico,0
+2019-02-04,Puerto Rico,0
+2019-02-11,Puerto Rico,0
+2019-02-18,Puerto Rico,0
+2019-02-25,Puerto Rico,0
+2019-03-04,Puerto Rico,0
+2019-03-11,Puerto Rico,0
+2019-03-18,Puerto Rico,0
+2019-03-25,Puerto Rico,0
+2019-04-01,Puerto Rico,0
+2019-04-08,Puerto Rico,0
+2019-04-15,Puerto Rico,0
+2019-04-22,Puerto Rico,0
+2019-04-29,Puerto Rico,0
+2019-05-06,Puerto Rico,0
+2019-05-13,Puerto Rico,0
+2019-05-20,Puerto Rico,0
+2019-05-27,Puerto Rico,0
+2019-06-03,Puerto Rico,0
+2019-06-10,Puerto Rico,0
+2019-06-17,Puerto Rico,0
+2019-06-24,Puerto Rico,0
+2019-07-01,Puerto Rico,0
+2019-07-08,Puerto Rico,0
+2019-07-15,Puerto Rico,0
+2019-07-22,Puerto Rico,0
+2019-07-29,Puerto Rico,0
+2019-08-05,Puerto Rico,0
+2019-08-12,Puerto Rico,0
+2019-08-19,Puerto Rico,0
+2019-08-26,Puerto Rico,0
+2019-09-02,Puerto Rico,0
+2019-09-09,Puerto Rico,0
+2019-09-16,Puerto Rico,0
+2019-09-23,Puerto Rico,0
+2019-09-30,Puerto Rico,0
+2019-10-07,Puerto Rico,0
+2019-10-14,Puerto Rico,0
+2019-10-21,Puerto Rico,0
+2019-10-28,Puerto Rico,0
+2019-11-04,Puerto Rico,0
+2019-11-11,Puerto Rico,0
+2019-11-18,Puerto Rico,0
+2019-11-25,Puerto Rico,0
+2019-12-02,Puerto Rico,0
+2019-12-09,Puerto Rico,0
+2019-12-16,Puerto Rico,0
+2019-12-23,Puerto Rico,0
+2019-12-30,Puerto Rico,0
+2020-01-06,Puerto Rico,0
+2020-01-13,Puerto Rico,0
+2020-01-20,Puerto Rico,0
+2020-01-27,Puerto Rico,0
+2020-02-03,Puerto Rico,0
+2020-02-10,Puerto Rico,0
+2020-02-17,Puerto Rico,0
+2020-02-24,Puerto Rico,0
+2020-03-02,Puerto Rico,0
+2020-03-09,Puerto Rico,0
+2015-07-06,South Carolina,0
+2015-07-13,South Carolina,0
+2015-07-20,South Carolina,0
+2015-07-27,South Carolina,0
+2015-08-03,South Carolina,0
+2015-08-10,South Carolina,0
+2015-08-17,South Carolina,0
+2015-08-24,South Carolina,0
+2015-08-31,South Carolina,0
+2015-09-07,South Carolina,0
+2015-09-14,South Carolina,0
+2015-09-21,South Carolina,0
+2015-09-28,South Carolina,0
+2015-10-05,South Carolina,0
+2015-10-12,South Carolina,0
+2015-10-19,South Carolina,0
+2015-10-26,South Carolina,0
+2015-11-02,South Carolina,0
+2015-11-09,South Carolina,0
+2015-11-16,South Carolina,0
+2015-11-23,South Carolina,0
+2015-11-30,South Carolina,0
+2015-12-07,South Carolina,0
+2015-12-14,South Carolina,0
+2015-12-21,South Carolina,0
+2015-12-28,South Carolina,0
+2016-01-04,South Carolina,0
+2016-01-11,South Carolina,0
+2016-01-18,South Carolina,0
+2016-01-25,South Carolina,0
+2016-02-01,South Carolina,0
+2016-02-08,South Carolina,0
+2016-02-15,South Carolina,0
+2016-02-22,South Carolina,0
+2016-02-29,South Carolina,0
+2016-03-07,South Carolina,0
+2016-03-14,South Carolina,0
+2016-03-21,South Carolina,0
+2016-03-28,South Carolina,0
+2016-04-04,South Carolina,0
+2016-04-11,South Carolina,0
+2016-04-18,South Carolina,0
+2016-04-25,South Carolina,0
+2016-05-02,South Carolina,0
+2016-05-09,South Carolina,0
+2016-05-16,South Carolina,0
+2016-05-23,South Carolina,0
+2016-05-30,South Carolina,0
+2016-06-06,South Carolina,0
+2016-06-13,South Carolina,0
+2016-06-20,South Carolina,0
+2016-06-27,South Carolina,0
+2016-07-04,South Carolina,0
+2016-07-11,South Carolina,0
+2016-07-18,South Carolina,0
+2016-07-25,South Carolina,0
+2016-08-01,South Carolina,0
+2016-08-08,South Carolina,0
+2016-08-15,South Carolina,0
+2016-08-22,South Carolina,0
+2016-08-29,South Carolina,0
+2016-09-05,South Carolina,0
+2016-09-12,South Carolina,0
+2016-09-19,South Carolina,0
+2016-09-26,South Carolina,0
+2016-10-03,South Carolina,0
+2016-10-10,South Carolina,0
+2016-10-17,South Carolina,0
+2016-10-24,South Carolina,0
+2016-10-31,South Carolina,0
+2016-11-07,South Carolina,0
+2016-11-14,South Carolina,0
+2016-11-21,South Carolina,0
+2016-11-28,South Carolina,0
+2016-12-05,South Carolina,0
+2016-12-12,South Carolina,0
+2016-12-19,South Carolina,0
+2016-12-26,South Carolina,0
+2017-01-02,South Carolina,0
+2017-01-09,South Carolina,0
+2017-01-16,South Carolina,0
+2017-01-23,South Carolina,0
+2017-01-30,South Carolina,0
+2017-02-06,South Carolina,0
+2017-02-13,South Carolina,0
+2017-02-20,South Carolina,0
+2017-02-27,South Carolina,0
+2017-03-06,South Carolina,0
+2017-03-13,South Carolina,0
+2017-03-20,South Carolina,0
+2017-03-27,South Carolina,0
+2017-04-03,South Carolina,0
+2017-04-10,South Carolina,0
+2017-04-17,South Carolina,0
+2017-04-24,South Carolina,0
+2017-05-01,South Carolina,0
+2017-05-08,South Carolina,0
+2017-05-15,South Carolina,0
+2017-05-22,South Carolina,0
+2017-05-29,South Carolina,0
+2017-06-05,South Carolina,0
+2017-06-12,South Carolina,0
+2017-06-19,South Carolina,0
+2017-06-26,South Carolina,0
+2017-07-03,South Carolina,0
+2017-07-10,South Carolina,0
+2017-07-17,South Carolina,0
+2017-07-24,South Carolina,0
+2017-07-31,South Carolina,0
+2017-08-07,South Carolina,0
+2017-08-14,South Carolina,0
+2017-08-21,South Carolina,0
+2017-08-28,South Carolina,0
+2017-09-04,South Carolina,0
+2017-09-11,South Carolina,0
+2017-09-18,South Carolina,0
+2017-09-25,South Carolina,0
+2017-10-02,South Carolina,0
+2017-10-09,South Carolina,0
+2017-10-16,South Carolina,0
+2017-10-23,South Carolina,0
+2017-10-30,South Carolina,0
+2017-11-06,South Carolina,0
+2017-11-13,South Carolina,0
+2017-11-20,South Carolina,0
+2017-11-27,South Carolina,0
+2017-12-04,South Carolina,0
+2017-12-11,South Carolina,0
+2017-12-18,South Carolina,0
+2017-12-25,South Carolina,0
+2018-01-01,South Carolina,0
+2018-01-08,South Carolina,0
+2018-01-15,South Carolina,0
+2018-01-22,South Carolina,0
+2018-01-29,South Carolina,0
+2018-02-05,South Carolina,0
+2018-02-12,South Carolina,0
+2018-02-19,South Carolina,0
+2018-02-26,South Carolina,0
+2018-03-05,South Carolina,0
+2018-03-12,South Carolina,0
+2018-03-19,South Carolina,0
+2018-03-26,South Carolina,0
+2018-04-02,South Carolina,0
+2018-04-09,South Carolina,0
+2018-04-16,South Carolina,0
+2018-04-23,South Carolina,0
+2018-04-30,South Carolina,0
+2018-05-07,South Carolina,0
+2018-05-14,South Carolina,0
+2018-05-21,South Carolina,0
+2018-05-28,South Carolina,0
+2018-06-04,South Carolina,0
+2018-06-11,South Carolina,0
+2018-06-18,South Carolina,0
+2018-06-25,South Carolina,0
+2018-07-02,South Carolina,0
+2018-07-09,South Carolina,0
+2018-07-16,South Carolina,0
+2018-07-23,South Carolina,0
+2018-07-30,South Carolina,0
+2018-08-06,South Carolina,0
+2018-08-13,South Carolina,0
+2018-08-20,South Carolina,0
+2018-08-27,South Carolina,0
+2018-09-03,South Carolina,0
+2018-09-10,South Carolina,0
+2018-09-17,South Carolina,0
+2018-09-24,South Carolina,0
+2018-10-01,South Carolina,0
+2018-10-08,South Carolina,0
+2018-10-15,South Carolina,0
+2018-10-22,South Carolina,0
+2018-10-29,South Carolina,1
+2018-11-05,South Carolina,4
+2018-11-12,South Carolina,1
+2018-11-19,South Carolina,0
+2018-11-26,South Carolina,0
+2018-12-03,South Carolina,6
+2018-12-10,South Carolina,3
+2018-12-17,South Carolina,0
+2018-12-24,South Carolina,1
+2018-12-31,South Carolina,9
+2019-01-07,South Carolina,0
+2019-01-14,South Carolina,0
+2019-01-21,South Carolina,0
+2019-01-28,South Carolina,0
+2019-02-04,South Carolina,0
+2019-02-11,South Carolina,0
+2019-02-18,South Carolina,0
+2019-02-25,South Carolina,3
+2019-03-04,South Carolina,0
+2019-03-11,South Carolina,0
+2019-03-18,South Carolina,0
+2019-03-25,South Carolina,0
+2019-04-01,South Carolina,0
+2019-04-08,South Carolina,0
+2019-04-15,South Carolina,0
+2019-04-22,South Carolina,0
+2019-04-29,South Carolina,0
+2019-05-06,South Carolina,0
+2019-05-13,South Carolina,0
+2019-05-20,South Carolina,0
+2019-05-27,South Carolina,0
+2019-06-03,South Carolina,0
+2019-06-10,South Carolina,0
+2019-06-17,South Carolina,0
+2019-06-24,South Carolina,0
+2019-07-01,South Carolina,0
+2019-07-08,South Carolina,0
+2019-07-15,South Carolina,0
+2019-07-22,South Carolina,0
+2019-07-29,South Carolina,0
+2019-08-05,South Carolina,0
+2019-08-12,South Carolina,0
+2019-08-19,South Carolina,0
+2019-08-26,South Carolina,0
+2019-09-02,South Carolina,0
+2019-09-09,South Carolina,0
+2019-09-16,South Carolina,0
+2019-09-23,South Carolina,0
+2019-09-30,South Carolina,0
+2019-10-07,South Carolina,0
+2019-10-14,South Carolina,0
+2019-10-21,South Carolina,0
+2019-10-28,South Carolina,0
+2019-11-04,South Carolina,6
+2019-11-11,South Carolina,4
+2019-11-18,South Carolina,0
+2019-11-25,South Carolina,2
+2019-12-02,South Carolina,6
+2019-12-09,South Carolina,0
+2019-12-16,South Carolina,0
+2019-12-23,South Carolina,0
+2019-12-30,South Carolina,3
+2020-01-06,South Carolina,4
+2020-01-13,South Carolina,0
+2020-01-20,South Carolina,0
+2020-01-27,South Carolina,0
+2020-02-03,South Carolina,2
+2020-02-10,South Carolina,0
+2020-02-17,South Carolina,3
+2020-02-24,South Carolina,0
+2020-03-02,South Carolina,0
+2020-03-09,South Carolina,2
+2015-07-06,Tennessee,0
+2015-07-13,Tennessee,0
+2015-07-20,Tennessee,0
+2015-07-27,Tennessee,0
+2015-08-03,Tennessee,0
+2015-08-10,Tennessee,0
+2015-08-17,Tennessee,0
+2015-08-24,Tennessee,0
+2015-08-31,Tennessee,0
+2015-09-07,Tennessee,0
+2015-09-14,Tennessee,0
+2015-09-21,Tennessee,0
+2015-09-28,Tennessee,0
+2015-10-05,Tennessee,0
+2015-10-12,Tennessee,0
+2015-10-19,Tennessee,0
+2015-10-26,Tennessee,0
+2015-11-02,Tennessee,0
+2015-11-09,Tennessee,0
+2015-11-16,Tennessee,0
+2015-11-23,Tennessee,0
+2015-11-30,Tennessee,0
+2015-12-07,Tennessee,0
+2015-12-14,Tennessee,0
+2015-12-21,Tennessee,0
+2015-12-28,Tennessee,2
+2016-01-04,Tennessee,4
+2016-01-11,Tennessee,0
+2016-01-18,Tennessee,0
+2016-01-25,Tennessee,0
+2016-02-01,Tennessee,1
+2016-02-08,Tennessee,0
+2016-02-15,Tennessee,0
+2016-02-22,Tennessee,0
+2016-02-29,Tennessee,0
+2016-03-07,Tennessee,0
+2016-03-14,Tennessee,0
+2016-03-21,Tennessee,0
+2016-03-28,Tennessee,0
+2016-04-04,Tennessee,0
+2016-04-11,Tennessee,0
+2016-04-18,Tennessee,0
+2016-04-25,Tennessee,0
+2016-05-02,Tennessee,0
+2016-05-09,Tennessee,0
+2016-05-16,Tennessee,0
+2016-05-23,Tennessee,0
+2016-05-30,Tennessee,0
+2016-06-06,Tennessee,0
+2016-06-13,Tennessee,0
+2016-06-20,Tennessee,0
+2016-06-27,Tennessee,0
+2016-07-04,Tennessee,0
+2016-07-11,Tennessee,0
+2016-07-18,Tennessee,0
+2016-07-25,Tennessee,0
+2016-08-01,Tennessee,0
+2016-08-08,Tennessee,0
+2016-08-15,Tennessee,0
+2016-08-22,Tennessee,0
+2016-08-29,Tennessee,0
+2016-09-05,Tennessee,0
+2016-09-12,Tennessee,0
+2016-09-19,Tennessee,0
+2016-09-26,Tennessee,0
+2016-10-03,Tennessee,0
+2016-10-10,Tennessee,0
+2016-10-17,Tennessee,0
+2016-10-24,Tennessee,0
+2016-10-31,Tennessee,0
+2016-11-07,Tennessee,0
+2016-11-14,Tennessee,0
+2016-11-21,Tennessee,1
+2016-11-28,Tennessee,1
+2016-12-05,Tennessee,1
+2016-12-12,Tennessee,2
+2016-12-19,Tennessee,3
+2016-12-26,Tennessee,1
+2017-01-02,Tennessee,2
+2017-01-09,Tennessee,1
+2017-01-16,Tennessee,5
+2017-01-23,Tennessee,0
+2017-01-30,Tennessee,2
+2017-02-06,Tennessee,3
+2017-02-13,Tennessee,1
+2017-02-20,Tennessee,1
+2017-02-27,Tennessee,0
+2017-03-06,Tennessee,0
+2017-03-13,Tennessee,1
+2017-03-20,Tennessee,0
+2017-03-27,Tennessee,0
+2017-04-03,Tennessee,0
+2017-04-10,Tennessee,0
+2017-04-17,Tennessee,0
+2017-04-24,Tennessee,0
+2017-05-01,Tennessee,0
+2017-05-08,Tennessee,0
+2017-05-15,Tennessee,0
+2017-05-22,Tennessee,0
+2017-05-29,Tennessee,0
+2017-06-05,Tennessee,0
+2017-06-12,Tennessee,0
+2017-06-19,Tennessee,0
+2017-06-26,Tennessee,0
+2017-07-03,Tennessee,0
+2017-07-10,Tennessee,0
+2017-07-17,Tennessee,0
+2017-07-24,Tennessee,0
+2017-07-31,Tennessee,0
+2017-08-07,Tennessee,0
+2017-08-14,Tennessee,0
+2017-08-21,Tennessee,0
+2017-08-28,Tennessee,0
+2017-09-04,Tennessee,0
+2017-09-11,Tennessee,0
+2017-09-18,Tennessee,0
+2017-09-25,Tennessee,0
+2017-10-02,Tennessee,0
+2017-10-09,Tennessee,0
+2017-10-16,Tennessee,0
+2017-10-23,Tennessee,0
+2017-10-30,Tennessee,0
+2017-11-06,Tennessee,0
+2017-11-13,Tennessee,0
+2017-11-20,Tennessee,0
+2017-11-27,Tennessee,0
+2017-12-04,Tennessee,0
+2017-12-11,Tennessee,0
+2017-12-18,Tennessee,1
+2017-12-25,Tennessee,0
+2018-01-01,Tennessee,0
+2018-01-08,Tennessee,0
+2018-01-15,Tennessee,1
+2018-01-22,Tennessee,0
+2018-01-29,Tennessee,0
+2018-02-05,Tennessee,0
+2018-02-12,Tennessee,0
+2018-02-19,Tennessee,0
+2018-02-26,Tennessee,0
+2018-03-05,Tennessee,0
+2018-03-12,Tennessee,0
+2018-03-19,Tennessee,0
+2018-03-26,Tennessee,0
+2018-04-02,Tennessee,0
+2018-04-09,Tennessee,0
+2018-04-16,Tennessee,0
+2018-04-23,Tennessee,0
+2018-04-30,Tennessee,0
+2018-05-07,Tennessee,0
+2018-05-14,Tennessee,0
+2018-05-21,Tennessee,0
+2018-05-28,Tennessee,0
+2018-06-04,Tennessee,0
+2018-06-11,Tennessee,0
+2018-06-18,Tennessee,0
+2018-06-25,Tennessee,0
+2018-07-02,Tennessee,0
+2018-07-09,Tennessee,0
+2018-07-16,Tennessee,0
+2018-07-23,Tennessee,0
+2018-07-30,Tennessee,0
+2018-08-06,Tennessee,0
+2018-08-13,Tennessee,0
+2018-08-20,Tennessee,0
+2018-08-27,Tennessee,0
+2018-09-03,Tennessee,0
+2018-09-10,Tennessee,0
+2018-09-17,Tennessee,0
+2018-09-24,Tennessee,0
+2018-10-01,Tennessee,0
+2018-10-08,Tennessee,0
+2018-10-15,Tennessee,0
+2018-10-22,Tennessee,0
+2018-10-29,Tennessee,0
+2018-11-05,Tennessee,0
+2018-11-12,Tennessee,0
+2018-11-19,Tennessee,4
+2018-11-26,Tennessee,0
+2018-12-03,Tennessee,6
+2018-12-10,Tennessee,2
+2018-12-17,Tennessee,2
+2018-12-24,Tennessee,0
+2018-12-31,Tennessee,0
+2019-01-07,Tennessee,1
+2019-01-14,Tennessee,0
+2019-01-21,Tennessee,1
+2019-01-28,Tennessee,0
+2019-02-04,Tennessee,1
+2019-02-11,Tennessee,0
+2019-02-18,Tennessee,0
+2019-02-25,Tennessee,0
+2019-03-04,Tennessee,0
+2019-03-11,Tennessee,0
+2019-03-18,Tennessee,0
+2019-03-25,Tennessee,0
+2019-04-01,Tennessee,0
+2019-04-08,Tennessee,0
+2019-04-15,Tennessee,0
+2019-04-22,Tennessee,0
+2019-04-29,Tennessee,0
+2019-05-06,Tennessee,0
+2019-05-13,Tennessee,0
+2019-05-20,Tennessee,0
+2019-05-27,Tennessee,0
+2019-06-03,Tennessee,0
+2019-06-10,Tennessee,0
+2019-06-17,Tennessee,0
+2019-06-24,Tennessee,0
+2019-07-01,Tennessee,0
+2019-07-08,Tennessee,0
+2019-07-15,Tennessee,0
+2019-07-22,Tennessee,0
+2019-07-29,Tennessee,0
+2019-08-05,Tennessee,0
+2019-08-12,Tennessee,0
+2019-08-19,Tennessee,0
+2019-08-26,Tennessee,0
+2019-09-02,Tennessee,0
+2019-09-09,Tennessee,0
+2019-09-16,Tennessee,0
+2019-09-23,Tennessee,0
+2019-09-30,Tennessee,0
+2019-10-07,Tennessee,0
+2019-10-14,Tennessee,0
+2019-10-21,Tennessee,0
+2019-10-28,Tennessee,0
+2019-11-04,Tennessee,0
+2019-11-11,Tennessee,0
+2019-11-18,Tennessee,0
+2019-11-25,Tennessee,0
+2019-12-02,Tennessee,0
+2019-12-09,Tennessee,0
+2019-12-16,Tennessee,0
+2019-12-23,Tennessee,1
+2019-12-30,Tennessee,1
+2020-01-06,Tennessee,0
+2020-01-13,Tennessee,0
+2020-01-20,Tennessee,0
+2020-01-27,Tennessee,1
+2020-02-03,Tennessee,0
+2020-02-10,Tennessee,0
+2020-02-17,Tennessee,0
+2020-02-24,Tennessee,1
+2020-03-02,Tennessee,0
+2020-03-09,Tennessee,0
+2015-07-06,Texas,0
+2015-07-13,Texas,0
+2015-07-20,Texas,0
+2015-07-27,Texas,0
+2015-08-03,Texas,0
+2015-08-10,Texas,0
+2015-08-17,Texas,0
+2015-08-24,Texas,0
+2015-08-31,Texas,0
+2015-09-07,Texas,0
+2015-09-14,Texas,0
+2015-09-21,Texas,0
+2015-09-28,Texas,0
+2015-10-05,Texas,0
+2015-10-12,Texas,0
+2015-10-19,Texas,0
+2015-10-26,Texas,0
+2015-11-02,Texas,0
+2015-11-09,Texas,0
+2015-11-16,Texas,0
+2015-11-23,Texas,0
+2015-11-30,Texas,3
+2015-12-07,Texas,1
+2015-12-14,Texas,1
+2015-12-21,Texas,6
+2015-12-28,Texas,8
+2016-01-04,Texas,6
+2016-01-11,Texas,6
+2016-01-18,Texas,0
+2016-01-25,Texas,4
+2016-02-01,Texas,6
+2016-02-08,Texas,4
+2016-02-15,Texas,1
+2016-02-22,Texas,4
+2016-02-29,Texas,3
+2016-03-07,Texas,3
+2016-03-14,Texas,2
+2016-03-21,Texas,3
+2016-03-28,Texas,1
+2016-04-04,Texas,0
+2016-04-11,Texas,0
+2016-04-18,Texas,0
+2016-04-25,Texas,0
+2016-05-02,Texas,0
+2016-05-09,Texas,0
+2016-05-16,Texas,0
+2016-05-23,Texas,0
+2016-05-30,Texas,0
+2016-06-06,Texas,0
+2016-06-13,Texas,0
+2016-06-20,Texas,0
+2016-06-27,Texas,0
+2016-07-04,Texas,0
+2016-07-11,Texas,0
+2016-07-18,Texas,0
+2016-07-25,Texas,0
+2016-08-01,Texas,0
+2016-08-08,Texas,0
+2016-08-15,Texas,0
+2016-08-22,Texas,0
+2016-08-29,Texas,0
+2016-09-05,Texas,0
+2016-09-12,Texas,0
+2016-09-19,Texas,0
+2016-09-26,Texas,0
+2016-10-03,Texas,0
+2016-10-10,Texas,0
+2016-10-17,Texas,0
+2016-10-24,Texas,0
+2016-10-31,Texas,5
+2016-11-07,Texas,2
+2016-11-14,Texas,0
+2016-11-21,Texas,0
+2016-11-28,Texas,9
+2016-12-05,Texas,0
+2016-12-12,Texas,0
+2016-12-19,Texas,0
+2016-12-26,Texas,0
+2017-01-02,Texas,9
+2017-01-09,Texas,0
+2017-01-16,Texas,0
+2017-01-23,Texas,0
+2017-01-30,Texas,10
+2017-02-06,Texas,0
+2017-02-13,Texas,0
+2017-02-20,Texas,0
+2017-02-27,Texas,6
+2017-03-06,Texas,4
+2017-03-13,Texas,0
+2017-03-20,Texas,0
+2017-03-27,Texas,0
+2017-04-03,Texas,0
+2017-04-10,Texas,0
+2017-04-17,Texas,0
+2017-04-24,Texas,0
+2017-05-01,Texas,0
+2017-05-08,Texas,0
+2017-05-15,Texas,0
+2017-05-22,Texas,0
+2017-05-29,Texas,0
+2017-06-05,Texas,0
+2017-06-12,Texas,0
+2017-06-19,Texas,0
+2017-06-26,Texas,0
+2017-07-03,Texas,0
+2017-07-10,Texas,0
+2017-07-17,Texas,0
+2017-07-24,Texas,0
+2017-07-31,Texas,0
+2017-08-07,Texas,0
+2017-08-14,Texas,0
+2017-08-21,Texas,0
+2017-08-28,Texas,0
+2017-09-04,Texas,0
+2017-09-11,Texas,0
+2017-09-18,Texas,0
+2017-09-25,Texas,0
+2017-10-02,Texas,0
+2017-10-09,Texas,0
+2017-10-16,Texas,0
+2017-10-23,Texas,0
+2017-10-30,Texas,8
+2017-11-06,Texas,0
+2017-11-13,Texas,0
+2017-11-20,Texas,1
+2017-11-27,Texas,16
+2017-12-04,Texas,2
+2017-12-11,Texas,3
+2017-12-18,Texas,6
+2017-12-25,Texas,0
+2018-01-01,Texas,11
+2018-01-08,Texas,2
+2018-01-15,Texas,1
+2018-01-22,Texas,3
+2018-01-29,Texas,9
+2018-02-05,Texas,3
+2018-02-12,Texas,2
+2018-02-19,Texas,0
+2018-02-26,Texas,8
+2018-03-05,Texas,9
+2018-03-12,Texas,2
+2018-03-19,Texas,0
+2018-03-26,Texas,0
+2018-04-02,Texas,0
+2018-04-09,Texas,0
+2018-04-16,Texas,0
+2018-04-23,Texas,0
+2018-04-30,Texas,0
+2018-05-07,Texas,0
+2018-05-14,Texas,0
+2018-05-21,Texas,0
+2018-05-28,Texas,0
+2018-06-04,Texas,0
+2018-06-11,Texas,0
+2018-06-18,Texas,0
+2018-06-25,Texas,0
+2018-07-02,Texas,0
+2018-07-09,Texas,0
+2018-07-16,Texas,0
+2018-07-23,Texas,0
+2018-07-30,Texas,0
+2018-08-06,Texas,0
+2018-08-13,Texas,1
+2018-08-20,Texas,0
+2018-08-27,Texas,0
+2018-09-03,Texas,0
+2018-09-10,Texas,0
+2018-09-17,Texas,0
+2018-09-24,Texas,0
+2018-10-01,Texas,0
+2018-10-08,Texas,0
+2018-10-15,Texas,0
+2018-10-22,Texas,0
+2018-10-29,Texas,11
+2018-11-05,Texas,14
+2018-11-12,Texas,3
+2018-11-19,Texas,0
+2018-11-26,Texas,3
+2018-12-03,Texas,22
+2018-12-10,Texas,3
+2018-12-17,Texas,0
+2018-12-24,Texas,0
+2018-12-31,Texas,16
+2019-01-07,Texas,12
+2019-01-14,Texas,2
+2019-01-21,Texas,0
+2019-01-28,Texas,6
+2019-02-04,Texas,18
+2019-02-11,Texas,1
+2019-02-18,Texas,0
+2019-02-25,Texas,12
+2019-03-04,Texas,10
+2019-03-11,Texas,3
+2019-03-18,Texas,0
+2019-03-25,Texas,0
+2019-04-01,Texas,0
+2019-04-08,Texas,0
+2019-04-15,Texas,0
+2019-04-22,Texas,0
+2019-04-29,Texas,0
+2019-05-06,Texas,0
+2019-05-13,Texas,0
+2019-05-20,Texas,0
+2019-05-27,Texas,0
+2019-06-03,Texas,0
+2019-06-10,Texas,0
+2019-06-17,Texas,0
+2019-06-24,Texas,0
+2019-07-01,Texas,0
+2019-07-08,Texas,0
+2019-07-15,Texas,0
+2019-07-22,Texas,0
+2019-07-29,Texas,0
+2019-08-05,Texas,0
+2019-08-12,Texas,0
+2019-08-19,Texas,0
+2019-08-26,Texas,0
+2019-09-02,Texas,0
+2019-09-09,Texas,0
+2019-09-16,Texas,0
+2019-09-23,Texas,0
+2019-09-30,Texas,0
+2019-10-07,Texas,0
+2019-10-14,Texas,0
+2019-10-21,Texas,0
+2019-10-28,Texas,7
+2019-11-04,Texas,12
+2019-11-11,Texas,2
+2019-11-18,Texas,0
+2019-11-25,Texas,9
+2019-12-02,Texas,15
+2019-12-09,Texas,9
+2019-12-16,Texas,0
+2019-12-23,Texas,0
+2019-12-30,Texas,9
+2020-01-06,Texas,3
+2020-01-13,Texas,2
+2020-01-20,Texas,11
+2020-01-27,Texas,9
+2020-02-03,Texas,4
+2020-02-10,Texas,2
+2020-02-17,Texas,3
+2020-02-24,Texas,10
+2020-03-02,Texas,18
+2020-03-09,Texas,2
+2015-07-06,Utah,0
+2015-07-13,Utah,0
+2015-07-20,Utah,0
+2015-07-27,Utah,0
+2015-08-03,Utah,0
+2015-08-10,Utah,0
+2015-08-17,Utah,0
+2015-08-24,Utah,0
+2015-08-31,Utah,0
+2015-09-07,Utah,0
+2015-09-14,Utah,0
+2015-09-21,Utah,0
+2015-09-28,Utah,0
+2015-10-05,Utah,0
+2015-10-12,Utah,0
+2015-10-19,Utah,0
+2015-10-26,Utah,0
+2015-11-02,Utah,0
+2015-11-09,Utah,0
+2015-11-16,Utah,0
+2015-11-23,Utah,0
+2015-11-30,Utah,0
+2015-12-07,Utah,2
+2015-12-14,Utah,4
+2015-12-21,Utah,1
+2015-12-28,Utah,1
+2016-01-04,Utah,1
+2016-01-11,Utah,2
+2016-01-18,Utah,2
+2016-01-25,Utah,1
+2016-02-01,Utah,1
+2016-02-08,Utah,2
+2016-02-15,Utah,2
+2016-02-22,Utah,0
+2016-02-29,Utah,0
+2016-03-07,Utah,2
+2016-03-14,Utah,2
+2016-03-21,Utah,0
+2016-03-28,Utah,0
+2016-04-04,Utah,0
+2016-04-11,Utah,0
+2016-04-18,Utah,0
+2016-04-25,Utah,0
+2016-05-02,Utah,0
+2016-05-09,Utah,0
+2016-05-16,Utah,0
+2016-05-23,Utah,0
+2016-05-30,Utah,0
+2016-06-06,Utah,0
+2016-06-13,Utah,0
+2016-06-20,Utah,0
+2016-06-27,Utah,0
+2016-07-04,Utah,0
+2016-07-11,Utah,0
+2016-07-18,Utah,0
+2016-07-25,Utah,0
+2016-08-01,Utah,0
+2016-08-08,Utah,0
+2016-08-15,Utah,0
+2016-08-22,Utah,0
+2016-08-29,Utah,0
+2016-09-05,Utah,0
+2016-09-12,Utah,0
+2016-09-19,Utah,0
+2016-09-26,Utah,0
+2016-10-03,Utah,0
+2016-10-10,Utah,0
+2016-10-17,Utah,0
+2016-10-24,Utah,0
+2016-10-31,Utah,0
+2016-11-07,Utah,0
+2016-11-14,Utah,0
+2016-11-21,Utah,0
+2016-11-28,Utah,0
+2016-12-05,Utah,0
+2016-12-12,Utah,0
+2016-12-19,Utah,0
+2016-12-26,Utah,0
+2017-01-02,Utah,0
+2017-01-09,Utah,0
+2017-01-16,Utah,0
+2017-01-23,Utah,0
+2017-01-30,Utah,0
+2017-02-06,Utah,0
+2017-02-13,Utah,0
+2017-02-20,Utah,0
+2017-02-27,Utah,0
+2017-03-06,Utah,0
+2017-03-13,Utah,0
+2017-03-20,Utah,0
+2017-03-27,Utah,0
+2017-04-03,Utah,0
+2017-04-10,Utah,0
+2017-04-17,Utah,0
+2017-04-24,Utah,0
+2017-05-01,Utah,0
+2017-05-08,Utah,0
+2017-05-15,Utah,0
+2017-05-22,Utah,0
+2017-05-29,Utah,0
+2017-06-05,Utah,0
+2017-06-12,Utah,0
+2017-06-19,Utah,0
+2017-06-26,Utah,0
+2017-07-03,Utah,0
+2017-07-10,Utah,0
+2017-07-17,Utah,0
+2017-07-24,Utah,0
+2017-07-31,Utah,0
+2017-08-07,Utah,0
+2017-08-14,Utah,0
+2017-08-21,Utah,0
+2017-08-28,Utah,0
+2017-09-04,Utah,0
+2017-09-11,Utah,0
+2017-09-18,Utah,0
+2017-09-25,Utah,0
+2017-10-02,Utah,0
+2017-10-09,Utah,0
+2017-10-16,Utah,0
+2017-10-23,Utah,0
+2017-10-30,Utah,0
+2017-11-06,Utah,0
+2017-11-13,Utah,0
+2017-11-20,Utah,0
+2017-11-27,Utah,0
+2017-12-04,Utah,0
+2017-12-11,Utah,0
+2017-12-18,Utah,0
+2017-12-25,Utah,0
+2018-01-01,Utah,0
+2018-01-08,Utah,0
+2018-01-15,Utah,0
+2018-01-22,Utah,0
+2018-01-29,Utah,0
+2018-02-05,Utah,0
+2018-02-12,Utah,0
+2018-02-19,Utah,0
+2018-02-26,Utah,0
+2018-03-05,Utah,0
+2018-03-12,Utah,0
+2018-03-19,Utah,0
+2018-03-26,Utah,0
+2018-04-02,Utah,0
+2018-04-09,Utah,0
+2018-04-16,Utah,0
+2018-04-23,Utah,0
+2018-04-30,Utah,0
+2018-05-07,Utah,0
+2018-05-14,Utah,0
+2018-05-21,Utah,0
+2018-05-28,Utah,0
+2018-06-04,Utah,0
+2018-06-11,Utah,0
+2018-06-18,Utah,0
+2018-06-25,Utah,0
+2018-07-02,Utah,0
+2018-07-09,Utah,0
+2018-07-16,Utah,0
+2018-07-23,Utah,0
+2018-07-30,Utah,0
+2018-08-06,Utah,0
+2018-08-13,Utah,0
+2018-08-20,Utah,0
+2018-08-27,Utah,0
+2018-09-03,Utah,0
+2018-09-10,Utah,0
+2018-09-17,Utah,0
+2018-09-24,Utah,0
+2018-10-01,Utah,0
+2018-10-08,Utah,0
+2018-10-15,Utah,0
+2018-10-22,Utah,0
+2018-10-29,Utah,0
+2018-11-05,Utah,0
+2018-11-12,Utah,0
+2018-11-19,Utah,0
+2018-11-26,Utah,0
+2018-12-03,Utah,0
+2018-12-10,Utah,0
+2018-12-17,Utah,0
+2018-12-24,Utah,0
+2018-12-31,Utah,0
+2019-01-07,Utah,0
+2019-01-14,Utah,0
+2019-01-21,Utah,0
+2019-01-28,Utah,0
+2019-02-04,Utah,0
+2019-02-11,Utah,0
+2019-02-18,Utah,0
+2019-02-25,Utah,0
+2019-03-04,Utah,0
+2019-03-11,Utah,0
+2019-03-18,Utah,0
+2019-03-25,Utah,0
+2019-04-01,Utah,0
+2019-04-08,Utah,0
+2019-04-15,Utah,0
+2019-04-22,Utah,0
+2019-04-29,Utah,0
+2019-05-06,Utah,0
+2019-05-13,Utah,0
+2019-05-20,Utah,0
+2019-05-27,Utah,0
+2019-06-03,Utah,0
+2019-06-10,Utah,0
+2019-06-17,Utah,0
+2019-06-24,Utah,0
+2019-07-01,Utah,0
+2019-07-08,Utah,0
+2019-07-15,Utah,0
+2019-07-22,Utah,0
+2019-07-29,Utah,0
+2019-08-05,Utah,0
+2019-08-12,Utah,0
+2019-08-19,Utah,0
+2019-08-26,Utah,0
+2019-09-02,Utah,0
+2019-09-09,Utah,0
+2019-09-16,Utah,0
+2019-09-23,Utah,0
+2019-09-30,Utah,0
+2019-10-07,Utah,0
+2019-10-14,Utah,0
+2019-10-21,Utah,0
+2019-10-28,Utah,0
+2019-11-04,Utah,0
+2019-11-11,Utah,0
+2019-11-18,Utah,0
+2019-11-25,Utah,0
+2019-12-02,Utah,0
+2019-12-09,Utah,0
+2019-12-16,Utah,0
+2019-12-23,Utah,0
+2019-12-30,Utah,0
+2020-01-06,Utah,0
+2020-01-13,Utah,0
+2020-01-20,Utah,0
+2020-01-27,Utah,0
+2020-02-03,Utah,0
+2020-02-10,Utah,0
+2020-02-17,Utah,0
+2020-02-24,Utah,0
+2020-03-02,Utah,0
+2020-03-09,Utah,0
+2015-07-06,Washington,0
+2015-07-13,Washington,0
+2015-07-20,Washington,0
+2015-07-27,Washington,0
+2015-08-03,Washington,0
+2015-08-10,Washington,0
+2015-08-17,Washington,0
+2015-08-24,Washington,0
+2015-08-31,Washington,0
+2015-09-07,Washington,0
+2015-09-14,Washington,0
+2015-09-21,Washington,0
+2015-09-28,Washington,0
+2015-10-05,Washington,0
+2015-10-12,Washington,0
+2015-10-19,Washington,0
+2015-10-26,Washington,0
+2015-11-02,Washington,0
+2015-11-09,Washington,0
+2015-11-16,Washington,0
+2015-11-23,Washington,0
+2015-11-30,Washington,0
+2015-12-07,Washington,0
+2015-12-14,Washington,0
+2015-12-21,Washington,0
+2015-12-28,Washington,0
+2016-01-04,Washington,0
+2016-01-11,Washington,0
+2016-01-18,Washington,0
+2016-01-25,Washington,0
+2016-02-01,Washington,0
+2016-02-08,Washington,0
+2016-02-15,Washington,0
+2016-02-22,Washington,0
+2016-02-29,Washington,0
+2016-03-07,Washington,0
+2016-03-14,Washington,0
+2016-03-21,Washington,0
+2016-03-28,Washington,0
+2016-04-04,Washington,0
+2016-04-11,Washington,0
+2016-04-18,Washington,0
+2016-04-25,Washington,0
+2016-05-02,Washington,0
+2016-05-09,Washington,0
+2016-05-16,Washington,0
+2016-05-23,Washington,0
+2016-05-30,Washington,0
+2016-06-06,Washington,0
+2016-06-13,Washington,0
+2016-06-20,Washington,0
+2016-06-27,Washington,0
+2016-07-04,Washington,0
+2016-07-11,Washington,0
+2016-07-18,Washington,0
+2016-07-25,Washington,0
+2016-08-01,Washington,0
+2016-08-08,Washington,0
+2016-08-15,Washington,0
+2016-08-22,Washington,0
+2016-08-29,Washington,0
+2016-09-05,Washington,0
+2016-09-12,Washington,0
+2016-09-19,Washington,0
+2016-09-26,Washington,0
+2016-10-03,Washington,0
+2016-10-10,Washington,0
+2016-10-17,Washington,0
+2016-10-24,Washington,0
+2016-10-31,Washington,0
+2016-11-07,Washington,0
+2016-11-14,Washington,2
+2016-11-21,Washington,2
+2016-11-28,Washington,4
+2016-12-05,Washington,1
+2016-12-12,Washington,2
+2016-12-19,Washington,0
+2016-12-26,Washington,0
+2017-01-02,Washington,4
+2017-01-09,Washington,0
+2017-01-16,Washington,0
+2017-01-23,Washington,0
+2017-01-30,Washington,2
+2017-02-06,Washington,4
+2017-02-13,Washington,1
+2017-02-20,Washington,0
+2017-02-27,Washington,0
+2017-03-06,Washington,6
+2017-03-13,Washington,2
+2017-03-20,Washington,0
+2017-03-27,Washington,0
+2017-04-03,Washington,0
+2017-04-10,Washington,0
+2017-04-17,Washington,0
+2017-04-24,Washington,0
+2017-05-01,Washington,0
+2017-05-08,Washington,0
+2017-05-15,Washington,0
+2017-05-22,Washington,0
+2017-05-29,Washington,0
+2017-06-05,Washington,0
+2017-06-12,Washington,0
+2017-06-19,Washington,0
+2017-06-26,Washington,0
+2017-07-03,Washington,0
+2017-07-10,Washington,0
+2017-07-17,Washington,0
+2017-07-24,Washington,0
+2017-07-31,Washington,0
+2017-08-07,Washington,0
+2017-08-14,Washington,0
+2017-08-21,Washington,0
+2017-08-28,Washington,0
+2017-09-04,Washington,0
+2017-09-11,Washington,0
+2017-09-18,Washington,0
+2017-09-25,Washington,0
+2017-10-02,Washington,0
+2017-10-09,Washington,0
+2017-10-16,Washington,0
+2017-10-23,Washington,0
+2017-10-30,Washington,1
+2017-11-06,Washington,2
+2017-11-13,Washington,4
+2017-11-20,Washington,0
+2017-11-27,Washington,0
+2017-12-04,Washington,8
+2017-12-11,Washington,0
+2017-12-18,Washington,0
+2017-12-25,Washington,0
+2018-01-01,Washington,6
+2018-01-08,Washington,4
+2018-01-15,Washington,0
+2018-01-22,Washington,0
+2018-01-29,Washington,0
+2018-02-05,Washington,4
+2018-02-12,Washington,3
+2018-02-19,Washington,0
+2018-02-26,Washington,2
+2018-03-05,Washington,4
+2018-03-12,Washington,0
+2018-03-19,Washington,0
+2018-03-26,Washington,0
+2018-04-02,Washington,0
+2018-04-09,Washington,0
+2018-04-16,Washington,0
+2018-04-23,Washington,0
+2018-04-30,Washington,0
+2018-05-07,Washington,0
+2018-05-14,Washington,0
+2018-05-21,Washington,0
+2018-05-28,Washington,0
+2018-06-04,Washington,0
+2018-06-11,Washington,0
+2018-06-18,Washington,0
+2018-06-25,Washington,0
+2018-07-02,Washington,0
+2018-07-09,Washington,0
+2018-07-16,Washington,0
+2018-07-23,Washington,0
+2018-07-30,Washington,0
+2018-08-06,Washington,0
+2018-08-13,Washington,0
+2018-08-20,Washington,0
+2018-08-27,Washington,0
+2018-09-03,Washington,0
+2018-09-10,Washington,0
+2018-09-17,Washington,0
+2018-09-24,Washington,0
+2018-10-01,Washington,0
+2018-10-08,Washington,0
+2018-10-15,Washington,0
+2018-10-22,Washington,0
+2018-10-29,Washington,0
+2018-11-05,Washington,0
+2018-11-12,Washington,0
+2018-11-19,Washington,0
+2018-11-26,Washington,0
+2018-12-03,Washington,0
+2018-12-10,Washington,0
+2018-12-17,Washington,0
+2018-12-24,Washington,4
+2018-12-31,Washington,3
+2019-01-07,Washington,2
+2019-01-14,Washington,0
+2019-01-21,Washington,3
+2019-01-28,Washington,6
+2019-02-04,Washington,0
+2019-02-11,Washington,1
+2019-02-18,Washington,1
+2019-02-25,Washington,2
+2019-03-04,Washington,0
+2019-03-11,Washington,2
+2019-03-18,Washington,2
+2019-03-25,Washington,3
+2019-04-01,Washington,2
+2019-04-08,Washington,1
+2019-04-15,Washington,0
+2019-04-22,Washington,2
+2019-04-29,Washington,1
+2019-05-06,Washington,0
+2019-05-13,Washington,0
+2019-05-20,Washington,0
+2019-05-27,Washington,0
+2019-06-03,Washington,0
+2019-06-10,Washington,0
+2019-06-17,Washington,0
+2019-06-24,Washington,0
+2019-07-01,Washington,0
+2019-07-08,Washington,1
+2019-07-15,Washington,0
+2019-07-22,Washington,2
+2019-07-29,Washington,0
+2019-08-05,Washington,0
+2019-08-12,Washington,0
+2019-08-19,Washington,0
+2019-08-26,Washington,0
+2019-09-02,Washington,1
+2019-09-09,Washington,0
+2019-09-16,Washington,0
+2019-09-23,Washington,0
+2019-09-30,Washington,0
+2019-10-07,Washington,1
+2019-10-14,Washington,1
+2019-10-21,Washington,1
+2019-10-28,Washington,5
+2019-11-04,Washington,5
+2019-11-11,Washington,4
+2019-11-18,Washington,9
+2019-11-25,Washington,15
+2019-12-02,Washington,22
+2019-12-09,Washington,27
+2019-12-16,Washington,39
+2019-12-23,Washington,48
+2019-12-30,Washington,33
+2020-01-06,Washington,21
+2020-01-13,Washington,40
+2020-01-20,Washington,20
+2020-01-27,Washington,25
+2020-02-03,Washington,19
+2020-02-10,Washington,24
+2020-02-17,Washington,11
+2020-02-24,Washington,12
+2020-03-02,Washington,7
+2020-03-09,Washington,4

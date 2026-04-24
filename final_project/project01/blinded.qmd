@@ -1,0 +1,2161 @@
+---
+title: "Exploring Cross Immunity of Respiratory Syncytial Virus (RSV) Subtypes \\vspace{-2cm}"
+bibliography: references-stats531-final.bib
+output: pdf_document
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+        \usepackage{tikz}
+        \usepackage{float}
+        \usepackage{placeins}
+        \usetikzlibrary{arrows.meta}
+number-sections: true
+jupyter: python3
+---
+
+```{python}
+#| echo: false
+#| output: false
+#| 
+import pandas as pd
+import numpy as np
+import pypomp as pp
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings('ignore')
+
+from pypomp.random import (
+    fast_approx_rbinom,
+    fast_approx_rgamma,
+    fast_approx_rpoisson,
+)
+
+import os
+import time
+import pickle
+
+from scipy import stats
+from scipy.optimize import minimize
+
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+```
+
+
+```{python}
+#| echo: false
+#| output: false
+rsv_weekly = pd.read_csv("rsv.csv")
+
+rsv_weekly['week'] = pd.to_datetime(rsv_weekly['week'])
+
+start_date = "2015-06-01"
+end_date   = "2020-03-31"
+
+rsv_weekly = rsv_weekly[
+    (rsv_weekly['week'] >= start_date) &
+    (rsv_weekly['week'] <= end_date)
+]
+
+rsv_A = rsv_weekly[rsv_weekly['subtype'] == 'A'].sort_values('week').reset_index(drop=True)
+rsv_B = rsv_weekly[rsv_weekly['subtype'] == 'B'].sort_values('week').reset_index(drop=True)
+
+ys = pd.DataFrame({
+    "reports_A": rsv_A['count'].values,
+    "reports_B": rsv_B['count'].values},
+    index=np.arange(1, len(rsv_A) + 1).astype(float))
+
+```
+
+## Abstract {.unnumbered}
+
+RSV is a common respiratory infection with two co-circulating subtypes (A and B) whose cross-immunity is poorly understood. Using a partially observed Markov process (POMP) framework, we fit a two-strain stochastic SEIRS model with seasonal forcing and a cross-immunity parameter $q$, estimated via iterated filtering and evaluated with profile likelihoods. A negative binomial autoregressive benchmark achieves log-likelihood −1158, while the mechanistic model attains comparable fit (−1159) with well-identified transmission, reporting, and dispersion parameters. However, the initial susceptibility $\eta$ and cross-immunity parameter $q$ are weakly identified, with flat profile likelihoods. These results indicate that the available data are insufficient to distinguish between competing cross-immunity structures.
+
+# Introduction
+
+Respiratory Syncytial Virus (RSV) is a highly contagious, seasonal respiratory virus that spreads through respiratory droplets and contaminated surfaces [@mayoclinic_rsv ; @fda_rsv_vaccine]. The widespread infection is estimated to cause up to 250,000 hospitalizations among infants and older adults annually, with infections peaking in the winter months [@cdc_rsv_overview_2023 ; @cdc_rsv_infants ; @cdc_rsv_surveillance]. Most children will get the infection at least once by the time they are 2 years old, and the mean age of first infection is 6 months old [@cdc_rsv_infants]. However, unlike other respiratory infections, RSV presents like a common cold in healthy adults whereas young children and immunocompromised older adults suffer more severe symptoms that may ultimately lead them to patient care facilities such as clinics and hospitals.
+
+Testing for RSV is not routinely performed in many hospitalized patients outside of pediatric and other high-risk settings [@prill2021rsv_mortality]. Currently, the Center for Disease Control and Prevention (CDC) tracks RSV using reports from participating labs, but healthcare facilities are not required to report positive RSV cases to federal authorities [@prill2021rsv_mortality]. Despite low testing rates, cases continue to surge. Like influenza, RSV has two prevalent subtypes, namely, subtypes A and B. However, RSV subtypes are not commonly identified when reported, and most surveillance systems only report aggregate RSV cases. Prior RSV infection with one subtype appears to confer partial but not complete protection against the other, though the degree of cross-immunity remains uncertain [@rsv_cross_immunity_2024].
+
+In this report, the partially observed Markov process (POMP) framework is used to account for underreporting and transmission dynamics between the subtypes. While re-infection is possible, most published compartmental models do not consider whether waning immunity for one strain completely or partially protects an individual from infection from the other [@rsv_cross_immunity_2024]. Thus, the purpose of this project is to assess whether assumptions of full, partial, or no cross-immunity best capture RSV A and B transmission dynamics, and we test these different immunity structures within a POMP framework.
+
+## Data
+
+Subtype-specific RSV time series were obtained from Nextstrain [@nextstrain_rsv_a ; @nextstrain_rsv_b]. Nextstrain is an open-source platform that aggregates publicly available genomic sequence data from the National Center for Biotechnology Information (NCBI), the Global Initiative on Sharing All Influenza Data (GISAID), and the Bacterial and Viral Bioinformatics Resource Center (BV-BRC) at the University of Chicago, among other sources [@hadfield2018nextstrain]. Each record corresponds to a sequenced RSV sample with an associated collection date and subtype classification (A or B).
+ 
+ Weekly sequence counts from June 1, 2015 to March 15, 2020 (250 weeks) were used to avoid disruptions from COVID-19 interventions. Earlier records were excluded due to low counts. This time frame also precedes changes in RSV reporting and vaccine availability. As shown in @fig-rsv-plot, both subtypes exhibit annual peaks in December–January, with weekly counts below 100.
+
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "RSV data plot"
+#| label: fig-rsv-plot
+plt.figure(figsize=(6.5, 3.5))
+
+plt.plot(rsv_A['week'], rsv_A['count'], label='RSV A', linewidth=2)
+plt.plot(rsv_B['week'], rsv_B['count'], label='RSV B', linewidth=2)
+
+plt.xlabel('Week')
+plt.ylabel('Count')
+plt.title('Weekly RSV Counts by Subtype')
+plt.legend()
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+```
+
+# Data limitations
+
+Although RSV surveillance varies across states, national co-circulation patterns of RSV-A and RSV-B are consistent across regions [@cdc_rsv_surveillance], and exploratory analysis confirmed minimal differences in seasonal timing across states (more details in supplementary, @fig-all-states-counts, @fig-florida, @fig-alaska, @fig-hawaii). We therefore treat the United States as a single homogeneous population.
+
+Sequences are primarily derived from clinical testing and likely reflect more severe cases among high-risk populations (infants, older adults, and immunocompromised individuals) [@medlineplus_rsv_tests]. We make the simplifying assumption that the sequenced population represents this single high-risk pool of individuals. We also do not stratify by age due to limited metadata and to prevent increased model complexity. Furthermore, while previous studies aimed to identify meaningful differences in disease severity across the subtypes, there is limited evidence that either subtype results in more severe illness [@rsv_cross_immunity_2024]. Therefore, we assume that the relative frequency of RSV-A and RSV-B in the sequenced sample reflects the true subtype composition of RSV in the population.
+
+# Methods
+
+## Statistical Benchmark Models
+
+Initially, we fit a SARIMAX model to serve as a benchmark for comparison to a mechanistic POMP model. However, this initial model highlighted several limitations of the linear-Gaussian framework for count
+data. In particular, the QQ plot shows heavy right tails, the Jarque-Bera test strongly rejects normality (JB = 755, 𝑝 < 0.001), and the residuals display clear heteroskedasticity, especially during seasonal peaks (see @fig-sarimax in supplementary). Although a log transformation could potentially address some of these issues, we avoided it to maintain consistency when comparing with our local and global search methods. 
+
+Overall, these diagnostics strongly suggest that a count-based model with overdispersion would be more appropriate. To address this, we instead use a negative binomial autoregressive benchmark models fit separately for subtype $i \in \{A, B\}$ with counts $Y_{it}$ satisfying 
+$$
+Y_{it} \sim \mathrm{NegBin}(\mu_{it}, r), \quad \mu_{it} = \beta_0 + \beta_1 Y_{i,t-1}, \quad \mathrm{Var}(Y_{it}) = \mu_{it} + \frac{\mu_{it}^2}{r}
+$$
+
+where $r > 0$ is a dispersion parameter. $\mu_{it}$ represents the conditional mean, which is the expected count for subtype $i$ at week $t$, given the previous week's observed count. $\beta_{0,i}$ expresses a baseline level, and $\beta_{1,i}$ controls how much last week's count carries into this week's prediction.
+
+This benchmark captures overdispersion and short-term dependence in the data without imposing mechanistic assumptions about transmission or immunity. As a result, it serves as a useful point of comparison for the mechanistic POMP models introduced later.
+
+## Mechanistic Transmission Models
+
+To incorporate known biological structure of RSV, such as latent and infected period, we fit stochastic compartmental models for subtypes A and B with a partially observed Markov process (POMP) framework. These models represent latent infection dynamics and allow direct epidemiological interpretation.
+
+Because RSV infection includes a latent period and temporary immunity, we use an SEIRS-type structure. While many different models exist in current academic literature on RSV, we use a model similar to those shown in @Bhattacharyya2015 and @White2007, but simplified for the purposes of this course project. Individuals transition through susceptible $(S)$, exposed $(E)$, infectious $(I)$, and recovered $(R)$ compartments. Infection occurs at rate $\lambda(t)$, exposed individuals progress at rate $\sigma$, infectious individuals recover at rate $\gamma$, and immunity wanes at rate $\omega$.
+
+```{=latex}
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[
+    >=Stealth,
+    comp/.style={draw, rectangle, minimum width=1.3cm, minimum height=0.85cm}
+]
+
+\node[comp] (S) at (0,0) {$S$};
+
+\node[comp] (EA) at (3,0.8) {$E_A$};
+\node[comp] (IA) at (5.5,0.8) {$I_A$};
+\node[comp] (RA) at (8,0.8) {$R_A$};
+
+\node[comp] (EB) at (3,-0.8) {$E_B$};
+\node[comp] (IB) at (5.5,-0.8) {$I_B$};
+\node[comp] (RB) at (8,-0.8) {$R_B$};
+
+\draw[->] (S) -- node[pos=0.7, above left] {$\lambda_A(t)$} (EA);
+\draw[->] (S) -- node[pos=0.7, below left] {$\lambda_B(t)$} (EB);
+
+\draw[->] (EA) -- node[above] {$\sigma_A$} (IA);
+\draw[->] (EB) -- node[below] {$\sigma_B$} (IB);
+
+\draw[->] (IA) -- node[above] {$\gamma_A$} (RA);
+\draw[->] (IB) -- node[below] {$\gamma_B$} (RB);
+
+\draw[->, bend right=35] (RA.north) to node[above] {$\omega$} (S.north);
+\draw[->, bend left=35] (RB.south) to node[below] {$\omega$} (S.south);
+
+\end{tikzpicture}
+\caption{Two-strain SEIRS model for RSV transmission.}
+\label{fig:rsv_model}
+\end{figure}
+```
+
+Cross-strain interaction is incorporated through the force of infection, with infection rates depending on both within-strain and cross-strain infectious individuals:
+
+\begin{center}
+$\lambda_A(t) = \beta_A \frac{I_A(t) + (1-q) I_B(t)}{N}, \quad \lambda_B(t) = \beta_B \frac{I_B(t) + (1-q) I_A(t)}{N}$
+\end{center}
+
+Here, $q \in [0,1]$ represents the degree of cross-immunity between strains, with $q=0$ corresponding to no cross-immunity and $q=1$ corresponding to complete cross-immunity. In principle, $q$ can be estimated from the data to capture intermediate levels of interaction. Considering the $q=0$ case provides a baseline in which strains do not interact through immunity, allowing us to assess whether the data contain evidence for cross-strain effects beyond independent transmission dynamics.
+
+The latent and infectious periods are represented by the transition rates $\sigma$ and $\gamma$. These correspond to average durations of 5 days for the exposure period and 7 days for the infection period. These values were fixed based on well known trends in the epidemiological literature [@NegiS19; @Lessler2009]. By fixing $\sigma$ and $\gamma$, the goal is to improve parameter identifiability and stabilize inference for the remaining parameters of interest.
+
+Waning immunity occurs at rate $\omega$, corresponding to an average duration of immunity of six months [@Moore2014], allowing individuals to return to the susceptible class. The parameter $N$ represents an effective population size that scales transmission intensity and does not necessarily correspond to the total population size. The initial fraction susceptible is denoted by $\eta$. 
+
+## Model Implementation and Comparison
+
+Observed weekly RSV case counts are linked to latent incidence through a negative binomial measurement model. The expected number of reported cases is proportional to the underlying incidence, with reporting governed by a parameter $\rho$. An adidtional $\rho_{slope}$ term allows the reporting rate to increase linearly by 3% each year to capture gradual improvement in RSV surveillance. Overdispersion is captured by a size parameter $k$, allowing the model to accommodate variability beyond the Poisson assumption.
+
+Parameter estimation is performed using likelihood-based methods for $\beta_A$, $\beta_B$, $\eta$, $\rho$, $k$, and $q$. Epidemiological rates $\sigma$, $\gamma$, and $\omega$ were fixed based on values from the literature [@NegiS19 ; @Lessler2009 ; @Moore2014]. A complete summary of model parameters and their interpretations is provided in @tbl-parameters in the appendix. A local search based on iterated filtering is first used to refine parameter estimates around reasonable starting values and assess convergence behavior. This is followed by a global search over multiple randomized initializations to explore the likelihood surface more thoroughly. Parameter uncertainty and identifiability are assessed using profile likelihoods, constructed by fixing one parameter over a grid while optimizing over the remaining parameters. 
+
+We compare the negative binomial benchmark and mechanistic models using likelihood-based criteria. In addition, we evaluate differences in model performance when $q$ is fixed to $0$ and when $q$ is allowed to vary to provide insight into the role of cross-strain interaction in shaping RSV transmission dynamics. Likelihood estimates are subject to Monte Carlo variance inherent to particle filter methods; standard errors were estimated by running multiple independent particle filter evaluations at the reported parameter values. We initially explored an extension of the model incorporating full cross-immunity between RSV-A and RSV-B. However, optimization of this specification was highly unstable, with local search trajectories exhibiting large fluctuations in log-likelihood and failing to converge to a consistent region of the parameter space. As a result, we only use the no-immunity model as a simpler and more stable baseline for comparison to the partial immunity model.
+
+# Results
+
+Starting with the benchmark negative binomial model, the fitted model achieved a log-likelihood of -1158.58 (estimated parameters in @tbl-benchmark and diagnostics in @fig-negbin-diag). Despite not including any mechanistic structure like POMP models, it can still capture key features of the data, including overdispersion and short-term autocorrelation. 
+
+```{python}
+#| echo: false
+#| output: false
+
+def rnbinom(key, k, mu):
+    key_g, key_p = jax.random.split(key)
+    lam = fast_approx_rgamma(key_g, k) * (mu / k)
+    return fast_approx_rpoisson(key_p, lam)
+
+def nbinom_logpmf(x, k, mu):
+    x, k, mu = (jnp.asarray(v) for v in (x, k, mu))
+    logp_zero = jnp.where(x == 0, 0.0, -jnp.inf)
+    safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+    gammaln = jax.scipy.special.gammaln
+    core = (gammaln(k + x) - gammaln(k)
+            - gammaln(x + 1)
+            + k * jnp.log(k / (k + safe_mu))
+            + x * jnp.log(safe_mu / (k + safe_mu)))
+    return jnp.where(mu == 0.0, logp_zero, core)
+
+def rinit_seirsab(theta_, key, covars, t0):
+    """
+    Initial conditions for the two-subtype SEIRS-AB model.
+
+    State variables:
+      S          - shared susceptible pool
+      E_A, I_A   - RSV-A exposed and infectious
+      R_A        - recovered from RSV-A (cross-partially immune to RSV-B)
+      E_B, I_B   - RSV-B exposed and infectious
+      R_B        - recovered from RSV-B (cross-partially immune to RSV-A)
+      H_inc_A    - incidence accumulator for RSV-A (reset each obs window)
+      H_inc_B    - incidence accumulator for RSV-B (reset each obs window)
+      A          - current seasonal amplitude (persistent within year)
+    """
+    N     = theta_["N"]
+    eta   = theta_["eta"]
+    A_mean = theta_["A_mean"]
+
+    S0   = jnp.round(N * eta)
+    E_A0 = 3.0
+    I_A0 = 1.0
+    E_B0 = 3.0
+    I_B0 = 1.0
+    R_A0 = jnp.round(N * (1 - eta) / 2) - I_A0
+    R_B0 = jnp.round(N * (1 - eta) / 2) - I_B0
+    S0   = S0 - E_A0 - E_B0
+
+    return {
+        "S": S0,
+        "E_A": E_A0,
+        "I_A": I_A0,
+        "R_A": R_A0,
+        "E_B": E_B0,
+        "I_B": I_B0,
+        "R_B": R_B0,
+        "H_inc_A": 0.0,
+        "H_inc_B": 0.0,
+        "A": A_mean
+    }
+
+def rproc_seirsab(X_, theta_, key, covars, t, dt):
+    """
+    Euler-multinomial process simulator for SEIRS-AB.
+
+    Cross-immunity: recovering from subtype j confers immunity to j and
+    partial immunity (1-q) to the other subtype, where q in [0,1].
+      q = 1: full cross-immunity (single disease)
+      q = 0: no cross-immunity (independent)
+      0 < q < 1: partial
+
+    Seasonal forcing on Beta:
+      Beta_j(t) = Beta0_j * (1 + A * cos(2pi*(t - t_peak)/52))
+    A is re-drawn from Beta(A_shape_a, A_shape_b) * A_max at each annual
+    boundary and carried as state variable A otherwise.
+
+    H_inc_A and H_inc_B accumulate new infections per observation window;
+    they are reset by accumvars=("H_inc_A", "H_inc_B") in the Pomp object.
+    """
+    S    = X_["S"]
+    E_A  = X_["E_A"];  I_A = X_["I_A"];  R_A = X_["R_A"]
+    E_B  = X_["E_B"];  I_B = X_["I_B"];  R_B = X_["R_B"]
+    H_inc_A = X_["H_inc_A"]
+    H_inc_B = X_["H_inc_B"]
+    A    = X_["A"]
+
+    Beta0_A  = theta_["Beta_A"]
+    Beta0_B  = theta_["Beta_B"]
+    sigma_A  = theta_["sigma_A"]
+    sigma_B  = theta_["sigma_B"]
+    gamma_A  = theta_["gamma_A"]
+    gamma_B  = theta_["gamma_B"]
+    omega    = theta_["omega"]  # shared waning immunity rate
+    q        = theta_["q"] # cross-immunity: 0=none, 1=full
+    N        = theta_["N"]
+    t_peak   = theta_["t_peak"]
+    T        = 52.0
+    a_shape  = theta_["A_shape_a"]
+    b_shape  = theta_["A_shape_b"]
+    A_max    = theta_["A_max"]
+
+    (key_A, key_SEA, key_SEB,
+     key_EIA, key_EIB,
+     key_IRA, key_IRB,
+     key_RAB, key_RBS) = jax.random.split(key, 9)
+
+    # amplitude
+    A_candidate = jax.random.beta(key_A, a_shape, b_shape) * A_max
+    A = jnp.where((t % T) < dt, A_candidate, A)
+
+    # beta
+    cos_t  = jnp.cos(2.0 * jnp.pi * (t - t_peak) / T)
+    Beta_A = Beta0_A * (1.0 + A * cos_t)
+    Beta_B = Beta0_B * (1.0 + A * cos_t)
+
+    #  reduced susceptibility to other subtype
+    lambda_A = Beta_A * (I_A + (1.0 - q) * I_B) / N
+    lambda_B = Beta_B * (I_B + (1.0 - q) * I_A) / N
+
+    # transition probs
+    p_SEA = 1.0 - jnp.exp(-lambda_A * dt)
+    p_SEB = 1.0 - jnp.exp(-lambda_B * dt)
+    p_EIA = 1.0 - jnp.exp(-sigma_A * dt)
+    p_EIB = 1.0 - jnp.exp(-sigma_B * dt)
+    p_IRA = 1.0 - jnp.exp(-gamma_A * dt)
+    p_IRB = 1.0 - jnp.exp(-gamma_B * dt)
+    p_RS  = 1.0 - jnp.exp(-omega * dt) # waning
+    
+    # draw randomly using pypomp's fast approximate binomial sampler
+    dN_SEA = fast_approx_rbinom(key_SEA, n=jnp.int32(S),   p=p_SEA)
+    dN_SEB = fast_approx_rbinom(key_SEB, n=jnp.int32(S),   p=p_SEB)
+    dN_EIA = fast_approx_rbinom(key_EIA, n=jnp.int32(E_A), p=p_EIA)
+    dN_EIB = fast_approx_rbinom(key_EIB, n=jnp.int32(E_B), p=p_EIB)
+    dN_IRA = fast_approx_rbinom(key_IRA, n=jnp.int32(I_A), p=p_IRA)
+    dN_IRB = fast_approx_rbinom(key_IRB, n=jnp.int32(I_B), p=p_IRB)
+    dN_RAS = fast_approx_rbinom(key_RAB, n=jnp.int32(R_A), p=p_RS)
+    dN_RBS = fast_approx_rbinom(key_RBS, n=jnp.int32(R_B), p=p_RS)
+
+    # S > 0 
+    total_from_S = dN_SEA + dN_SEB
+    S_int32 = jnp.int32(S)
+    scale = jnp.where(total_from_S > S_int32,
+                      S_int32 / jnp.maximum(total_from_S, 1), 1.0)
+    dN_SEA = jnp.int32(jnp.floor(dN_SEA * scale))
+    dN_SEB = jnp.int32(jnp.floor(dN_SEB * scale))
+
+    # compartment updates
+    S_new    = S   - dN_SEA - dN_SEB + dN_RAS + dN_RBS
+    E_A_new  = E_A + dN_SEA - dN_EIA
+    I_A_new  = I_A + dN_EIA - dN_IRA
+    R_A_new  = R_A + dN_IRA - dN_RAS
+    E_B_new  = E_B + dN_SEB - dN_EIB
+    I_B_new  = I_B + dN_EIB - dN_IRB
+    R_B_new  = R_B + dN_IRB - dN_RBS
+
+    return {
+        "S":       S_new,
+        "E_A":     E_A_new, "I_A": I_A_new, "R_A": R_A_new,
+        "E_B":     E_B_new, "I_B": I_B_new, "R_B": R_B_new,
+        "H_inc_A": H_inc_A + dN_SEA,   # new rsv a infection
+        "H_inc_B": H_inc_B + dN_SEB,   # new rsv b infection
+        "A":       A
+    }
+
+def to_est(theta):
+    return {
+        "Beta_A": jnp.log(theta["Beta_A"]),
+        "Beta_B": jnp.log(theta["Beta_B"]),
+        "sigma_A": jnp.log(theta["sigma_A"]),
+        "sigma_B": jnp.log(theta["sigma_B"]),
+        "gamma_A": jnp.log(theta["gamma_A"]),
+        "gamma_B": jnp.log(theta["gamma_B"]),
+        "omega": jnp.log(theta["omega"]),
+        "A_shape_a": jnp.log(theta["A_shape_a"]),
+        "A_shape_b": jnp.log(theta["A_shape_b"]),
+        "A_max": jnp.log(theta["A_max"]),
+        "A_mean": theta["A_mean"],
+        "t_peak": theta["t_peak"],
+        "rho0": jax.scipy.special.logit(theta["rho0"]),
+        "rho_slope": theta["rho_slope"],
+        "N": jnp.log(theta["N"]),
+        "eta": jax.scipy.special.logit(theta["eta"]),
+        "k": jnp.log(theta["k"]),
+        "q": jax.scipy.special.logit(theta["q"])
+    }
+
+def from_est(theta):
+    return {
+        "Beta_A": jnp.exp(theta["Beta_A"]),
+        "Beta_B": jnp.exp(theta["Beta_B"]),
+        "sigma_A": jnp.exp(theta["sigma_A"]),
+        "sigma_B": jnp.exp(theta["sigma_B"]),
+        "gamma_A": jnp.exp(theta["gamma_A"]),
+        "gamma_B": jnp.exp(theta["gamma_B"]),
+        "omega": jnp.exp(theta["omega"]),
+        "A_shape_a": jnp.exp(theta["A_shape_a"]),
+        "A_shape_b": jnp.exp(theta["A_shape_b"]),
+        "A_max": jnp.exp(theta["A_max"]),
+        "A_mean": theta["A_mean"],
+        "t_peak": theta["t_peak"],
+        "rho0": jax.scipy.special.expit(theta["rho0"]),
+        "rho_slope": theta["rho_slope"],
+        "N": jnp.exp(theta["N"]),
+        "eta": jax.scipy.special.expit(theta["eta"]),
+        "k": jnp.exp(theta["k"]),
+        "q": jax.scipy.special.expit(theta["q"])
+    }
+
+par_trans = pp.ParTrans(
+    to_est=to_est,
+    from_est=from_est
+)
+```
+
+```{python}
+#| echo: false
+#| output: false
+
+def rmeas_seirsab(X_, theta_, key, covars, t):
+    """
+    Simulate observed counts (Y_A, Y_B) given latent state.
+
+    Both subtypes use a Negative-Binomial measurement model with:
+      mean   = rho(t) * H_inc_j
+      size   = k  (overdispersion; smaller k = more overdispersed)
+
+    rho(t) = clip(rho0 + rho_slope * t, 0, 1) is the time-varying
+    reporting rate, capturing secular improvement in RSV surveillance.
+    """
+    H_inc_A   = X_["H_inc_A"]
+    H_inc_B   = X_["H_inc_B"]
+    rho0      = theta_["rho0"]
+    rho_slope = theta_["rho_slope"]
+    k         = theta_["k"]
+
+    rho_t = jnp.clip(rho0 + rho_slope * t, 1e-6, 1 - 1e-6)
+    mu_A   = rho_t * H_inc_A + 1e-6
+    mu_B   = rho_t * H_inc_B + 1e-6
+
+    key_A, key_B = jax.random.split(key)
+    obs_A = rnbinom(key_A, k, mu_A)
+    obs_B = rnbinom(key_B, k, mu_B)
+
+    return jnp.array([obs_A, obs_B], dtype=jnp.float32)
+            
+
+
+def dmeas_seirsab(Y_, X_, theta_, covars, t):
+    """
+    Log-likelihood of observed (Y_A, Y_B) given latent state.
+    Returns the sum of log-likelihoods for both subtypes.
+    """
+    rep_A     = Y_["reports_A"]
+    rep_B     = Y_["reports_B"]
+    H_inc_A   = X_["H_inc_A"]
+    H_inc_B   = X_["H_inc_B"]
+    rho0      = theta_["rho0"]
+    rho_slope = theta_["rho_slope"]
+    k         = theta_["k"]
+
+    rho_t = jnp.clip(rho0 + rho_slope * t, 1e-6, 1 - 1e-6)
+    mu_A   = rho_t * H_inc_A + 1e-6
+    mu_B   = rho_t * H_inc_B + 1e-6
+
+    ll_A = nbinom_logpmf(jnp.int32(rep_A), k, mu_A)
+    ll_B = nbinom_logpmf(jnp.int32(rep_B), k, mu_B)
+
+    return ll_A + ll_B
+  
+
+N = 40000.0 # this should be the sequencing population, not everyone who is sus
+mu_IR = 1.0
+R0 = 3.0
+rho0 = 0.01
+
+total_A = int(rsv_A['count'].sum())
+total_B = int(rsv_B['count'].sum())
+eta     = float(f"{(1/rho0) * (total_A + total_B) / N:.2g}")
+
+beta_A  = mu_IR * R0
+beta_B  = mu_IR * R0
+
+A_shape_a, A_shape_b, A_max = 1.0, 12.0, 0.60
+A_mean = A_shape_a / (A_shape_a + A_shape_b) * A_max
+
+statenames = ["S",
+              "E_A", "I_A", "R_A",
+              "E_B", "I_B", "R_B",
+              "H_inc_A", "H_inc_B",
+              "A"]
+
+theta = {
+    "Beta_A": beta_A,
+    "Beta_B": beta_B,
+    "sigma_A": 1.4, # 1/latent period, mu_EI = 7/5 #most sources say exposure period is 4-6 days, so I will use 5 days
+    "sigma_B": 1.4, #for now, assume the latent period is the same for both A and B
+    "gamma_A": mu_IR, # 1/infectious period, lots of varying answers about infected period length, for now I will go with 7 days
+    "gamma_B":mu_IR,
+    "omega": 2 / 52.0, # waning immunity: (6 ish mo)
+    "A_shape_a": A_shape_a,
+    "A_shape_b": A_shape_b,
+    "A_max": A_max,
+    "A_mean": A_mean,
+    "t_peak": 24.0, 
+    "rho0": rho0,
+    "rho_slope": 0.03 * rho0 / 52, # gradual increase in reporting
+    "N": N,
+    "eta": 0.3,
+    "k": 0.3,
+    "q": 0.5
+}
+
+def make_pomp(q_val):
+    th = theta.copy()
+    th["q"] = q_val
+    return pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        par_trans = par_trans,
+        theta=th,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None,
+    )
+
+# we can also make full and none models
+pomp_full  = make_pomp(q_val=1.0)   # Model 1: full cross-immunity
+pomp_none  = make_pomp(q_val=0.0)   # Model 2: no cross-immunity
+pomp_part  = make_pomp(q_val=0.5)   # Model 3: partial (starting value; estimate q)
+```
+
+
+
+```{python}
+#| echo: false
+#| output: false
+
+# run level 0 : quick, 1 : medium, 2 : slow
+RL = 2
+
+# manual control of cached using pickle
+# remove the cache directory to force recomputation
+cache_dir = "cache_" + str(RL) + "_finalproj_partial_immunity"
+os.makedirs(cache_dir, exist_ok=True)
+```
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Local search results"
+#| label: fig-local-search
+#| fig-pos: 't'
+## A local search of the likelihood surface
+
+## A local search of the likelihood surface
+
+# Define settings based on RL
+if RL == 0:
+    n_local = 5
+    J = 50
+    M = 10
+elif RL == 1:
+    n_local = 10
+    J = 1000
+    M = 50
+elif RL == 2:
+    n_local = 20
+    J = 8000
+    M = 100
+
+cache_file = cache_dir + "/part_local-mif.pkl"
+runtime_file = cache_dir + "/part_local-mif-runtime.pkl"
+
+rw_sd = pp.RWSigma(
+    sigmas={
+        "Beta_A": 0.02,
+        "Beta_B": 0.02,
+        "sigma_A": 0.0,
+        "sigma_B": 0.0,
+        "gamma_A": 0.0,
+        "gamma_B": 0.0,
+        "omega": 0.0,
+        "A_shape_a": 0.0,
+        "A_shape_b": 0.0,
+        "A_max": 0.0,
+        "A_mean": 0.0,
+        "t_peak": 0.0,
+        "rho0": 0.01,
+        "rho_slope": 0.0,
+        "N": 0.0,
+        "eta": 0.02,
+        "k": 0.02,
+        "q": 0.02
+    },
+    init_names=["eta"]
+    )
+    
+runtime = None
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        mif_result = pickle.load(f)
+
+    if os.path.exists(runtime_file):
+        with open(runtime_file, "rb") as f:
+            runtime = pickle.load(f)
+
+else:
+    start = time.perf_counter()
+
+
+    theta_list = [theta.copy() for _ in range(n_local)]
+
+    mod_local = pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        theta=theta_list,
+        par_trans = par_trans,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None
+    )
+
+    key = jax.random.key(482947940)
+
+    mod_local.mif(
+        J=J,
+        M=M,
+        rw_sd=rw_sd,
+        a=0.7,
+        key=key
+    )
+
+    mif_result = mod_local.results_history.last()
+    runtime = time.perf_counter() - start
+    print(f"Local search runtime (RL={RL}): {runtime:.2f} seconds")
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(mif_result, f)
+
+    with open(runtime_file, "wb") as f:
+        pickle.dump(runtime, f)
+
+
+traces_da = mif_result.traces_da
+
+n_reps = traces_da.sizes["replicate"]
+iterations = traces_da.coords["iteration"].values
+
+trace_vars = [
+    ("logLik", "Log-likelihood"),
+    ("Beta_A", r"$\beta_A$"),
+    ("Beta_B", r"$\beta_B$"),
+    ("eta", r"$\eta$"),
+    ("k", "k")
+]
+
+if "rho0" in traces_da.coords["variable"].values:
+    trace_vars.append(("rho0", r"$\rho_0$"))
+
+if "q" in traces_da.coords["variable"].values:
+    trace_vars.append(("q", r"$q$"))
+
+n_panels = len(trace_vars)
+ncols = 3
+nrows = int(np.ceil(n_panels / ncols))
+
+fig, axes = plt.subplots(nrows, ncols, figsize=(10, 2.3 * nrows))
+axes = np.atleast_1d(axes).flatten()
+
+for ax, (var, lab) in zip(axes, trace_vars):
+    if var in traces_da.coords["variable"].values:
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                traces_da.isel(replicate=r).sel(variable=var).values,
+                alpha=0.4,
+                lw=0.7
+            )
+    ax.set(xlabel="Iteration", ylabel=lab)
+    ax.grid(alpha=0.3)
+    if var == "logLik":
+        pass
+        ax.set_ylim(-1500, -1150) 
+    
+
+for ax in axes[len(trace_vars):]:
+    ax.axis("off")
+
+plt.tight_layout()
+plt.show()
+
+```
+
+```{python}
+#| echo: false
+#| output: false
+#| 
+cache_file = cache_dir + "/part_local-pfilter.pkl"
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        local_results = pickle.load(f)
+
+else:
+    # Rebuild evaluation model from MIF endpoints
+    n_local = mif_result.traces_da.sizes["replicate"]
+    traces = mif_result.traces_da
+
+    # parameters that were estimated in MIF
+    est_vars = ["Beta_A", "Beta_B", "rho0", "eta", "k"]
+    if "q" in traces.coords["variable"].values:
+        est_vars.append("q")
+
+    theta_endpoints = []
+    for r in range(n_local):
+        th = theta.copy()
+        for var in est_vars:
+            th[var] = float(
+                traces.isel(replicate=r).sel(variable=var).values[-1]
+            )
+        theta_endpoints.append(th)
+
+    mod_eval = pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        par_trans = par_trans,
+        theta=theta_endpoints,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None
+    )
+
+    key = jax.random.key(900242057)
+    mod_eval.pfilter(key=key, J=7000, reps=15)
+    pf = mod_eval.results_history.last()
+
+    rows = []
+    for i in range(n_local):
+        lls = pf.logLiks.values[i, :]
+        rows.append({
+            **theta_endpoints[i],
+            "loglik": pp.logmeanexp(lls),
+            "loglik_se": pp.logmeanexp_se(lls)
+        })
+
+    local_results = pd.DataFrame(rows)
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(local_results, f)
+
+print(f"Best log-likelihood: {local_results['loglik'].max():.1f}")
+print(
+    f"(SE: {local_results.loc[local_results['loglik'].idxmax(), 'loglik_se']:.1f})"
+)
+
+```
+
+We begin by examining the results of the local search procedure.  The log-likelihood traces in @fig-local-search exhibit substantial variability across replicates, with no clear stabilization by the end of the MIF iterations. This reflects Monte Carlo noise in the likelihood evaluation and the difficulty of optimizing over a complex surface. The estimated standard error of 3.7 for the best log-likelihood indicates that small differences between candidate parameter values are not meaningful.
+
+The best-performing local search run achieves a log-likelihood of −1,164.8. Despite the overall variability, several parameters ($\beta_A$, $\beta_B$, $k$, $\rho_0$) concentrate within relatively narrow ranges across runs, suggesting that transmission intensity and measurement variability are reasonably well identified. In contrast, $\eta$ exhibits weaker convergence, indicating limited information about the size of the susceptible population or a poorly chosen initial value. The parameter $q$ shows substantial instability, with estimates spanning nearly the entire parameter space, suggesting that it is not identifiable from the data.
+
+The no immunity model (fixed $q=0$) local search results are provided in supplementary (@fig-none-local). The best log likelihood obtained was -1,162.4, which is very similar to results achieved from the partial model. In addition, convergence results are nearly identical to those from the partial immunity model, with the parameter $\eta$ still showing weak identifiability and the remaining parameters showing convergence around the same narrow ranges.
+
+```{python}
+#| label: global search
+#| echo: false
+#| output: false
+#| 
+# RL settings
+# RL settings
+if RL == 0:
+    n_starts = 20
+    J_mif1 = 200
+    M_mif1 = 10
+    J_mif2 = 300
+    M_mif2 = 15
+    J_pf = 500
+    reps_pf = 3
+elif RL == 1:
+    n_starts = 100
+    J_mif1 = 1000
+    M_mif1 = 30
+    J_mif2 = 1500
+    M_mif2 = 50
+    J_pf = 2000
+    reps_pf = 5
+elif RL == 2:
+    n_starts = 200
+    J_mif1 = 2000
+    M_mif1 = 50
+    J_mif2 = 4000
+    M_mif2 = 100
+    J_pf = 50000
+    reps_pf = 10
+
+
+cache_file = cache_dir + "/part_global-search.pkl"
+runtime_file = cache_dir + "/part_global-search-runtime.pkl"
+
+os.makedirs(cache_dir, exist_ok=True)
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        results_df = pickle.load(f)
+
+    if os.path.exists(runtime_file):
+        with open(runtime_file, "rb") as f:
+            global_runtime = pickle.load(f)
+    else:
+        global_runtime = None
+
+else:
+    start = time.perf_counter()
+
+    np.random.seed(2062379496)
+    theta_list = []
+
+    for i in range(n_starts):
+        th = theta.copy()
+
+        # transmission
+        th["Beta_A"] = np.random.uniform(0.5, 10)
+        th["Beta_B"] = np.random.uniform(0.5, 10)
+
+        # reporting
+        th["rho0"] = np.random.uniform(0.005, 0.10)
+
+        # initial susceptibility
+        th["eta"] = np.random.uniform(0.05, 0.9)  # narrower is usually better
+
+        # overdispersion
+        th["k"] = np.random.uniform(0.1, 3)
+
+        #cross immunity
+        th["q"] = np.random.uniform(0.05, 0.95)
+        
+        theta_list.append(th)
+
+    mod = pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        theta=theta_list,
+        par_trans = par_trans,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None
+    )
+
+    key = jax.random.key(1270401374)
+    mod.mif(
+        J=J_mif1,
+        M=M_mif1,
+        rw_sd=rw_sd,
+        a=0.9,
+        key=key
+    )
+
+    key = jax.random.key(1270401375)
+    mod.mif(
+        J=J_mif2,
+        M=M_mif2,
+        rw_sd=rw_sd,
+        a=0.5,
+        key=key
+    )
+
+    key = jax.random.key(1270401376)
+    mod.pfilter(key=key, J=J_pf, reps=reps_pf)
+    pf = mod.results_history.last()
+
+    rows = []
+    for i in range(n_starts):
+        lls = pf.logLiks.values[i, :]
+        rows.append({
+            **mod.theta[i],
+            "loglik": pp.logmeanexp(lls),
+            "loglik_se": pp.logmeanexp_se(lls)
+        })
+
+    results_df = pd.DataFrame(rows)
+    results_df = results_df[np.isfinite(results_df["loglik"])]
+
+    global_runtime = time.perf_counter() - start
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(results_df, f)
+
+    with open(runtime_file, "wb") as f:
+        pickle.dump(global_runtime, f)
+
+print(f"Best log-likelihood: {results_df['loglik'].max():.1f}")
+
+if global_runtime is not None:
+    print(f"Global search runtime (RL={RL}): {global_runtime:.2f} seconds")
+else:
+    print(f"Global search runtime (RL={RL}): not available")
+
+
+```
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Global search results near the maximum log-likelihood."
+#| label: fig-global-search
+
+pairs = [
+    # parameters vs likelihood
+    ("Beta_A", "loglik"),
+    ("Beta_B", "loglik"),
+    ("eta", "loglik"),
+    ("rho0", "loglik"),
+    ("k", "loglik"),
+    ("q", "loglik"),
+
+    # key tradeoffs / identifiability
+    ("Beta_A", "eta"),
+    ("Beta_B", "eta"),
+    ("Beta_A", "rho0"),
+    ("Beta_B", "rho0"),
+    ("eta", "rho0"),
+
+    # new important ones
+    ("k", "rho0")
+]
+
+max_ll = results_df["loglik"].max()
+
+fig, axes = plt.subplots(2, 3, figsize=(10, 4))
+
+for i, (ax, (x, y)) in enumerate(zip(axes.flat, pairs)):
+    ax.scatter(results_df[x], results_df[y], s=10, alpha=0.7)
+    ax.set(xlabel=x, ylabel=y)
+
+    if i < 6:
+        ax.set_ylim(max_ll - 20, max_ll + 5)
+    if i == 3:
+        ax.set_xlim(0, 0.05)
+
+    ax.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+```
+
+The global search results in @fig-global-search reveal a well-defined region of high likelihood, with multiple parameter combinations achieving similar values around −1159.3. These results indicate that the likelihood surface is relatively flat in several dimensions, limiting the ability to distinguish between alternative parameter combinations.
+
+Within this high-likelihood region, the transmission parameters $\beta_A$ and $\beta_B$ favor relatively small values (approximately 1–2) and exhibit similar patterns, suggesting that the two strains have comparable transmission dynamics. The initial susceptible fraction $\eta$ is concentrated in a moderate to high range ($\eta \approx 0.45$–$0.85$), indicating that a relatively large susceptible pool is required to reproduce the observed epidemic patterns.
+
+In contrast, the reporting rate ($\rho_0$) and dispersion parameter ($k$) are tightly concentrated, indicating strong identifiability. The estimates of $\rho_0$ (approximately $0.024$–$0.028$) suggest a low reporting rate, while the narrow range of $k$ (approximately $0.25$–$0.29$) reflects substantial overdispersion in the observed counts.
+
+Pairwise parameter plots (Supplementary, @fig-full-global-partial) reveal a clear trade-off between the transmission parameters ($\beta_A$, $\beta_B$) and the initial susceptible fraction ($\eta$), with higher transmission rates corresponding to lower values of $\eta$. This indicates that different combinations of transmission intensity and susceptible population size can produce similar epidemic trajectories, limiting the ability to uniquely identify these parameters.
+
+```{python}
+#| echo: false
+#| output: true
+#| label: tbl-global-loglik
+#| tbl-cap: "Top 10 Largest Log Likelihoods Obtained via Global Search"
+results_df.sort_values("loglik", ascending=False)[
+    ["loglik", "Beta_A", "Beta_B", "eta", "rho0", "q", "k"]
+].head(10)
+```
+
+@tbl-global-loglik shows the parameters from the ten best models obtained via the global search. The parameter $q$ exhibits substantial variability across top-performing models, ranging from near 0 to above 0.9 with minimal change in log likelihood. In addition, extremely similar results were observed in the no immunity model (see supplementary @fig-global-none and @tbl-global-loglik-none). The best log-likelihood from the no-immunity global search (−1155.9) exceeds that of the partial immunity model. However, given substantial Monte Carlo uncertainty in likelihood estimates, this difference is not meaningful and further reinforces the conclusion that the two immunity structures are indistinguishable from the data. Together with the observed trade-offs among other parameters, these results indicate a ridge-like likelihood surface in which multiple parameter combinations yield similarly good fits, while immunity-related parameters remain poorly identified.
+
+```{python}
+#| echo: false
+#| output: false
+#profile likelihoods
+
+if RL == 0:
+    n_prof = 2
+    J_mif1 = 200
+    M_mif1 = 10
+    J_mif2 = 300
+    M_mif2 = 15
+    J_pf = 500
+    reps_pf = 3
+
+elif RL == 1:
+    n_prof = 6
+    J_mif1 = 800
+    M_mif1 = 25
+    J_mif2 = 1200
+    M_mif2 = 35
+    J_pf = 2000
+    reps_pf = 5
+
+elif RL == 2:
+    n_prof = 12
+    J_mif1 = 2000
+    M_mif1 = 50
+    J_mif2 = 2000
+    M_mif2 = 100
+    J_pf = 2000
+    reps_pf = 10
+
+profile_grids = {
+    "Beta_A": np.linspace(0.5, 2.0, 30),
+    "Beta_B": np.linspace(0.5, 2.0, 30),
+    "eta":    np.linspace(0.2, 0.9, 30), 
+    "rho0":   np.linspace(0.01, 0.05, 30),
+    "k":      np.linspace(0.3, 1.8, 30),
+    "q":      np.linspace(0.05, 0.95, 30)
+}
+
+free_params = ["Beta_A", "Beta_B", "eta", "rho0", "k", "q"]
+
+init_bounds = {
+    "Beta_A": (0.5, 2.0),
+    "Beta_B": (0.5, 2.0),
+    "eta":    (0.2, 0.90),   
+    "rho0":   (0.01, 0.05),
+    "k":      (0.3, 1.8),
+    "q":      (0.05, 0.95)
+}
+profile_results = {}
+
+for i, prof_param in enumerate(free_params):
+
+    cache_file = cache_dir + f"/part_profile-{prof_param}.pkl"
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "rb") as f:
+            profile_df = pickle.load(f)
+
+    else:
+        seed_base = 1196696958 + 100 * i
+        np.random.seed(seed_base)
+        grid = profile_grids[prof_param]
+
+        theta_list = []
+        prof_index = []
+
+        for val in grid:
+            for j in range(n_prof):
+                th = theta.copy()
+                th[prof_param] = float(val)
+
+                for p in free_params:
+                    if p != prof_param:
+                        lo, hi = init_bounds[p]
+                        th[p] = np.random.uniform(lo, hi)
+
+                theta_list.append(th)
+                prof_index.append(float(val))
+
+        # start with your required full rw_sd structure
+        sigma_dict = {
+            "Beta_A": 0.02,
+            "Beta_B": 0.02,
+            "sigma_A": 0.0,
+            "sigma_B": 0.0,
+            "gamma_A": 0.0,
+            "gamma_B": 0.0,
+            "omega": 0.0,
+            "A_shape_a": 0.0,
+            "A_shape_b": 0.0,
+            "A_max": 0.0,
+            "A_mean": 0.0,
+            "t_peak": 0.0,
+            "rho0": 0.02,
+            "rho_slope": 0.0,
+            "N": 0.0,
+            "eta": 0.02,
+            "k": 0.02,
+            "q": 0.02
+        }
+
+        # hold the profiled parameter fixed during the MIF runs
+        sigma_dict[prof_param] = 0.0
+
+        rw_sd_profile = pp.RWSigma(
+            sigmas=sigma_dict,
+            init_names=["eta"]
+        )
+
+        mod = pp.Pomp(
+            rinit=rinit_seirsab,
+            rproc=rproc_seirsab,
+            dmeas=dmeas_seirsab,
+            rmeas=rmeas_seirsab,
+            ys=ys,
+            theta=theta_list,
+            par_trans = par_trans,
+            statenames=statenames,
+            t0=0.0,
+            nstep=7,
+            accumvars=("H_inc_A", "H_inc_B"),
+            ydim=2,
+            covars=None
+        )
+
+        key = jax.random.key(seed_base)
+        mod.mif(
+            J=J_mif1,
+            M=M_mif1,
+            rw_sd=rw_sd_profile,
+            a=0.5,
+            key=key
+        )
+
+        key = jax.random.key(seed_base + 1)
+        mod.mif(
+            J=J_mif2,
+            M=M_mif2,
+            rw_sd=rw_sd_profile,
+            a=0.3,
+            key=key
+        )
+
+        key = jax.random.key(seed_base + 2)
+        mod.pfilter(key=key, J=J_pf, reps=reps_pf)
+
+        pf = mod.results_history.last()
+
+        profile_rows = []
+        for idx in range(len(theta_list)):
+            lls = pf.logLiks.values[idx, :]
+            fp = mod.theta[idx]
+
+            row = {
+                prof_param: prof_index[idx],
+                "loglik": pp.logmeanexp(lls),
+                "loglik_se": pp.logmeanexp_se(lls)
+            }
+
+            for p in free_params:
+                row[p] = fp[p]
+
+            if "q" in fp:
+                row["q"] = fp["q"]
+
+            profile_rows.append(row)
+
+        profile_df = pd.DataFrame(profile_rows)
+        profile_df = profile_df[np.isfinite(profile_df["loglik"])].copy()
+
+        with open(cache_file, "wb") as f:
+            pickle.dump(profile_df, f)
+
+    profile_results[prof_param] = profile_df
+
+profile_beta_A_df = profile_results["Beta_A"]
+profile_beta_B_df = profile_results["Beta_B"]
+profile_eta_df    = profile_results["eta"]
+profile_rho0_df   = profile_results["rho0"]
+profile_k_df   = profile_results["k"]
+profile_q_df   = profile_results["q"]
+
+
+```
+
+The profile likelihood results in @fig-profile-likelihood provide an assessment of parameter identifiability. Due to Monte Carlo noise in the likelihood estimates, formal 95% profile-likelihood cutoffs were unstable and are not emphasized. The plots are interpreted qualitatively as diagnostics of parameter identifiability. The transmission parameters $\beta_A$ and $\beta_B$ are moderately well identified, with clear curvature indicating a preferred range of values. The reporting rate $\rho_0$ is also well identified, exhibiting a concentrated peak in the profile likelihood.
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Profile likelihood plots"
+#| label: fig-profile-likelihood
+
+from scipy.stats import chi2
+
+# define profiles
+profiles = [
+    (profile_beta_A_df, "Beta_A"),
+    (profile_beta_B_df, "Beta_B"),
+    (profile_eta_df, "eta"),
+    (profile_rho0_df, "rho0"),
+    (profile_k_df, "k"),
+    (profile_q_df, "q")
+]
+
+fig, axes = plt.subplots(2, 3, figsize=(8, 4))
+
+for ax, (df, param) in zip(axes.flat, profiles):
+    prof_best = (
+        df.groupby(param, as_index=False)["loglik"]
+          .max()
+          .sort_values(param)
+    )
+
+    ax.scatter(prof_best[param], prof_best["loglik"], s=20)
+    ax.set_xlabel(param)
+    ax.set_ylim(-1300, -1130) 
+    ax.set_ylabel("log-likelihood")
+    ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+
+```
+
+In contrast, the initial susceptible fraction $\eta$ displays a flatter profile, with lower values clearly disfavored but a broad range of higher values remaining plausible, indicating weaker identifiability. The dispersion parameter $k$ exhibits a relatively flat and noisy profile, suggesting that it is only weakly identified.
+
+The parameter $q$ exhibits a nearly flat profile likelihood, confirming that it is not identifiable from the data. This indicates that multiple values of $q$ produce similar likelihoods, consistent with the global search results. The lack of identifiability is likely driven by the limited temporal span of the data and relatively low case counts, which reduce the ability to distinguish between competing cross-immunity structures.
+
+```{python}
+#| echo: false
+#| output: true
+#using parameters from best model identified in global search
+theta = {
+    "Beta_A": 1.326,
+    "Beta_B": 1.159,
+    "sigma_A": 1.4, # 1/latent period, mu_EI = 7/5 #most sources say exposure period is 4-6 days, so I will use 5 days
+    "sigma_B": 1.4, #for now, assume the latent period is the same for both A and B
+    "gamma_A": mu_IR, # 1/infectious period, lots of varying answers about infected period length, for now I will go with 7 days
+    "gamma_B":mu_IR,
+    "omega": 2 / 52.0, # waning immunity: (6 ish mo)
+    "A_shape_a": A_shape_a,
+    "A_shape_b": A_shape_b,
+    "A_max": A_max,
+    "A_mean": A_mean,
+    "t_peak": 28.0, # peak transmission: week 2 
+    "rho0": 0.0246,
+    "rho_slope": 0.03 * rho0 / 52, # gradual increase in reporting
+    "N": 40000.0,
+    "eta": 0.857,
+    "k": 0.86,
+    "q": 0.709
+}
+
+mod_final = pp.Pomp(
+    rinit=rinit_seirsab,
+    rproc=rproc_seirsab,
+    dmeas=dmeas_seirsab,
+    rmeas=rmeas_seirsab,
+    ys=ys,
+    theta=theta,
+    par_trans = par_trans,
+    statenames=statenames,
+    t0=0.0,
+    nstep=7,
+    accumvars=("H_inc_A", "H_inc_B"),
+    ydim=2,
+    covars=None
+)
+
+```
+
+The simulated trajectories in @fig-final-sim capture the overall seasonal timing and recurrence of RSV outbreaks, but tend to overestimate peak magnitudes and exhibit greater variability than observed data. This suggests that while the model captures the timing of transmission dynamics, it may over-concentrate infections during peak periods. The overestimation of peak magnitudes may partly reflect uncertainty in the effective population size $N$. Because the observed counts represent test results submitted by clinical laboratories rather than true case counts, $N$ does not correspond to any well-defined population. Without external information to anchor a choice for $N$, the model may generate epidemic peaks that are too large relative to the observed sequence counts. This ambiguity is distinct from the reporting rate, $\rho$, which also absorbs some of this uncertainty but cannot fully resolve the identifiability problem.
+
+The negative binomial benchmark achieved a log-likelihood of −1158, while the POMP model equivalent values around −1159. This suggests that the mechanistic model is able to capture key features of the data and biological reality without sacrificing model fit. However, the POMP model still exhibits some mismatch to the observed patterns, including overestimation of peak magnitudes.
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: " RSV Count Simulations From Best Partial Cross Immunity Model"
+#| label: fig-final-sim
+n_sims = 20
+key    = jax.random.key(42)
+X_sims, Y_sims = mod_final.simulate(key=key, nsim=n_sims)
+
+
+
+fig, (ax_A, ax_B) = plt.subplots(1, 2, figsize=(8, 2.8), sharey=True)
+
+sim_A = pd.DataFrame(Y_sims.pivot_table(
+    index="time", columns="sim", values="obs_0").values,
+    columns=[f"sim_{i}" for i in range(n_sims)])
+sim_B = pd.DataFrame(Y_sims.pivot_table(
+    index="time", columns="sim", values="obs_1").values,
+    columns=[f"sim_{i}" for i in range(n_sims)])
+
+rsv_A['count'].plot(ax=ax_A, lw=1.5, color="black", label="Observed")
+sim_A.plot(ax=ax_A, lw=0.5, alpha=0.4, legend=False, color="steelblue")
+ax_A.set(title="RSV A: partial cross-immunity",
+         xlabel="Week", ylabel="Count")
+ax_A.grid(alpha=0.15)
+
+rsv_B['count'].plot(ax=ax_B, lw=1.5, color="black", label="Observed")
+sim_B.plot(ax=ax_B, lw=0.5, alpha=0.4, legend=False, color="tomato")
+ax_B.set(title="RSV B: partial cross-immunity", xlabel="Week")
+ax_B.grid(alpha=0.15)
+
+plt.tight_layout()
+plt.show()
+```
+
+# Conclusions
+
+This analysis evaluated a mechanistic model of RSV transmission to assess whether the available data can inform key epidemiological parameters. The results indicate that several parameters, including the transmission rates, reporting rate, and dispersion parameter, are consistently estimated within narrow ranges, suggesting that core aspects of transmission and observation are well identified.
+
+In contrast, parameters governing susceptibility and cross-immunity exhibit substantial uncertainty. In particular, the cross-immunity parameter $q$ displays a flat profile likelihood and fails to converge in local searches, providing strong evidence that it is not identifiable from the available data. The difference in log-likelihood between the partial immunity model (−1159.3) and the no-immunity model (−1162.4) is approximately 3 units, confirming that the data cannot distinguish between these competing immunity structures. Other scientific studies have also failed to identify the degree of cross immunity through models, but biological studies indicate that similarities in the structure of the subtypes could allow for at least partial cross immunity [@rsv_cross_immunity_2024]. These results suggest that the dataset lacks sufficient information to distinguish between competing biological assumptions about immunity. Multiple combinations of transmission dynamics and susceptibility structure can produce similar observed epidemic patterns, particularly in short time series with relatively low counts.
+
+This analysis is subject to several limitations. The relatively short duration of the time series (approximately five years) restricts the ability to estimate parameters governing longer-term dynamics, particularly those related to immunity and reinfection. Additionally, observed case counts are likely subject to underreporting and noise, reducing the signal available for inference. The combination of model complexity and limited data contributes to parameter trade-offs and weak identifiability, particularly for parameters governing cross-immunity. Finally, ikelihood estimates are additionally subject to Monte Carlo variance inherent to particle filter methods, which limits precision when comparing models with similar fits. Future work incorporating longer time series, higher-resolution data, or additional sources of information may improve identifiability and allow for more precise characterization of immunity dynamics in RSV transmission.
+
+# Scholarship and AI
+
+This project builds on previous STATS 531 infectious diseases projects. We were especially inspired by a previous project on COVID-19 cases in Washtenaw county [@covid_washtenaw_w21] and another project in Kent county [@covid_kent_w24]. Both used a stochastic SEIR model, particle filtering, global search, profile likelihood, and ARMA likelihood benchmarks. The Washtenaw county project shaped our general workflow and showed the importance of not assuming that a mechanistic model is automatically better; their ARMA benchmark achieved a higher likelihood than the SEIR model, suggesting that the SEIR model missed high-frequency reporting structure such as weekly administrative cycles.
+
+Our project extends this idea from a single-strain epidemic curve to a two-subtype RSV setting. While many prior projects use diseases with similar dynamics (Covid-19, Influenza), none appear to consider interactions between strains of disease subtypes. Our project differs from prior projects as our main scientific goal is to assess whether the data support cross-strain immunity between RSV-A and RSV-B through the parameter $q$. Like the prior COVID-19 project in Washtenaw County, we first considered simple likelihood benchmarks, including ARMA-type models and negative binomial count models.
+
+We also learned from peer review of prior 531 projects that visual fit alone is not enough evidence for a successful model, and that weakly identified parameters should be investigated rather than only reported as estimates. This motivated our use of profile likelihood for $q$ and our discussion of model limitations, including subtype-specific reporting bias, changing sequencing intensity, age structure, and immune waning.
+
+AI tools, including Claude and ChatGPT were utilized primarily to help debug code, optimize the figure sizes included in the report, and occassionally improve wording in the report. All AI-suggested code was tested to ensure results made sense before being used in the final report. As a team, we relied heavily on course notes and academic papers to inform our model choices, results, citations, and final interpretations. AI was never used as a scientific authority.
+
+\clearpage
+
+## Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+
+\newpage 
+
+# Supplementary material {#sec-supp}
+
+## Reproducibility
+
+To implement the methods described above, code from lectures 13, 15, and 16 [@notes531] was used as a base and modified for use with the new two strain SEIRS model described in greater detail in the main report. To ensure the cached results load without issues, use version 0.4.3 of pypomp and version 3.0.2 of pandas.
+
+## Selected Exploratory Data Analysis
+
+Sequences in this dataset were contributed by laboratories across the United States, with the largest contributions from New York, Texas, and Washington. Although RSV surveillance is inconsistent across states, most studies have documented consistent national co-circulation patterns of RSV-A and RSV-B, with both subtypes following similar seasonal cycles across regions [@cdc_rsv_surveillance]. Shifts of this typical seasonal pattern have occurred in Florida, Alaska, Hawaii, and other US territories [@cdc_rsv_surveillance]. However, initial exploratory data analysis of RSV counts by state shown in the plots below (@fig-all-states-counts, @fig-florida, @fig-alaska, @fig-hawaii) suggest minimal differences in seasonal timing across these states and New York's typical seasonal pattern. Thus, counts for all US states and territories were included to conserve the number of observations. Under this assumption, we treat the United States as a single homogeneous population and do not model spatial differences.
+
+```{python read in weekly state counts}
+#| echo: false
+state_weekly = pd.read_csv("state_weekly.csv")
+
+state_weekly['week'] = pd.to_datetime(state_weekly['week'])
+
+start_date = "2015-06-01"
+end_date   = "2020-12-31"
+
+state_weekly = state_weekly[
+    (state_weekly['week'] >= start_date) &
+    (state_weekly['week'] <= end_date)]
+```
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Comparison of Counts for Selected States (2015–2020)"
+#| label: fig-all-states-counts
+
+plt.figure(figsize=(7,3.5))
+
+states = ['New York', 'Florida', 'Alaska', 'Hawaii']
+
+for s in states:
+    sub = state_weekly[state_weekly['state'] == s]
+    if not sub.empty:
+        plt.plot(sub['week'], sub['count'], label=s)
+
+plt.legend()
+plt.xlabel("Week")
+plt.ylabel("Count")
+plt.title("RSV Weekly Counts by State (2015–2020)")
+plt.tight_layout()
+plt.show()
+```
+
+```{python florida cases}
+#| echo: false
+#| output: true
+#| fig-cap: "Comparison of Counts for New York and Florida (2015–2020)"
+#| label: fig-florida
+
+plt.figure(figsize=(7,3.5))
+
+states = ['New York', 'Florida']
+
+for s in states:
+    sub = state_weekly[state_weekly['state'] == s]
+    if not sub.empty:
+        plt.plot(sub['week'], sub['count'], label=s)
+
+plt.legend()
+plt.xlabel("Week")
+plt.ylabel("Count")
+plt.title("RSV Weekly Counts for New York vs Florida (2015–2020)")
+plt.tight_layout()
+plt.show()
+
+
+```
+
+```{python alaska cases}
+#| echo: false
+#| output: true
+#| fig-cap: "Comparison of Counts for New York and Alaska (2015–2020)"
+#| label: fig-alaska
+
+plt.figure(figsize=(7,3.5))
+
+states = ['New York', 'Alaska']
+
+for s in states:
+    sub = state_weekly[state_weekly['state'] == s]
+    if not sub.empty:
+        plt.plot(sub['week'], sub['count'], label=s)
+
+plt.legend()
+plt.xlabel("Week")
+plt.ylabel("Count")
+plt.title("RSV Weekly Counts for New York vs Alaska (2015–2020)")
+plt.tight_layout()
+plt.show()
+```
+
+```{python hawaii cases}
+#| echo: false
+#| output: true
+#| fig-cap: "Comparison of Counts for New York and Hawaii (2015–2020)"
+#| label: fig-hawaii
+
+plt.figure(figsize=(7,3.5))
+
+states = ['New York', 'Hawaii']
+
+for s in states:
+    sub = state_weekly[state_weekly['state'] == s]
+    if not sub.empty:
+        plt.plot(sub['week'], sub['count'], label=s)
+
+plt.legend()
+plt.xlabel("Week")
+plt.ylabel("Count")
+plt.title("RSV Weekly Counts for New York vs Hawaii (2015–2020)")
+plt.tight_layout()
+plt.show()
+```
+
+\clearpage
+
+## Methods Details
+
+### SARIMAX Model Diagnostics
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Residuals of the SARIMAX Model over Time"
+#| label: fig-sarimax
+
+import warnings
+warnings.filterwarnings('ignore')
+
+def run_SARIMAX(y, order, seasonal_order):
+  model = SARIMAX(y,
+                  order=order,
+                  seasonal_order=seasonal_order,
+                  enforce_stationarity=False,
+                  enforce_invertibility=False)
+  results = model.fit(disp=False)
+  totalorder = str(order) + str(seasonal_order)
+  return totalorder, results 
+
+y = (
+    rsv_weekly
+    .groupby('week', as_index=True)['count']
+    .sum()
+    .sort_index()
+)
+
+y.index = pd.DatetimeIndex(y.index)
+
+s1_order, s1_results = run_SARIMAX(y, order=(5, 1, 0),seasonal_order=(1,0,0,12))
+s2_order, s2_results = run_SARIMAX(y, order=(4, 1, 0),seasonal_order=(1,0,0,12))
+s3_order, s3_results = run_SARIMAX(y, order=(5, 1, 1),seasonal_order=(1,0,0,12))
+s4_order, s4_results = run_SARIMAX(y, order=(5, 1, 0),seasonal_order=(1,1,0,12))
+s5_order, s5_results = run_SARIMAX(y, order=(4, 1, 0),seasonal_order=(0,0,0,12))
+
+
+
+models = {
+    f"Model 1 {s1_order}": s1_results,
+    f"Model 2 {s2_order}": s2_results,
+    f"Model 3 {s3_order}": s3_results,
+    f"Model 4 {s4_order}": s4_results,
+    f"Model 5 {s5_order}": s5_results
+}
+
+# extract from dictionaries into lists
+comparison_data = []
+for name, model in models.items():
+    comparison_data.append({
+        "Model": name,
+        "AIC": model.aic,
+        "BIC": model.bic,
+        "Log Likelihood": model.llf
+    })
+
+df_comparison = pd.DataFrame(comparison_data).sort_values(by="AIC")
+
+top_model_name = df_comparison.iloc[0]["Model"]
+top_model = models[top_model_name]
+
+resid = top_model.resid
+
+plt.figure()
+plt.plot(resid)
+plt.title(f"Top SARIMAX Model {s1_order} Residuals Over Time")
+plt.show()
+```
+
+@fig-sarimax shows the residuals of the top-performing SARIMAX model over time. The residuals display clear heteroskedasticity, with substantially larger variance during seasonal peaks (around weeks 300–350 and 600–650) compared to off-peak periods. This pattern, combined with the Jarque-Bera test result (JB = 755, p < 0.001) reported in the main text, confirms that the linear-Gaussian assumptions of SARIMAX are violated and motivates the use of a count-based model.
+
+### Model Parameters
+
+::: {#tbl-parameters .list-table tbl-colwidths="[15,30,20,25]"}
+Model parameters for the two-strain SEIRS model
+
+- - Parameter
+  - Description
+  - Role
+  - Notes
+
+- - $\beta_A, \beta_B$
+  - Transmission rates for RSV-A and RSV-B
+  - Estimated
+  - Seasonally varying
+
+- - $\sigma_A, \sigma_B$
+  - Progression rate from exposed to infectious
+  - Fixed
+  - $1/\sigma =$ latent period
+
+- - $\gamma_A, \gamma_B$
+  - Recovery rate from infectious to recovered
+  - Fixed
+  - $1/\gamma =$ infectious period
+
+- - $\omega$
+  - Waning immunity rate
+  - Fixed
+  - $1/\omega =$ duration of immunity
+
+- - $\eta$
+  - Initial susceptible fraction
+  - Estimated
+  - Determines initial conditions
+
+- - $\rho_0$
+  - Initial Reporting rate
+  - Estimated
+  - Links incidence to observed cases at initialization
+
+- - $\rho_{slope}$
+  - Reporting rate increase over time
+  - Time varying
+  - Links incidence to observed cases changing over time due to increased reporting
+
+- - $k$
+  - Dispersion parameter (NegBin)
+  - Estimated
+  - Smaller $k =$ more overdispersion
+
+- - $q$
+  - Cross-immunity parameter
+  - Estimated
+  - $q=0$ none, $q=1$ full
+
+- - $N$
+  - Effective population size
+  - Fixed
+  - Scales transmission
+
+- - $t_{\text{peak}}$
+  - Seasonal peak timing
+  - Fixed
+  - Controls timing of epidemics
+
+- - $A(t)$
+  - Seasonal amplitude
+  - Stochastic
+  - Varies annually
+
+- - $a, b$
+  - Shape parameters for $A(t)$
+  - Fixed
+  - Beta distribution
+
+- - $A_{\max}$
+  - Maximum seasonal amplitude
+  - Fixed
+  - Scales seasonal variation
+
+:::
+
+### Stochastic Transition Equations {.unnumbered}
+
+The strain-specific forces of infection are given by:
+
+$$
+\lambda_A(t) = \beta_A(t)\frac{I_A(t) + (1-q)I_B(t)}{N}, 
+\qquad
+\lambda_B(t) = \beta_B(t)\frac{I_B(t) + (1-q)I_A(t)}{N}.
+$$
+
+Seasonal forcing is incorporated through:
+
+$$
+\beta_A(t) = \beta_{0,A}\left[1 + A(t)\cos\left(\frac{2\pi (t - t_{\text{peak}})}{52}\right)\right],
+\qquad
+\beta_B(t) = \beta_{0,B}\left[1 + A(t)\cos\left(\frac{2\pi (t - t_{\text{peak}})}{52}\right)\right].
+$$
+
+Transitions between compartments use a binomial approximation with exponential transition probability:
+
+$$
+N_{SE,A}(t) \sim \text{Binomial}\left(S(t), 1 - e^{-\lambda_A(t)\delta}\right)
+$$
+
+This was also used for all other transitions (E to I, I to R, R to S) for both strains.
+
+
+### Incidence Process {.unnumbered}
+
+Incidence is defined as the number of new infections entering the exposed compartments. 
+
+$$
+H_A(t+\delta) = H_A(t) + dN_{SE,A}(t),
+\qquad
+H_B(t+\delta) = H_B(t) + dN_{SE,B}(t).
+$$
+
+
+### Initial Conditions {.unnumbered}
+
+Initial conditions are defined as:
+$$
+E_A(0) = 3, \quad I_A(0) = 1, \quad E_B(0) = 3, \quad I_B(0) = 1,
+$$
+
+
+The seasonal amplitude state is initialized as:
+
+$$
+A(0) = A_{\text{mean}}.
+$$
+
+### Measurement Model {.unnumbered}
+Observed case counts are modeled using a negative binomial distribution:
+
+$$
+Y_{A,t} \sim \mathrm{NegBin}(\mu_{A,t}, k), 
+\qquad 
+Y_{B,t} \sim \mathrm{NegBin}(\mu_{B,t}, k),
+$$
+
+with
+
+$$
+\mu_{A,t} = \rho_t H_A(t), 
+\qquad 
+\mu_{B,t} = \rho_t H_B(t),
+$$
+
+where $\rho_t$ is the reporting rate and $k$ is the dispersion parameter.
+
+### Seasonal Amplitude Process {.unnumbered}
+
+Seasonal variation in transmission is governed by a stochastic annual amplitude:
+
+$$
+A_{\text{year}} \sim A_{\max} \cdot \mathrm{Beta}(a, b).
+$$
+
+The sampled amplitude is held constant within each year and reset at annual boundaries.
+
+## Benchmark Negative Binomial Model Parameter Estimates
+
+```{python}
+#| echo: false
+#| output: true
+#| label: tbl-benchmark
+#| tbl-cap: "Negative Binomial Benchmark Model Parameter Estimates"
+#| 
+def neg_loglik_nb(theta, x):
+    mu_intercept, beta1, size = theta
+    lag1 = np.concatenate(([0], x[:-1]))
+    mu = mu_intercept + beta1 * lag1
+    mu = np.clip(mu, 1e-6, None)
+    if size <= 0:
+        return 1e12
+    ll = stats.nbinom.logpmf(x, n=size, p=size / (size + mu))
+    return -np.sum(ll)
+
+subtypes = rsv_weekly["subtype"].unique()
+
+best_fits = {}
+for sub in subtypes:
+    d = rsv_weekly[rsv_weekly["subtype"] == sub].sort_values("week").reset_index(drop=True)
+    x = d["count"].values.astype(float)
+
+    result = minimize(neg_loglik_nb, x0=[0.5, 0.5, 1.0], args=(x,), method="Nelder-Mead")
+
+    print(f"Subtype {sub}: n_obs = {len(x)}, log-likelihood = {-result.fun:.2f}")
+    
+    best_fits[sub] = (result, d, x)
+
+total_ll = sum(-best_fits[sub][0].fun for sub in subtypes)
+print(f"\nCombined log-likelihood: {total_ll:.2f}")
+
+rows = []
+
+for sub in subtypes:
+    result, d, x = best_fits[sub]
+    
+    mu_intercept, beta1, size = result.x
+    loglik = -result.fun
+    
+    rows.append({
+        "Subtype": sub,
+        "mu_intercept": mu_intercept,
+        "beta1": beta1,
+        "size (k)": size,
+        "log_likelihood": loglik,
+        "n_obs": len(x)
+    })
+
+param_table = pd.DataFrame(rows)
+
+param_table = param_table.sort_values("Subtype")
+
+param_table
+
+```
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Negative Binomial Benchmark Diagnostics"
+#| label: fig-negbin-diag
+for sub in subtypes:
+    result, d, x = best_fits[sub]
+    mu_intercept, beta1, size = result.x
+
+    lag1 = np.concatenate(([0], x[:-1]))
+    mu_hat = np.clip(mu_intercept + beta1 * lag1, 1e-6, None)
+    var_hat = mu_hat + (mu_hat**2) / size
+    pearson_resid = (x - mu_hat) / np.sqrt(var_hat)
+    week_fit = d["week"].values
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    fig.suptitle(f"Subtype {sub} — NB Model Diagnostics")
+
+    # Observed vs Fitted
+    axes[0].plot(week_fit, x, label="Observed", alpha=0.7)
+    axes[0].plot(week_fit, mu_hat, label="Fitted", alpha=0.8)
+    axes[0].legend()
+    axes[0].set_title("Observed vs Fitted")
+    axes[0].tick_params(axis="x", rotation=45)
+
+    # Pearson Residuals
+    axes[1].plot(week_fit, pearson_resid)
+    axes[1].axhline(0, linestyle="--")
+    axes[1].set_title("Pearson Residuals")
+    axes[1].tick_params(axis="x", rotation=45)
+
+    plt.tight_layout()
+    plt.show()
+```
+
+\newpage
+
+## No Immunity Model Local Search Results
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Local Search Results for the No Immunity Model"
+#| label: fig-none-local
+
+# run level 0 : quick, 1 : medium, 2 : slow
+RL = 2
+
+# manual control of cached using pickle
+# remove the cache directory to force recomputation
+cache_dir = "cache_" + str(RL) + "_finalproj_no_immunity"
+os.makedirs(cache_dir, exist_ok=True)
+
+
+#NEW ATTEMPT AT LOCAL SEARCH
+## A local search of the likelihood surface
+
+# Define settings based on RL
+if RL == 0:
+    n_local = 5
+    J = 50
+    M = 10
+elif RL == 1:
+    n_local = 10
+    J = 1000
+    M = 50
+elif RL == 2:
+    n_local = 20
+    J = 8000
+    M = 100
+
+cache_file = cache_dir + "/none_local-mif.pkl"
+runtime_file = cache_dir + "/none_local-mif-runtime.pkl"
+
+rw_sd = pp.RWSigma(
+    sigmas={
+        "Beta_A": 0.02,
+        "Beta_B": 0.02,
+        "sigma_A": 0.0,
+        "sigma_B": 0.0,
+        "gamma_A": 0.0,
+        "gamma_B": 0.0,
+        "omega": 0.0,
+        "A_shape_a": 0.0,
+        "A_shape_b": 0.0,
+        "A_max": 0.0,
+        "A_mean": 0.0,
+        "t_peak": 0.0,
+        "rho0": 0.01,
+        "rho_slope": 0.0,
+        "N": 0.0,
+        "eta": 0.02,
+        "k": 0.02,
+        "q": 0.0
+    },
+    init_names=["eta"]
+    )
+    
+runtime = None
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        mif_result = pickle.load(f)
+
+    if os.path.exists(runtime_file):
+        with open(runtime_file, "rb") as f:
+            runtime = pickle.load(f)
+
+else:
+    start = time.perf_counter()
+
+
+    theta_list = [theta.copy() for _ in range(n_local)]
+
+    mod_local = pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        theta=theta_list,
+        par_trans = par_trans,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None
+    )
+
+    key = jax.random.key(482947940)
+
+    mod_local.mif(
+        J=J,
+        M=M,
+        rw_sd=rw_sd,
+        a=0.7,
+        key=key
+    )
+
+    mif_result = mod_local.results_history.last()
+    runtime = time.perf_counter() - start
+    print(f"Local search runtime (RL={RL}): {runtime:.2f} seconds")
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(mif_result, f)
+
+    with open(runtime_file, "wb") as f:
+        pickle.dump(runtime, f)
+
+if runtime is not None:
+    print(f"Local search runtime (RL={RL}): {runtime:.2f} seconds")
+else:
+    print(f"Local search runtime (RL={RL}): not available")
+
+traces_da = mif_result.traces_da
+
+n_reps = traces_da.sizes["replicate"]
+iterations = traces_da.coords["iteration"].values
+
+trace_vars = [
+    ("logLik", "Log-likelihood"),
+    ("Beta_A", r"$\beta_A$"),
+    ("Beta_B", r"$\beta_B$"),
+    ("eta", r"$\eta$"),
+    ("k", "k")
+]
+
+if "rho0" in traces_da.coords["variable"].values:
+    trace_vars.append(("rho0", r"$\rho_0$"))
+
+n_panels = len(trace_vars)
+ncols = 3
+nrows = int(np.ceil(n_panels / ncols))
+
+fig, axes = plt.subplots(nrows, ncols, figsize=(10, 3 * nrows))
+axes = np.atleast_1d(axes).flatten()
+
+for ax, (var, lab) in zip(axes, trace_vars):
+    if var in traces_da.coords["variable"].values:
+        for r in range(n_reps):
+            ax.plot(
+                iterations,
+                traces_da.isel(replicate=r).sel(variable=var).values,
+                alpha=0.4,
+                lw=0.7
+            )
+    ax.set(xlabel="Iteration", ylabel=lab)
+    ax.grid(alpha=0.3)
+    if var == "logLik":
+        pass
+        ax.set_ylim(-1500, -1150) 
+    
+
+for ax in axes[len(trace_vars):]:
+    ax.axis("off")
+
+plt.tight_layout()
+plt.show()
+
+```
+
+```{python}
+#| echo: false
+#| output: true
+cache_file = cache_dir + "/none_local-pfilter.pkl"
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        local_results = pickle.load(f)
+
+else:
+    # Rebuild evaluation model from MIF endpoints
+    n_local = mif_result.traces_da.sizes["replicate"]
+    traces = mif_result.traces_da
+
+    # parameters that were estimated in MIF
+    est_vars = ["Beta_A", "Beta_B", "rho0", "eta", "k"]
+    if "q" in traces.coords["variable"].values:
+        est_vars.append("q")
+
+    theta_endpoints = []
+    for r in range(n_local):
+        th = theta.copy()
+        for var in est_vars:
+            th[var] = float(
+                traces.isel(replicate=r).sel(variable=var).values[-1]
+            )
+        theta_endpoints.append(th)
+
+    mod_eval = pp.Pomp(
+        rinit=rinit_seirsab,
+        rproc=rproc_seirsab,
+        dmeas=dmeas_seirsab,
+        rmeas=rmeas_seirsab,
+        ys=ys,
+        par_trans = par_trans,
+        theta=theta_endpoints,
+        statenames=statenames,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H_inc_A", "H_inc_B"),
+        ydim=2,
+        covars=None
+    )
+
+    key = jax.random.key(900242057)
+    mod_eval.pfilter(key=key, J=7000, reps=15)
+    pf = mod_eval.results_history.last()
+
+    rows = []
+    for i in range(n_local):
+        lls = pf.logLiks.values[i, :]
+        rows.append({
+            **theta_endpoints[i],
+            "loglik": pp.logmeanexp(lls),
+            "loglik_se": pp.logmeanexp_se(lls)
+        })
+
+    local_results = pd.DataFrame(rows)
+
+    with open(cache_file, "wb") as f:
+        pickle.dump(local_results, f)
+
+print(f"Best log-likelihood: {local_results['loglik'].max():.1f}")
+print(
+    f"(SE: {local_results.loc[local_results['loglik'].idxmax(), 'loglik_se']:.1f})"
+)
+```
+
+\newpage
+
+## Partial Immunity Model Full Global Search Plots
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Full Global Search Results for the Partial Immunity Model"
+#| label: fig-full-global-partial
+
+RL = 2
+
+cache_dir = "cache_" + str(RL) + "_finalproj_partial_immunity"
+os.makedirs(cache_dir, exist_ok=True)
+
+cache_file = cache_dir + "/part_global-search.pkl"
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        results_df = pickle.load(f)
+
+
+
+
+
+pairs = [
+    # parameters vs likelihood
+    ("Beta_A", "loglik"),
+    ("Beta_B", "loglik"),
+    ("eta", "loglik"),
+    ("rho0", "loglik"),
+    ("k", "loglik"),
+    ("q", "loglik"),
+
+    # key tradeoffs / identifiability
+    ("Beta_A", "eta"),
+    ("Beta_B", "eta"),
+    ("Beta_A", "rho0"),
+    ("Beta_B", "rho0"),
+    ("eta", "rho0"),
+
+    # new important ones
+    ("k", "rho0")
+]
+
+n = len(pairs)
+ncols = 3
+nrows = int(np.ceil(n / ncols))
+fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 2.8*nrows))
+axes = np.atleast_1d(axes).flatten()
+
+for ax, (x, y) in zip(axes.flat, pairs):
+    ax.scatter(results_df[x], results_df[y], s=10, alpha=0.7)
+    ax.set(xlabel=x, ylabel=y)
+    ax.grid(alpha=0.3)
+
+
+plt.tight_layout()
+plt.show()
+
+
+
+```
+
+\newpage
+
+## No Immunity Model Full Global Search Plots and Best Model Parameters
+
+```{python}
+#| echo: false
+#| output: true
+#| fig-cap: "Global Search Results for the No Immunity Model"
+#| label: fig-global-none
+
+# run level 0 : quick, 1 : medium, 2 : slow
+RL = 2
+
+
+cache_dir = "cache_" + str(RL) + "_finalproj_no_immunity"
+os.makedirs(cache_dir, exist_ok=True)
+
+cache_file = cache_dir + "/none_global-search.pkl"
+
+if os.path.exists(cache_file):
+    with open(cache_file, "rb") as f:
+        results_df = pickle.load(f)
+
+pairs = [
+    # parameters vs likelihood
+    ("Beta_A", "loglik"),
+    ("Beta_B", "loglik"),
+    ("eta", "loglik"),
+    ("rho0", "loglik"),
+    ("k", "loglik"),
+
+    # key tradeoffs / identifiability
+    ("Beta_A", "eta"),
+    ("Beta_B", "eta"),
+    ("Beta_A", "rho0"),
+    ("Beta_B", "rho0"),
+    ("eta", "rho0"),
+
+    # new important ones
+    ("k", "rho0")
+]
+
+n = len(pairs)
+ncols = 3
+nrows = int(np.ceil(n / ncols))
+fig, axes = plt.subplots(nrows, ncols, figsize=(4*ncols, 2.8*nrows))
+axes = np.atleast_1d(axes).flatten()
+
+for ax, (x, y) in zip(axes.flat, pairs):
+    ax.scatter(results_df[x], results_df[y], s=10, alpha=0.7)
+    ax.set(xlabel=x, ylabel=y)
+    ax.grid(alpha=0.3)
+
+plt.tight_layout()
+plt.show()
+
+```
+
+```{python}
+#| echo: false
+#| output: true
+#| label: tbl-global-loglik-none
+#| tbl-cap: "Top 10 Largest Log Likelihoods Obtained via Global Search for No Immunity Model"
+results_df.sort_values("loglik", ascending=False)[
+    ["loglik", "Beta_A", "Beta_B", "eta", "rho0", "k"]
+].head(10)
+```

@@ -1,0 +1,1591 @@
+---
+title: "Flu Cases in the United States"
+bibliography: flu_references.bib
+format:
+  pdf:
+    include-in-header:
+      text: |
+        \RedeclareSectionCommand[
+          beforeskip=0.5em,
+          runin=false,
+          afterskip=0em
+        ]{section}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsection}
+        \RedeclareSectionCommand[
+          beforeskip=0em,
+          runin=false,
+          afterskip=0em
+        ]{subsubsection}
+        \usepackage{fullpage}
+number-sections: true
+execute:
+  echo: false
+  warning: false
+  message: false
+jupyter: smi
+---
+
+## Abstract {.unnumbered}
+
+We analyze weekly U.S. flu case counts using both classical time-series methods and a mechanistic partially observed Markov process model. Focusing on 2016–2019, we find strong yearly seasonality from decomposition and frequency analysis. We then fit ARMA-type baselines and a seasonal SEIRS model, with parameter estimation by local and global search. Overall, the global SEIRS fit improves substantially over the local fit and provides a mechanistic description of the seasonal outbreak pattern.
+
+# Introduction
+
+Flu is a recurring seasonal disease in the United States, with weekly case counts that vary across years. In this project, we analyze weekly U.S. flu data from 1997 to 2021.Our goal is to assess whether classical time-series models and partially observed Markov process (POMP) models can capture the dynamics of weekly flu cases. This is useful because flu data show strong seasonality, short-term dependence, and epidemic-like fluctuations [@hyndman2008automatic].
+We begin with exploratory analysis, STL decomposition, and frequency-domain methods to identify seasonal structure [@cleveland1990stl]. We then fit ARMA and SARMA models and compare them using AIC and residual diagnostics [@hyndman2008automatic].
+We also build a POMP model based on compartmental epidemic dynamics. POMP models link a latent stochastic transmission process to noisy observed data [@king2016pomp]. Parameters are estimated with local and global search using iterated filtering [@ionides2011iterated]. Finally, we compare the statistical and mechanistic approaches in explaining the U.S. weekly flu series.
+
+# Methods
+
+## Data and preprocessing
+
+We use weekly U.S. flu case counts and restrict the main modeling analysis to 2016–2019. This provides several seasonal cycles while keeping the analysis computationally manageable.
+
+## Exploratory and statistical time-series methods
+
+We begin with exploratory plots, STL decomposition, and periodograms to study seasonality. We then fit ARMA and seasonal ARMA models using log transformation, differencing, autocorrelation diagnostics, and AIC-based comparison. ARMA-type models are included mainly as statistical benchmarks. They can summarize autocorrelation in the transformed series, but they do not represent epidemic mechanisms such as transmission, depletion of susceptibles, waning immunity, or seasonally varying infection pressure. For this reason, our main scientific model is the seasonal SEIRS POMP model, while ARMA and SARMA are used primarily for comparison.
+
+## Mechanistic POMP modeling
+
+We use a seasonal SEIRS model within a partially observed Markov process framework. Reported weekly cases are linked to latent incidence through a negative-binomial observation model, and parameters are estimated using particle filtering and iterated filtering with local and global search.
+
+# Results
+
+## Exploratory analysis
+
+The dataset contains weekly total flu case counts in the United States from 1997 to 2021. We first visualize the full series to understand its long-term behavior, seasonal structure, and variation in outbreak intensity across years.
+
+For the main modeling analysis, we focus on 2016 to 2019. This shorter window still captures multiple seasonal cycles while keeping filtering and parameter search computationally manageable. It also avoids the unusual disruption in 2020 and 2021 during the COVID-19 period. We therefore present both the full series and the shortened series.
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# read data
+flu_data = pd.read_excel("flu_cases_1997_2021_raw_data.xlsx")
+
+# make sure columns are numeric
+flu_data["YEAR"] = pd.to_numeric(flu_data["YEAR"], errors="coerce")
+flu_data["WEEK"] = pd.to_numeric(flu_data["WEEK"], errors="coerce")
+flu_data["Total_cases"] = pd.to_numeric(flu_data["Total_cases"], errors="coerce")
+
+# remove missing values and ensure integer year/week
+flu_data = flu_data.dropna(subset=["YEAR", "WEEK", "Total_cases"]).copy()
+flu_data["YEAR"] = flu_data["YEAR"].astype(int)
+flu_data["WEEK"] = flu_data["WEEK"].astype(int)
+
+# sort properly by year and week
+flu_data = flu_data.sort_values(["YEAR", "WEEK"]).reset_index(drop=True)
+
+# create approximate weekly date index
+flu_data["DATE"] = (
+    pd.to_datetime(flu_data["YEAR"].astype(str) + "-01-01") +
+    pd.to_timedelta((flu_data["WEEK"] - 1) * 7, unit="D")
+)
+
+# shortened subset
+flu_short = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+
+# stacked plots
+fig, axes = plt.subplots(2, 1, figsize=(5.5, 4.6))
+
+axes[0].plot(flu_data["DATE"], flu_data["Total_cases"])
+axes[0].set_title("U.S. Weekly Flu Cases (1997–2021)", fontsize=10)
+axes[0].set_xlabel("Week", fontsize=9)
+axes[0].set_ylabel("Cases", fontsize=9)
+
+axes[1].plot(flu_short["DATE"], flu_short["Total_cases"])
+axes[1].set_title("U.S. Weekly Flu Cases (2016–2019)", fontsize=10)
+axes[1].set_xlabel("Week", fontsize=9)
+axes[1].set_ylabel("Cases", fontsize=9)
+
+for ax in axes:
+    ax.tick_params(axis="both", labelsize=8)
+
+plt.tight_layout()
+plt.show()
+```
+
+## Decomposition
+
+From the decomposition plot below, we observe a seasonal pattern that likely follows a yearly cycle. The trend changes gradually over time, while a few larger residual fluctuations remain near peak seasons.
+```{python}
+from statsmodels.tsa.seasonal import STL
+import matplotlib.pyplot as plt
+
+# use the shortened series for decomposition
+flu_ts = flu_short.set_index("DATE")["Total_cases"]
+
+# STL decomposition with yearly seasonality for weekly data
+stl = STL(flu_ts, period=52, robust=True)
+flu_stl = stl.fit()
+
+# plot decomposition
+fig = flu_stl.plot()
+fig.set_size_inches(8, 5.8)
+plt.suptitle("STL Decomposition of U.S. Weekly Flu Cases (2016–2019)", y=1.02)
+plt.tight_layout()
+plt.show()
+```
+
+### Frequency Analysis
+
+In this part, we analyze the data in the frequency domain to investigate seasonality. From the periodogram below, the dominant frequency is about 0.0192. This corresponds to a period of
+$T = \frac{1}{\omega} = \frac{1}{0.0192} \approx 52$ weeks. This suggests that the main seasonal pattern in the weekly flu data occurs approximately once every year.
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import periodogram
+from scipy.ndimage import uniform_filter1d
+
+# use restricted series
+x = flu_short["Total_cases"].values
+
+# remove mean before periodogram
+x_centered = x - np.mean(x)
+
+# ---------- Unsmoothed periodogram ----------
+freqs, power = periodogram(x_centered, fs=1, scaling="spectrum")
+
+# ignore zero frequency when finding dominant peak
+positive = freqs > 0
+dominant_freq_unsmoothed = freqs[positive][np.argmax(power[positive])]
+dominant_period_unsmoothed = 1 / dominant_freq_unsmoothed
+
+plt.figure(figsize=(4.6, 2.5))
+plt.plot(freqs[positive], power[positive])
+plt.axvline(dominant_freq_unsmoothed, linestyle="--")
+plt.xlabel("Frequency")
+plt.ylabel("Spectral Density")
+plt.title("Unsmoothed Periodogram of U.S. Weekly Flu Cases (2016–2019)")
+plt.tight_layout()
+plt.show()
+```
+
+## ARMA and SARMA models
+
+We next fit ARMA models to the restricted 2016–2019 flu series as a baseline time series approach. Since the earlier analysis showed strong yearly seasonality, the ARMA model serves mainly as a reference before moving to seasonal or mechanistic models.
+
+To stabilize the variance, we apply a log transformation of the form log(1 + x), and then examine the autocorrelation structure before fitting the model.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+
+flu_restricted = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+
+flu_ts = flu_restricted["Total_cases"].values
+log_flu_ts = np.log1p(flu_ts)
+diff_log_flu_ts = np.diff(log_flu_ts)
+
+fig, axes = plt.subplots(1, 2, figsize=(6.0, 2.6))
+
+plot_acf(log_flu_ts, lags=20, ax=axes[0])
+axes[0].set_title("Log Series", fontsize=9)
+
+plot_acf(diff_log_flu_ts, lags=20, ax=axes[1])
+axes[1].set_title("Differenced Log Series", fontsize=9)
+
+for ax in axes:
+    ax.tick_params(axis="both", labelsize=7)
+
+plt.tight_layout()
+plt.show()
+```
+
+The ACF of the log-transformed series shows slow decay, so the series is still not stationary after transformation. After first differencing, the autocorrelations are reduced, though some seasonal dependence remains.
+
+We therefore use the differenced log series for baseline ARMA modeling.
+
+### ARMA
+
+An ARMA$(p,q)$ model can be written as
+$$
+\phi(B)(Y_t - \mu) = \psi(B)\varepsilon_t.
+$$
+We compare candidate models using
+$$
+\mathrm{AIC} = -2\ell(\hat{\theta}) + 2D,
+$$
+and choose the model with the smallest AIC.
+
+```{python}
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
+
+# restricted data
+flu_restricted = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+
+# transformed series: first-differenced log counts
+flu_ts = flu_restricted["Total_cases"].values
+log_flu_ts = np.log1p(flu_ts)
+diff_log_flu_ts = np.diff(log_flu_ts)
+
+def arma_aic_table(data, max_p, max_q):
+    rows = []
+    best_aic = np.inf
+    best_order = None
+    best_model = None
+    
+    for p in range(max_p + 1):
+        for q in range(max_q + 1):
+            try:
+                model = ARIMA(data, order=(p, 0, q))
+                fitted = model.fit()
+                aic = fitted.aic
+            except:
+                aic = np.nan
+                fitted = None
+            
+            rows.append({"AR": p, "MA": q, "AIC": aic})
+            
+            if not np.isnan(aic) and aic < best_aic:
+                best_aic = aic
+                best_order = (p, q)
+                best_model = fitted
+    
+    aic_df = pd.DataFrame(rows)
+    aic_table = aic_df.pivot(index="AR", columns="MA", values="AIC")
+    return aic_table, best_order, best_model
+
+max_ar = 2
+max_ma = 2
+
+aic_table, best_order, best_model = arma_aic_table(diff_log_flu_ts, max_ar, max_ma)
+
+#print("AIC table:")
+#print(aic_table.round(3))
+#print("\nBest ARMA(p,q):", best_order)
+#print("Best AIC:", round(best_model.aic, 3))
+```
+
+The AIC table for models with $p, q \in \{0,1,2\}$ suggests that ARMA(2,2) provides the best fit among the candidates considered, with the smallest AIC value of -7.012. We therefore select ARMA(2,2) as the baseline non-seasonal model for the differenced log series.
+
+```{python}
+best_p, best_q = best_order
+arma_best_model = ARIMA(diff_log_flu_ts, order=(best_p, 0, best_q)).fit()
+```
+
+```{python}
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+resid = arma_best_model.resid
+
+# Ljung-Box test
+lb_test = acorr_ljungbox(resid, lags=[20], return_df=True)
+
+# side-by-side plots
+fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8))
+
+# Residual time series
+axes[0].plot(resid, linewidth=1.2)
+axes[0].axhline(0, color="black", linewidth=1)
+axes[0].set_title(f"Residuals from ARMA{best_order}", fontsize=10)
+axes[0].set_xlabel("Time", fontsize=9)
+axes[0].set_ylabel("Residual", fontsize=9)
+axes[0].tick_params(labelsize=8)
+
+# Residual ACF
+plot_acf(resid, lags=20, ax=axes[1])
+axes[1].set_title(f"ACF of Residuals", fontsize=10)
+axes[1].set_xlabel("Lag", fontsize=9)
+axes[1].set_ylabel("ACF", fontsize=9)
+axes[1].tick_params(labelsize=8)
+
+plt.tight_layout()
+plt.show()
+
+# compact Ljung-Box output
+print(f"Ljung-Box test (lag 20): statistic = {lb_test['lb_stat'].iloc[0]:.3f}, p-value = {lb_test['lb_pvalue'].iloc[0]:.3f}")
+```
+
+The residual diagnostics suggest that ARMA(2,2) captures much of the short-term dependence in the transformed series. The residual ACF is small, and the Ljung–Box test (p-value = 0.436) does not indicate remaining autocorrelation. Overall, ARMA(2,2) provides a reasonable baseline fit, though the strong seasonality in the data suggests that a seasonal model may be more appropriate.
+
+### SARMA
+
+We next consider SARMA models to account for the strong yearly seasonality in the weekly flu series. For weekly data, the general SARMA$(p,q)\times(P,Q)_{52}$ model is
+$$
+\phi(B)\,\Phi(B^{52})\,(Y_t - \mu) = \psi(B)\,\Psi(B^{52})\,\varepsilon_t.
+$$
+Since ARMA$(2,2)$ gave the best baseline AIC, we fix $p=2$ and $q=2$ and search over seasonal orders $P$ and $Q$. The seasonal AIC comparison selected seasonal order $(P,Q)=(0,0)$, with best SARMA AIC = -5.4, indicating that adding seasonal terms did not improve the fit over the baseline ARMA model.
+```{python}
+import numpy as np
+import pandas as pd
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+
+# transformed series from earlier section
+flu_restricted = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+flu_ts = flu_restricted["Total_cases"].values
+log_flu_ts = np.log1p(flu_ts)
+diff_log_flu_ts = np.diff(log_flu_ts)
+
+def sarma_aic_table(data, p, q, P_max, Q_max, seasonal_period):
+    rows = []
+    best_aic = np.inf
+    best_order = None
+    best_model = None
+    
+    for P in range(P_max + 1):
+        for Q in range(Q_max + 1):
+            try:
+                model = SARIMAX(
+                    data,
+                    order=(p, 0, q),
+                    seasonal_order=(P, 0, Q, seasonal_period),
+                    trend="c",
+                    enforce_stationarity=False,
+                    enforce_invertibility=False
+                )
+                fitted = model.fit(disp=False)
+                aic = fitted.aic
+            except:
+                aic = np.nan
+                fitted = None
+            
+            rows.append({"SAR": P, "SMA": Q, "AIC": aic})
+            
+            if not np.isnan(aic) and aic < best_aic:
+                best_aic = aic
+                best_order = (P, Q)
+                best_model = fitted
+    
+    aic_df = pd.DataFrame(rows)
+    aic_table = aic_df.pivot(index="SAR", columns="SMA", values="AIC")
+    return aic_table, best_order, best_model
+
+# fix regular orders from ARMA(2,2)
+p, q = 2, 2
+P_max, Q_max = 2, 2
+seasonal_period = 52
+
+sarma_table, best_seasonal_order, best_sarma_model = sarma_aic_table(
+    diff_log_flu_ts, p, q, P_max, Q_max, seasonal_period
+)
+
+#print("AIC table for SARMA(2,2) x (P,Q)[52]:")
+#print(sarma_table.round(3))
+```
+
+```{python}
+best_P, best_Q = best_seasonal_order
+
+model_sarma = SARIMAX(
+    diff_log_flu_ts,
+    order=(2, 0, 2),
+    seasonal_order=(best_P, 0, best_Q, 52),
+    trend="c",
+    enforce_stationarity=False,
+    enforce_invertibility=False
+).fit(disp=False)
+```
+
+```{python}
+import matplotlib.pyplot as plt
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.stats.diagnostic import acorr_ljungbox
+
+resid_sarma = model_sarma.resid
+
+# Ljung-Box test
+lb_sarma = acorr_ljungbox(resid_sarma, lags=[20], return_df=True)
+
+# side-by-side plots
+fig, axes = plt.subplots(1, 2, figsize=(7.2, 2.8))
+
+# Residual time series
+axes[0].plot(resid_sarma, linewidth=1.2)
+axes[0].axhline(0, color="black", linewidth=1)
+axes[0].set_title(f"Residuals from SARMA(2,2) x ({best_P},{best_Q})[52]", fontsize=10)
+axes[0].set_xlabel("Time", fontsize=9)
+axes[0].set_ylabel("Residual", fontsize=9)
+axes[0].tick_params(labelsize=8)
+
+# Residual ACF
+plot_acf(resid_sarma, lags=20, ax=axes[1])
+axes[1].set_title("ACF of Residuals", fontsize=10)
+axes[1].set_xlabel("Lag", fontsize=9)
+axes[1].set_ylabel("ACF", fontsize=9)
+axes[1].tick_params(labelsize=8)
+
+plt.tight_layout()
+plt.show()
+
+# compact Ljung-Box output
+print(
+    f"Ljung-Box test (lag 20): statistic = {lb_sarma['lb_stat'].iloc[0]:.3f}, "
+    f"p-value = {lb_sarma['lb_pvalue'].iloc[0]:.3f}"
+)
+```
+
+Although the original weekly flu series shows clear yearly seasonality, the models are fitted to the first-differenced log series, where much of that structure has already been reduced. In addition, the restricted 2016–2019 window contains only a few yearly cycles, making seasonal parameters harder to estimate reliably. As a result, adding seasonal terms did not improve the fit enough to justify the extra model complexity.
+
+## SEIRS Model
+
+We model the weekly flu data using a seasonal SEIRS model within the partially observed Markov process framework. The model allows individuals to move through susceptible, exposed, infectious, and recovered states, with waning immunity returning recovered individuals to the susceptible class. A seasonal transmission rate is included to capture the yearly pattern in flu activity.
+
+### Model Definition
+
+The compartment transitions are:
+
+- $S(t) \to E(t)$: new infections
+- $E(t) \to I(t)$: progression from exposed to infectious
+- $I(t) \to R(t)$: recovery
+- $R(t) \to S(t)$: waning immunity
+
+The transition rates are
+
+$$
+\frac{dN_{SE}}{dt} = \beta(t)\frac{S(t)I(t)}{N}
+$$
+$$
+\frac{dN_{EI}}{dt} = \mu_{EI} E(t)
+$$
+$$
+\frac{dN_{IR}}{dt} = \mu_{IR} I(t)
+$$
+$$
+\frac{dN_{RS}}{dt} = \mu_{RS} R(t)
+$$
+where $N$ is the total population size.
+
+Seasonality is modeled through
+
+$$
+\beta(t) = \beta_0 \left[1 + \mathrm{amp}\cos\left(\frac{2\pi (t + \mathrm{phase})}{52}\right)\right],
+$$
+
+where $\beta_0$ is the baseline transmission rate, $\mathrm{amp}$ controls the strength of seasonal variation, and $\mathrm{phase}$ shifts the timing of the seasonal peak.
+
+Using a discrete-time approximation, the transitions over a small interval $\Delta t$ are modeled as
+
+$$
+\Delta N_{SE} \sim \mathrm{Binomial}\left(S(t),\; 1 - \exp\left(-\beta(t)\frac{I(t)}{N}\Delta t\right)\right)
+$$
+$$
+\Delta N_{EI} \sim \mathrm{Binomial}\left(E(t),\; 1 - \exp(-\mu_{EI}\Delta t)\right)
+$$
+$$
+\Delta N_{IR} \sim \mathrm{Binomial}\left(I(t),\; 1 - \exp(-\mu_{IR}\Delta t)\right)
+$$
+$$
+\Delta N_{RS} \sim \mathrm{Binomial}\left(R(t),\; 1 - \exp(-\mu_{RS}\Delta t)\right)
+$$
+
+The observed weekly cases are linked to the latent infections through
+
+$$
+Y_t \mid H_t \sim \mathrm{NegBin}(\text{mean} = \rho H_t,\; \text{dispersion} = k),
+$$
+
+where $\rho$ is the reporting fraction and $k$ controls overdispersion.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import jax
+import jax.numpy as jnp
+from jax import random
+```
+
+```{python}
+# read and restrict data
+flu_data = pd.read_excel("flu_cases_1997_2021_raw_data.xlsx")
+
+flu_data["YEAR"] = pd.to_numeric(flu_data["YEAR"], errors="coerce")
+flu_data["WEEK"] = pd.to_numeric(flu_data["WEEK"], errors="coerce")
+flu_data["Total_cases"] = pd.to_numeric(flu_data["Total_cases"], errors="coerce")
+
+flu_data = flu_data.dropna(subset=["YEAR", "WEEK", "Total_cases"]).copy()
+flu_data["YEAR"] = flu_data["YEAR"].astype(int)
+flu_data["WEEK"] = flu_data["WEEK"].astype(int)
+
+flu_data = flu_data.sort_values(["YEAR", "WEEK"]).reset_index(drop=True)
+
+flu_restricted = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+flu_restricted["time"] = np.arange(len(flu_restricted))
+
+y_obs = jnp.array(flu_restricted["Total_cases"].values)
+T = len(y_obs)
+
+```
+```{python}
+def seasonal_beta(t_weeks, beta0, amp, phase):
+    return beta0 * (1.0 + amp * jnp.cos(2.0 * jnp.pi * (t_weeks + phase) / 52.0))
+
+
+def seirs_one_substep(state, t_weeks, params, dt, key):
+    S, E, I, R, H = state
+
+    beta0 = params["beta0"]
+    amp   = params["amp"]
+    phase = params["phase"]
+    mu_EI = params["mu_EI"]
+    mu_IR = params["mu_IR"]
+    mu_RS = params["mu_RS"]
+    N     = params["N"]
+
+    beta_t = seasonal_beta(t_weeks, beta0, amp, phase)
+
+    p_SE = 1.0 - jnp.exp(-beta_t * I / N * dt)
+    p_EI = 1.0 - jnp.exp(-mu_EI * dt)
+    p_IR = 1.0 - jnp.exp(-mu_IR * dt)
+    p_RS = 1.0 - jnp.exp(-mu_RS * dt)
+
+    p_SE = jnp.clip(p_SE, 0.0, 1.0)
+    p_EI = jnp.clip(p_EI, 0.0, 1.0)
+    p_IR = jnp.clip(p_IR, 0.0, 1.0)
+    p_RS = jnp.clip(p_RS, 0.0, 1.0)
+
+    key1, key2, key3, key4 = jax.random.split(key, 4)
+
+    dN_SE = jax.random.binomial(key1, n=jnp.int32(S), p=p_SE)
+    dN_EI = jax.random.binomial(key2, n=jnp.int32(E), p=p_EI)
+    dN_IR = jax.random.binomial(key3, n=jnp.int32(I), p=p_IR)
+    dN_RS = jax.random.binomial(key4, n=jnp.int32(R), p=p_RS)
+
+    S_new = S + dN_RS - dN_SE
+    E_new = E + dN_SE - dN_EI
+    I_new = I + dN_EI - dN_IR
+    R_new = R + dN_IR - dN_RS
+    H_new = H + dN_EI
+
+    return (S_new, E_new, I_new, R_new, H_new)
+```
+
+```{python}
+def simulate_seirs(params, n_weeks, key, steps_per_week=7):
+    """
+    Simulate weekly observations from the SEIRS model.
+    H accumulates within each week and is reset after observation is generated.
+    Observation model: Negative binomial via Gamma-Poisson mixture.
+    """
+    N = params["N"]
+
+    S0 = params["S0"]
+    E0 = params["E0"]
+    I0 = params["I0"]
+    R0 = params["R0"]
+
+    # initialize from proportions
+    S = jnp.round(S0 * N)
+    E = jnp.round(E0 * N)
+    I = jnp.round(I0 * N)
+    R = jnp.round(R0 * N)
+    H = 0.0
+
+    rho = params["rho"]
+    k = params["k"]
+
+    dt = 1.0 / steps_per_week
+
+    weekly_cases = []
+    weekly_states = []
+
+    state = (S, E, I, R, H)
+    main_key = key
+
+    for week in range(n_weeks):
+        # reset weekly accumulator
+        S, E, I, R, _ = state
+        state = (S, E, I, R, 0.0)
+
+        for sub in range(steps_per_week):
+            main_key, subkey = random.split(main_key)
+            t_weeks = week + sub * dt
+            state = seirs_one_substep(state, t_weeks, params, dt, subkey)
+
+        S, E, I, R, H = state
+
+        # negative binomial observation via Gamma-Poisson mixture
+        mean_cases = jnp.maximum(rho * H, 1e-8)
+
+        main_key, key_gamma, key_pois = random.split(main_key, 3)
+
+        # Gamma shape-scale parameterization:
+        # lambda ~ Gamma(shape=k, scale=mean/k)
+        lam = random.gamma(key_gamma, k) * (mean_cases / k)
+
+        # Poisson observation
+        y = random.poisson(key_pois, lam)
+
+        weekly_cases.append(y)
+        weekly_states.append((S, E, I, R, H))
+
+    return jnp.array(weekly_cases), weekly_states
+```
+
+```{python}
+params = {
+    "beta0": 1.6,      # baseline transmission
+    "amp":   0.35,     # seasonal amplitude
+    "phase": 2.0,      # phase shift in weeks
+    "mu_EI": 1.0,      # exposed -> infectious
+    "mu_IR": 0.8,      # infectious -> recovered
+    "mu_RS": 0.04,     # waning immunity
+    "N":     1_000_000.0,  # effective population scale
+    "S0":    0.70,
+    "E0":    0.02,
+    "I0":    0.01,
+    "R0":    0.27,
+    "rho":   0.015,    # reporting fraction
+    "k":     20.0      # overdispersion
+}
+```
+
+```{python}
+key = random.PRNGKey(531)
+
+nsim = 20
+sim_paths = []
+
+for i in range(nsim):
+    key, simkey = random.split(key)
+    sim_cases, sim_states = simulate_seirs(params, T, simkey, steps_per_week=7)
+    sim_paths.append(np.array(sim_cases))
+
+sim_paths = np.array(sim_paths)
+
+plt.figure(figsize=(9, 4.2))
+for i in range(nsim):
+    plt.plot(flu_restricted["time"], sim_paths[i], color="gray", alpha=0.4)
+
+plt.plot(flu_restricted["time"], flu_restricted["Total_cases"].values, color="red", linewidth=2)
+plt.title("SEIRS Simulation with Seasonal Transmission")
+plt.xlabel("Time (weeks)")
+plt.ylabel("Cases")
+plt.legend()
+plt.tight_layout()
+plt.show()
+```
+
+The SEIRS simulations capture the main yearly outbreak pattern and seasonal timing in the data, although some observed peaks are still underestimated. This provides a reasonable mechanistic starting point before formal parameter estimation.
+
+## Local Search
+
+We estimated the SEIRS parameters using a local search based on iterated filtering. The IF2 trace plot shows movement toward a higher-likelihood region, although some variability remains across replicates.
+
+```{python}
+import os
+import time
+import pickle
+import numpy as np
+import pandas as pd
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import pypomp as pp
+
+from pypomp.random import (
+    fast_approx_rbinom,
+    fast_approx_rgamma,
+    fast_approx_rpoisson,
+)
+
+cache_dir = "cache"
+os.makedirs(cache_dir, exist_ok=True)
+
+# run level
+RL = int(os.environ.get("RL", "1"))
+
+if RL == 0:
+    J_pf = 300
+    J_mif = 300
+    M_local = 20
+    n_local = 8
+elif RL == 1:
+    J_pf = 800
+    J_mif = 800
+    M_local = 40
+    n_local = 12
+else:
+    J_pf = 1500
+    J_mif = 1500
+    M_local = 60
+    n_local = 15
+
+```
+
+```{python}
+flu_data = pd.read_excel("flu_cases_1997_2021_raw_data.xlsx")
+
+flu_data["YEAR"] = pd.to_numeric(flu_data["YEAR"], errors="coerce")
+flu_data["WEEK"] = pd.to_numeric(flu_data["WEEK"], errors="coerce")
+flu_data["Total_cases"] = pd.to_numeric(flu_data["Total_cases"], errors="coerce")
+
+flu_data = flu_data.dropna(subset=["YEAR", "WEEK", "Total_cases"]).copy()
+flu_data["YEAR"] = flu_data["YEAR"].astype(int)
+flu_data["WEEK"] = flu_data["WEEK"].astype(int)
+
+flu_data = flu_data.sort_values(["YEAR", "WEEK"]).reset_index(drop=True)
+
+flu_restricted = flu_data[(flu_data["YEAR"] >= 2016) & (flu_data["YEAR"] <= 2019)].copy()
+flu_restricted["time"] = np.arange(1, len(flu_restricted) + 1)
+
+ys = (
+    flu_restricted.loc[:, ["time", "Total_cases"]]
+    .rename(columns={"Total_cases": "reports"})
+    .set_index("time")
+    .astype(float)
+)
+```
+
+```{python}
+def nbinom_logpmf(x, k, mu):
+    x, k, mu = (jnp.asarray(v) for v in (x, k, mu))
+    logp_zero = jnp.where(x == 0, 0.0, -jnp.inf)
+    safe_mu = jnp.where(mu == 0.0, 1.0, mu)
+    gammaln = jax.scipy.special.gammaln
+    core = (
+        gammaln(k + x)
+        - gammaln(k)
+        - gammaln(x + 1)
+        + k * jnp.log(k / (k + safe_mu))
+        + x * jnp.log(safe_mu / (k + safe_mu))
+    )
+    return jnp.where(mu == 0.0, logp_zero, core)
+
+def rnbinom(key, k, mu):
+    key_g, key_p = jax.random.split(key)
+    lam = fast_approx_rgamma(key_g, k) * (mu / k)
+    return fast_approx_rpoisson(key_p, lam)
+```
+
+```{python}
+def seasonal_beta(t_weeks, beta0, amp, phase):
+    return beta0 * (1.0 + amp * jnp.cos(2.0 * jnp.pi * (t_weeks + phase) / 52.0))
+
+def seirs_rinit(theta_, key, covars, t0):
+    N = theta_["N"]
+
+    S0 = jnp.round(theta_["S0"] * N)
+    E0 = jnp.round(theta_["E0"] * N)
+    I0 = jnp.round(theta_["I0"] * N)
+    R0 = jnp.round(theta_["R0"] * N)
+
+    total = S0 + E0 + I0 + R0
+    S0 = S0 + (N - total)
+
+    H0 = 0.0
+    return {"S": S0, "E": E0, "I": I0, "R": R0, "H": H0}
+
+def seirs_rproc(X_, theta_, key, covars, t, dt):
+    S = jnp.asarray(X_["S"])
+    E = jnp.asarray(X_["E"])
+    I = jnp.asarray(X_["I"])
+    R = jnp.asarray(X_["R"])
+    H = jnp.asarray(X_["H"])
+
+    mu_EI = theta_["mu_EI"]
+    mu_IR = theta_["mu_IR"]
+    mu_RS = theta_["mu_RS"]
+    N = theta_["N"]
+
+    Beta_t = seasonal_beta(t, theta_["beta0"], theta_["amp"], theta_["phase"])
+
+    p_SE = 1.0 - jnp.exp(-Beta_t * I / N * dt)
+    p_EI = 1.0 - jnp.exp(-mu_EI * dt)
+    p_IR = 1.0 - jnp.exp(-mu_IR * dt)
+    p_RS = 1.0 - jnp.exp(-mu_RS * dt)
+
+    p_SE = jnp.clip(p_SE, 0.0, 1.0)
+    p_EI = jnp.clip(p_EI, 0.0, 1.0)
+    p_IR = jnp.clip(p_IR, 0.0, 1.0)
+    p_RS = jnp.clip(p_RS, 0.0, 1.0)
+
+    key_SE, key_EI, key_IR, key_RS = jax.random.split(key, 4)
+
+    dN_SE = fast_approx_rbinom(key_SE, jnp.float32(S), p_SE)
+    dN_EI = fast_approx_rbinom(key_EI, jnp.float32(E), p_EI)
+    dN_IR = fast_approx_rbinom(key_IR, jnp.float32(I), p_IR)
+    dN_RS = fast_approx_rbinom(key_RS, jnp.float32(R), p_RS)
+
+    S_new = S - dN_SE + dN_RS
+    E_new = E + dN_SE - dN_EI
+    I_new = I + dN_EI - dN_IR
+    R_new = R + dN_IR - dN_RS
+    H_new = H + dN_EI   # weekly incidence accumulator
+
+    return {"S": S_new, "E": E_new, "I": I_new, "R": R_new, "H": H_new}
+
+def seirs_dmeas(Y_, X_, theta_, covars, t):
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = rho * H
+    return nbinom_logpmf(Y_["reports"], k, mu)
+
+def seirs_rmeas(X_, theta_, key, covars, t):
+    rho = theta_["rho"]
+    k = theta_["k"]
+    H = X_["H"]
+    mu = rho * H
+    reports = rnbinom(key, k, mu)
+    return jnp.array([reports])
+```
+
+```{python}
+def to_est(theta):
+    return {
+        "beta0": jnp.log(theta["beta0"]),
+        "amp": jax.scipy.special.logit(theta["amp"]),
+        "phase": theta["phase"],
+        "mu_EI": jnp.log(theta["mu_EI"]),
+        "mu_IR": jnp.log(theta["mu_IR"]),
+        "mu_RS": jnp.log(theta["mu_RS"]),
+        "N": theta["N"],
+        "S0": theta["S0"],
+        "E0": theta["E0"],
+        "I0": theta["I0"],
+        "R0": theta["R0"],
+        "rho": jax.scipy.special.logit(theta["rho"]),
+        "k": jnp.log(theta["k"]),
+    }
+
+def from_est(theta):
+    return {
+        "beta0": jnp.exp(theta["beta0"]),
+        "amp": jax.scipy.special.expit(theta["amp"]),
+        "phase": theta["phase"],
+        "mu_EI": jnp.exp(theta["mu_EI"]),
+        "mu_IR": jnp.exp(theta["mu_IR"]),
+        "mu_RS": jnp.exp(theta["mu_RS"]),
+        "N": theta["N"],
+        "S0": theta["S0"],
+        "E0": theta["E0"],
+        "I0": theta["I0"],
+        "R0": theta["R0"],
+        "rho": jax.scipy.special.expit(theta["rho"]),
+        "k": jnp.exp(theta["k"]),
+    }
+
+par_trans_seirs = pp.ParTrans(to_est=to_est, from_est=from_est)
+```
+
+```{python}
+rw_sd_seirs = pp.RWSigma(
+    sigmas={
+        "beta0": 0.03,
+        "amp": 0.02,
+        "phase": 0.10,
+        "mu_EI": 0.03,
+        "mu_IR": 0.03,
+        "mu_RS": 0.03,
+        "N": 0.0,
+        "S0": 0.0,
+        "E0": 0.0,
+        "I0": 0.0,
+        "R0": 0.0,
+        "rho": 0.02,
+        "k": 0.03,
+    },
+    init_names=[]
+)
+```
+
+```{python}
+theta_start = {
+    "beta0": 1.8,
+    "amp": 0.45,
+    "phase": 6.0,
+    "mu_EI": 0.9,
+    "mu_IR": 1.8,
+    "mu_RS": 0.15,
+    "N": 1.0e6,
+    "S0": 0.70,
+    "E0": 0.02,
+    "I0": 0.01,
+    "R0": 0.27,
+    "rho": 0.015,
+    "k": 15.0,
+}
+```
+
+```{python}
+statenames_seirs = ["S", "E", "I", "R", "H"]
+
+def build_seirs_model(theta):
+    return pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=theta,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+
+flu_seirs = build_seirs_model(theta_start)
+```
+
+```{python}
+key = jax.random.key(42)
+flu_seirs.pfilter(key=key, J=J_pf, reps=1)
+pf_result = flu_seirs.results_history.last()
+#float(pf_result.logLiks.values[0, 0])
+```
+
+```{python}
+rng = np.random.default_rng(531)
+
+def jitter_theta(theta, scale=0.10):
+    theta_new = dict(theta)
+
+    theta_new["beta0"] = float(theta["beta0"] * np.exp(rng.normal(0, scale)))
+    theta_new["amp"] = float(
+        1 / (1 + np.exp(-(jax.scipy.special.logit(theta["amp"]) + rng.normal(0, scale))))
+    )
+    theta_new["phase"] = float(theta["phase"] + rng.normal(0, 1.0))
+    theta_new["phase"] = float(np.clip(theta_new["phase"], 0.0, 52.0))
+
+    theta_new["mu_EI"] = float(theta["mu_EI"] * np.exp(rng.normal(0, scale)))
+    theta_new["mu_IR"] = float(theta["mu_IR"] * np.exp(rng.normal(0, scale)))
+    theta_new["mu_RS"] = float(theta["mu_RS"] * np.exp(rng.normal(0, scale)))
+
+    theta_new["rho"] = float(
+        1 / (1 + np.exp(-(jax.scipy.special.logit(theta["rho"]) + rng.normal(0, scale))))
+    )
+    theta_new["k"] = float(theta["k"] * np.exp(rng.normal(0, scale)))
+
+    # fixed
+    theta_new["N"] = theta["N"]
+    theta_new["S0"] = theta["S0"]
+    theta_new["E0"] = theta["E0"]
+    theta_new["I0"] = theta["I0"]
+    theta_new["R0"] = theta["R0"]
+
+    return theta_new
+```
+
+```{python}
+cache_file_local = os.path.join(cache_dir, f"flu_seirs_local_mif_RL{RL}.pkl")
+
+if os.path.exists(cache_file_local):
+    with open(cache_file_local, "rb") as f:
+        local_fit = pickle.load(f)
+else:
+    theta_list_local = [theta_start.copy()] + [
+        jitter_theta(theta_start, scale=0.10) for _ in range(n_local - 1)
+    ]
+
+    mod_local = pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=theta_list_local,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+
+    key = jax.random.key(482947940)
+    t0_local = time.perf_counter()
+    mod_local.mif(J=J_mif, M=M_local, rw_sd=rw_sd_seirs, a=0.5, key=key)
+    local_runtime = time.perf_counter() - t0_local
+
+    local_fit = {
+        "result": mod_local.results_history.last(),
+        "runtime_sec": local_runtime,
+    }
+
+    with open(cache_file_local, "wb") as f:
+        pickle.dump(local_fit, f)
+
+#print(f"Local search runtime: {local_fit['runtime_sec']:.2f} seconds")
+```
+```{python}
+def evaluate_theta_list(theta_list, J_eval=J_pf, reps=10, seed=2026):
+    eval_mod = pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=theta_list,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+    key = jax.random.key(seed)
+    eval_mod.pfilter(key=key, J=J_eval, reps=reps)
+    return eval_mod.results_history.last()
+
+local_theta_end = local_fit["result"].theta
+local_pf_eval = evaluate_theta_list(local_theta_end, J_eval=J_pf, reps=10, seed=2026)
+
+local_logliks = np.array(local_pf_eval.logLiks)
+local_mean_loglik = local_logliks.mean(axis=1)
+local_se_loglik = local_logliks.std(axis=1, ddof=1) / np.sqrt(local_logliks.shape[1])
+
+results_local = pd.DataFrame(local_theta_end)
+results_local["loglik_mean"] = local_mean_loglik
+results_local["loglik_se"] = local_se_loglik
+results_local = results_local.sort_values("loglik_mean", ascending=False)
+```
+```{python}
+best_local = results_local.iloc[0]
+
+print(
+    f"Best local loglik = {best_local['loglik_mean']:.2f} "
+    f"(beta0={best_local['beta0']:.3f}, amp={best_local['amp']:.3f}, "
+    f"phase={best_local['phase']:.3f}, rho={best_local['rho']:.4f}, k={best_local['k']:.3f})"
+)
+```
+```{python}
+traces_da_local = local_fit["result"].traces_da
+
+local_loglik_trace = traces_da_local.sel(variable="logLik")
+
+plt.figure(figsize=(4.6, 3.4))
+iters = local_loglik_trace.coords["iteration"].values
+vals = local_loglik_trace.values
+if vals.ndim == 1:
+    plt.scatter(iters, vals, alpha=0.7, color="blue", s=12)
+else:
+    for row in vals:
+        plt.scatter(iters, row, alpha=0.7, color="blue", s=12)
+plt.xlabel("IF2 iteration")
+plt.ylabel("log likelihood")
+plt.title("Local IF2 Search Traces for SEIRS Flu Model")
+plt.grid(alpha=0.2)
+plt.tight_layout()
+plt.show()
+```
+```{python}
+from pandas.plotting import scatter_matrix
+import matplotlib.pyplot as plt
+
+pair_cols = [
+    "loglik_mean", "beta0", "amp", "phase",
+    "mu_EI", "mu_IR", "mu_RS", "rho"
+]
+
+# keep only reasonably good fits
+results_local_plot = results_local[results_local["loglik_mean"] > -10000].copy()
+
+axes = scatter_matrix(
+    results_local_plot[pair_cols],
+    figsize=(5, 5),
+    diagonal="hist",
+    alpha=0.7
+)
+
+# smaller labels
+for ax in axes.flatten():
+    ax.tick_params(axis="both", labelsize=7)
+
+plt.suptitle("Pairs Plot of Local Search Results", fontsize=12, fontweight="bold", y=0.98)
+plt.tight_layout()
+plt.show()
+```
+
+### Global Search
+
+We next conducted a global search using multiple starting points and evaluated the fitted endpoints by particle filtering. The best global-search parameter set had beta0 = 3.422, amp = 0.691, phase = 50.634, mu_EI = 1.295, mu_IR = 1.861, mu_RS = 0.822, rho = 0.0145, and k = 5.021, with an estimated log likelihood of -1892.04.
+
+This is a clear improvement over the best local-search log likelihood of -2565.59. The fitted simulations capture the main seasonal outbreak pattern, although they remain more variable than the observed series.
+```{python}
+import os
+import time
+import pickle
+import numpy as np
+import pandas as pd
+import jax
+import pypomp as pp
+
+# assumes these already exist from your local-search setup:
+# seirs_rinit, seirs_rproc, seirs_dmeas, seirs_rmeas
+# ys, statenames_seirs, par_trans_seirs
+# rw_sd_seirs, theta_start, evaluate_theta_list
+# RL, J_pf, J_mif
+
+cache_file_global = os.path.join(cache_dir, f"flu_seirs_global_mif_RL{RL}.pkl")
+
+rng = np.random.default_rng(123456)
+
+def sample_global_start():
+    return {
+        "beta0": float(np.exp(rng.uniform(np.log(0.8), np.log(6.0)))),
+        "amp": float(rng.uniform(0.05, 0.85)),
+        "phase": float(rng.uniform(0.0, 52.0)),
+        "mu_EI": float(np.exp(rng.uniform(np.log(0.3), np.log(3.0)))),
+        "mu_IR": float(np.exp(rng.uniform(np.log(0.5), np.log(4.0)))),
+        "mu_RS": float(np.exp(rng.uniform(np.log(0.03), np.log(1.0)))),
+        "N": float(theta_start["N"]),
+        "S0": float(rng.uniform(0.40, 0.85)),
+        "E0": float(rng.uniform(0.001, 0.08)),
+        "I0": float(rng.uniform(0.001, 0.05)),
+        "R0": 0.0,  # filled below so proportions sum to <= 1
+        "rho": float(rng.uniform(0.005, 0.03)),
+        "k": float(np.exp(rng.uniform(np.log(5.0), np.log(30.0)))),
+    }
+
+def fix_initial_fractions(theta):
+    s0, e0, i0 = theta["S0"], theta["E0"], theta["I0"]
+    total = s0 + e0 + i0
+    if total >= 0.95:
+        scale = 0.95 / total
+        s0 *= scale
+        e0 *= scale
+        i0 *= scale
+    theta["S0"] = float(s0)
+    theta["E0"] = float(e0)
+    theta["I0"] = float(i0)
+    theta["R0"] = float(max(0.001, 1.0 - (s0 + e0 + i0)))
+    return theta
+
+n_global = 10 if RL == 0 else (20 if RL == 1 else 30)
+
+if os.path.exists(cache_file_global):
+    with open(cache_file_global, "rb") as f:
+        global_fit = pickle.load(f)
+else:
+    theta_list_global = [fix_initial_fractions(sample_global_start()) for _ in range(n_global)]
+
+    mod_global = pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=theta_list_global,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+
+    key = jax.random.key(782347211)
+    t0_global = time.perf_counter()
+    mod_global.mif(J=J_mif, M=M_local, rw_sd=rw_sd_seirs, a=0.5, key=key)
+    global_runtime = time.perf_counter() - t0_global
+
+    global_fit = {
+        "result": mod_global.results_history.last(),
+        "runtime_sec": global_runtime,
+    }
+
+    with open(cache_file_global, "wb") as f:
+        pickle.dump(global_fit, f)
+
+#print(f"Global search runtime: {global_fit['runtime_sec']:.2f} seconds")
+
+# evaluate global-search endpoints
+global_theta_end = global_fit["result"].theta
+global_pf_eval = evaluate_theta_list(global_theta_end, J_eval=J_pf, reps=10, seed=3030)
+
+global_logliks = np.array(global_pf_eval.logLiks)
+global_mean_loglik = global_logliks.mean(axis=1)
+global_se_loglik = global_logliks.std(axis=1, ddof=1) / np.sqrt(global_logliks.shape[1])
+
+results_global = pd.DataFrame(global_theta_end)
+results_global["loglik_mean"] = global_mean_loglik
+results_global["loglik_se"] = global_se_loglik
+results_global = results_global.sort_values("loglik_mean", ascending=False).reset_index(drop=True)
+
+best_global = results_global.iloc[0].copy()
+
+print(
+    f"Best global fit: loglik={best_global['loglik_mean']:.2f}, "
+    f"beta0={best_global['beta0']:.3f}, amp={best_global['amp']:.3f}, "
+    f"phase={best_global['phase']:.3f}, rho={best_global['rho']:.4f}, "
+    f"k={best_global['k']:.3f}"
+)
+```
+
+
+```{python}
+import matplotlib.pyplot as plt
+from pandas.plotting import scatter_matrix
+
+pair_cols_global = [
+    "loglik_mean", "beta0", "amp", "phase",
+    "mu_EI", "mu_IR", "mu_RS", "rho"
+]
+
+# keep only reasonably good global fits
+results_global_plot = results_global[results_global["loglik_mean"] > -10000].copy()
+
+axes = scatter_matrix(
+    results_global_plot[pair_cols_global],
+    figsize=(5, 5),
+    diagonal="hist",
+    alpha=0.7
+)
+
+for ax in axes.flatten():
+    ax.tick_params(axis="both", labelsize=7)
+
+plt.suptitle("Pairs Plot of Global Search Results", fontsize=12, fontweight="bold", y=0.98)
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+best_idx = results_global["loglik_mean"].idxmax()
+best_global = results_global.loc[best_idx].copy()
+
+best_global_params = {
+    "beta0": float(best_global["beta0"]),
+    "amp": float(best_global["amp"]),
+    "phase": float(best_global["phase"]),
+    "mu_EI": float(best_global["mu_EI"]),
+    "mu_IR": float(best_global["mu_IR"]),
+    "mu_RS": float(best_global["mu_RS"]),
+    "N": float(best_global["N"]),
+    "S0": float(best_global["S0"]),
+    "E0": float(best_global["E0"]),
+    "I0": float(best_global["I0"]),
+    "R0": float(best_global["R0"]),
+    "rho": float(best_global["rho"]),
+    "k": float(best_global["k"]),
+}
+
+#print(best_global_params)
+#print("Best global log-likelihood:", float(best_global["loglik_mean"]))
+#print("SE:", float(best_global["loglik_se"]))
+```
+
+```{python}
+best_model = build_seirs_model(best_global_params)
+
+key = jax.random.key(999)
+X_sims, Y_sims = best_model.simulate(key=key, nsim=20)
+
+sim_df = Y_sims.pivot_table(index="time", columns="sim", values="obs_0")
+sim_df.columns = [f"sim_{i+1}" for i in range(sim_df.shape[1])]
+
+y_max = flu_restricted["Total_cases"].max()
+
+fig, ax = plt.subplots(figsize=(6.4, 3.2))
+
+for i, col in enumerate(sim_df.columns):
+    if i == 0:
+        ax.plot(sim_df.index, sim_df[col], color="gray", alpha=0.3, label="Simulated")
+    else:
+        ax.plot(sim_df.index, sim_df[col], color="gray", alpha=0.3)
+
+ax.plot(
+    flu_restricted["time"].values,
+    flu_restricted["Total_cases"].values,
+    color="red",
+    linewidth=2,
+    label="Observed"
+)
+
+ax.set_title("SEIRS Simulation with Best Global Parameters", fontsize=11)
+ax.set_xlabel("Time (weeks)")
+ax.set_ylabel("Cases")
+ax.legend(fontsize=8)
+ax.grid(alpha=0.2)
+
+plt.tight_layout()
+plt.show()
+```
+
+## Model Comparison
+
+The ARMA(2,2) model provides a useful statistical baseline for the restricted flu series, but it does not directly represent epidemic transmission or seasonally changing susceptibility. The seasonal time-series analysis confirms a strong yearly pattern, with a dominant period of about 52 weeks.
+
+The SEIRS model provides a mechanistic description through disease-state transitions and seasonal transmission. Local search improved the fit, and global search improved it further, raising the best log likelihood from -2565.89 to -1892.08.
+
+Overall, the SEIRS model gives a more informative description of the epidemic dynamics, although its simulated trajectories remain more variable than the observed data. This over-variability suggests that, although the model captures the timing and broad seasonal structure of outbreaks, it does not fully reproduce the stability of the observed weekly series. It also suggests that some parameters may be only weakly identified, with different parameter combinations producing similar qualitative behavior. We therefore interpret the SEIRS fit mainly as a mechanistic explanation of seasonal flu dynamics rather than as a fully calibrated quantitative model.
+
+## Profile Likelihood
+
+To study parameter uncertainty, we compute profile likelihoods for selected SEIRS parameters and examine how the fitted log likelihood changes as each parameter is varied.
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import jax
+import pypomp as pp
+from scipy.stats import chi2
+
+MLE_params = {
+    "beta0": float(best_global["beta0"]),
+    "amp": float(best_global["amp"]),
+    "phase": float(best_global["phase"]),
+    "mu_EI": float(best_global["mu_EI"]),
+    "mu_IR": float(best_global["mu_IR"]),
+    "mu_RS": float(best_global["mu_RS"]),
+    "N": float(best_global["N"]),
+    "S0": float(best_global["S0"]),
+    "E0": float(best_global["E0"]),
+    "I0": float(best_global["I0"]),
+    "R0": float(best_global["R0"]),
+    "rho": float(best_global["rho"]),
+    "k": float(best_global["k"]),
+}
+
+```
+
+```{python}
+if RL == 0:
+    J_prof_mif = 300
+    M_prof = 15
+    J_prof_pf = 500
+    pf_reps_prof = 5
+elif RL == 1:
+    J_prof_mif = 500
+    M_prof = 20
+    J_prof_pf = 800
+    pf_reps_prof = 5
+else:
+    J_prof_mif = 800
+    M_prof = 30
+    J_prof_pf = 1200
+    pf_reps_prof = 8
+
+```
+
+```{python}
+def make_profile_rw_sd(fixed_param):
+    sigmas = {
+        "beta0": 0.03,
+        "amp": 0.02,
+        "phase": 0.10,
+        "mu_EI": 0.03,
+        "mu_IR": 0.03,
+        "mu_RS": 0.03,
+        "N": 0.0,
+        "S0": 0.0,
+        "E0": 0.0,
+        "I0": 0.0,
+        "R0": 0.0,
+        "rho": 0.02,
+        "k": 0.03,
+    }
+    sigmas[fixed_param] = 0.0
+    return pp.RWSigma(sigmas=sigmas, init_names=[])
+```
+
+```{python}
+def evaluate_profile_point(param_name, param_value, base_params, seed=2026):
+    params_prof = dict(base_params)
+    params_prof[param_name] = float(param_value)
+
+    mod_prof = pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=params_prof,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+
+    rw_sd_prof = make_profile_rw_sd(param_name)
+
+    key_mif = jax.random.key(seed)
+    mod_prof.mif(J=J_prof_mif, M=M_prof, rw_sd=rw_sd_prof, a=0.5, key=key_mif)
+
+    theta_end = mod_prof.results_history.last().theta
+
+    mod_eval = pp.Pomp(
+        rinit=seirs_rinit,
+        rproc=seirs_rproc,
+        dmeas=seirs_dmeas,
+        rmeas=seirs_rmeas,
+        ys=ys,
+        theta=theta_end,
+        statenames=statenames_seirs,
+        par_trans=par_trans_seirs,
+        t0=0.0,
+        nstep=7,
+        accumvars=("H",),
+        ydim=1,
+        covars=None,
+    )
+
+    key_pf = jax.random.key(seed + 10000)
+    mod_eval.pfilter(key=key_pf, J=J_prof_pf, reps=pf_reps_prof)
+
+    pf_res = mod_eval.results_history.last()
+    logliks = np.array(pf_res.logLiks).reshape(-1)
+
+    return {
+        "fixed_value": float(param_value),
+        "loglik_mean": float(np.mean(logliks)),
+        "loglik_se": float(np.std(logliks, ddof=1) / np.sqrt(len(logliks))) if len(logliks) > 1 else 0.0,
+        "theta_end": theta_end,
+    }
+```
+
+```{python}
+def run_profile(param_name, grid, base_params, seed_start=5000):
+    rows = []
+    for i, val in enumerate(grid):
+        out = evaluate_profile_point(
+            param_name=param_name,
+            param_value=val,
+            base_params=base_params,
+            seed=seed_start + i
+        )
+        rows.append({
+            param_name: out["fixed_value"],
+            "loglik_mean": out["loglik_mean"],
+            "loglik_se": out["loglik_se"],
+        })
+        #print(f"{param_name}={val:.6f} -> loglik={out['loglik_mean']:.3f}")
+
+    prof_df = pd.DataFrame(rows).sort_values(param_name).reset_index(drop=True)
+
+    cutoff = prof_df["loglik_mean"].max() - chi2.ppf(0.95, df=1) / 2.0
+    keep = prof_df["loglik_mean"] >= cutoff
+
+    if keep.any():
+        ci_low = prof_df.loc[keep, param_name].min()
+        ci_high = prof_df.loc[keep, param_name].max()
+    else:
+        ci_low, ci_high = np.nan, np.nan
+
+    return prof_df, cutoff, (ci_low, ci_high)
+```
+
+```{python}
+def plot_profile(prof_df, param_name, cutoff, ci, color="steelblue"):
+    plt.figure(figsize=(6.6, 3.8))
+    plt.plot(prof_df[param_name], prof_df["loglik_mean"], marker="o", color=color)
+    plt.axhline(cutoff, linestyle="--", color="red", label="95% cutoff")
+
+    if np.isfinite(ci[0]) and np.isfinite(ci[1]):
+        plt.axvline(ci[0], linestyle=":", color="blue")
+        plt.axvline(ci[1], linestyle=":", color="blue")
+
+    plt.xlabel(f"{param_name} (fixed)")
+    plt.ylabel("Profile log-likelihood")
+    plt.title(f"Profile Likelihood for {param_name}")
+    plt.grid(alpha=0.2)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    print(f"95% CI for {param_name}: [{ci[0]}, {ci[1]}]")
+```
+
+```{python}
+amp_grid = np.linspace(
+    max(0.01, MLE_params["amp"] - 0.15),
+    min(0.99, MLE_params["amp"] + 0.15),
+    9
+)
+profile_amp, cutoff_amp, ci_amp = run_profile("amp", amp_grid, MLE_params, seed_start=6000)
+
+beta0_grid = np.linspace(
+    max(0.1, MLE_params["beta0"] - 1.0),
+    MLE_params["beta0"] + 1.0,
+    9
+)
+profile_beta0, cutoff_beta0, ci_beta0 = run_profile("beta0", beta0_grid, MLE_params, seed_start=7000)
+
+rho_grid = np.linspace(0.006, 0.012, 9)
+profile_rho, cutoff_rho, ci_rho = run_profile("rho", rho_grid, MLE_params, seed_start=9000)
+
+phase_center = MLE_params["phase"]
+phase_offsets = np.array([-8, -6, -4, -2, 0, 2, 4, 6, 8], dtype=float)
+phase_grid = (phase_center + phase_offsets) % 52
+profile_phase, cutoff_phase, ci_phase = run_profile("phase", phase_grid, MLE_params, seed_start=8000)
+
+# reorder phase for circular plotting
+profile_phase_plot = profile_phase.copy()
+profile_phase_plot["phase_shifted"] = ((profile_phase_plot["phase"] - phase_center + 26) % 52) - 26
+profile_phase_plot = profile_phase_plot.sort_values("phase_shifted").reset_index(drop=True)
+
+fig, axes = plt.subplots(2, 2, figsize=(5.6, 4.6))
+axes = axes.flatten()
+
+profiles = [
+    (profile_amp, "amp", cutoff_amp, ci_amp, "steelblue"),
+    (profile_beta0, "beta0", cutoff_beta0, ci_beta0, "darkgreen"),
+    (profile_phase_plot, "phase", cutoff_phase, ci_phase, "purple"),
+    (profile_rho, "rho", cutoff_rho, ci_rho, "brown"),
+]
+
+for ax, (df, pname, cutoff, ci, color) in zip(axes, profiles):
+    if pname == "phase":
+        x = df["phase_shifted"]
+        xlabel = "phase shift"
+    else:
+        x = df[pname]
+        xlabel = pname
+
+    ax.plot(x, df["loglik_mean"], marker="o", color=color, linewidth=1.2, markersize=3.5)
+    ax.axhline(cutoff, linestyle="--", color="red", linewidth=0.9)
+
+    if np.isfinite(ci[0]) and np.isfinite(ci[1]) and pname != "phase":
+        ax.axvline(ci[0], linestyle=":", color="blue", linewidth=0.9)
+        ax.axvline(ci[1], linestyle=":", color="blue", linewidth=0.9)
+
+    ax.set_title(pname, fontsize=9)
+    ax.set_xlabel(xlabel, fontsize=8)
+    ax.set_ylabel("loglik", fontsize=8)
+    ax.tick_params(axis="both", labelsize=7)
+    ax.grid(alpha=0.2)
+
+plt.suptitle("Profile Likelihoods", fontsize=11, fontweight="bold", y=0.98)
+plt.tight_layout()
+plt.show()
+```
+
+The profile likelihoods for beta0 and amp show clear peaks, suggesting that these parameters are reasonably well identified. The phase profile is best interpreted near the seasonal boundary, while rho remains boundary-limited and is less reliably identified.
+
+## Conclusion
+
+In this project, we analyzed the U.S. weekly flu series using both classical time-series methods and a mechanistic POMP framework. The exploratory analysis, STL decomposition, and frequency analysis all showed strong annual seasonality, indicating that yearly structure is a dominant feature of the data.
+
+The ARMA model provided a useful statistical baseline for the transformed series, but it does not directly represent epidemic transmission or changing susceptibility. In contrast, the seasonal SEIRS model gave a mechanistic interpretation through disease-state transitions and seasonal transmission.
+
+Parameter estimation substantially improved the SEIRS fit. Local search identified a promising region of parameter space, and global search improved the best log likelihood from -2565.89 to -1892.08. The fitted simulations also reproduced the main timing and general magnitude of the seasonal outbreaks.
+
+Overall, the main conclusion is that the flu series is strongly seasonal and that the SEIRS model provides a richer explanation of the epidemic dynamics than the statistical baseline. However, the fitted simulations remain more variable than the observed data, so the final model should be viewed as a strong qualitative and mechanistic fit rather than a perfectly calibrated quantitative one. This likely reflects remaining model misspecification or partial parameter non-identifiability, where multiple parameter settings can generate similar seasonal patterns. As a result, the fitted parameter values should be interpreted cautiously, with greater emphasis on the model’s ability to explain the seasonal mechanism than on exact numerical calibration.
+
+# Scholarship {.unnumbered}
+
+This project was developed in the context of earlier STATS 531 influenza projects, especially Modeling Flu Cases in Oklahoma (Winter 2024 Project 5), Influenza cases in the Netherlands (Winter 2024 Project 16), Flu Cases in Michigan (Winter 2025 Project 3), and Influenza in Nova Scotia (Winter 2025 Project 14) [@w24proj5; @w24proj16; @w25proj3; @w25proj14]. Like these earlier studies, our report combines exploratory time-series analysis with mechanistic epidemic modeling, but our contribution is different in focusing on weekly U.S. flu counts from 2016--2019 and in centering the final analysis on a seasonal SEIRS model fitted by likelihood-based methods rather than on descriptive analysis alone.
+
+The peer reviews of earlier flu projects directly shaped the presentation of our report. Reviews of prior projects repeatedly noted that ARMA analysis for epidemic count data is often better handled on a log scale and should be treated mainly as a benchmark for mechanistic modeling rather than the main scientific result [@w24rev5; @w24rev16; @w25rev3; @w25rev14]. Other recurring comments concerned weak in-text citation practice, unclear explanation of creative contribution, overstated conclusions[@w24rev10; @w24rev16; @w25rev3]. In response, we use ARMA mainly as a baseline, keep the main emphasis on the fitted SEIRS model, state more clearly how our work relates to previous 531 flu projects, and aim for more cautious interpretation of what the fitted model does and does not explain. 
+
+# Acknowledgments {.unnumbered}
+
+AI assistance (ChatGPT) was used for adapting code, debugging, code cleanup and formatting support while preparing this Quarto report. 
+
+# Bibliography {.unnumbered}
+
+::: {#refs}
+:::
+

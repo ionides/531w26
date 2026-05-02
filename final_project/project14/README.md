@@ -4,6 +4,12 @@ The goal, to compare school-term seasonality with a more flexible alternative fo
 
 1. Fig 3 looks compelling. The Fourier basis is trying to fit the termtime, but it is too smooth to do this accurately. If this lack of smoothness really is worth 25 units of log-likelihood (i.e., if the model coding and optimzation are correct) then this is a nice discovery. However, there is a substantial flaw in the reasoning.
 The code in `targeted_if2.py` shows that the search for the Fourier basis does not re-estimate other parameters; only the basis coefficients have positive random walk std dev. That could explain the results. A model comparison based on AIC or log-likelihood is only valid if both models are evaluated at their respective MLE. The authors likely failed to explore the region of the parameter space where the Fourier basis might actually excel. 
+The authors were well aware of this issue, and Sec 5.4 explains the justification for fixing to avoid numerical problems:
+"A full joint MLE would require addressing the particle collapse problem by other
+means — particle MCMC or profile likelihood — and could potentially narrow or widen this gap."
+The full MLE could only narrow this gap, mathematically.
+The problem maximizing the full MLE was probably not to do with the method but the implementation.
+At a minimum, starting at the constrained MLE and then estimating more parameters could only improve the log-likelihood, and in this region the authors report no filtering problems.
 
 1. Non-matching reference: Tan, Ionides & Hooker (2024) is not a reference for JAX.
 
